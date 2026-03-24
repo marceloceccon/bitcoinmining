@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Glass theme tokens */
+    --background: #F8F9FC;
+    --foreground: #111827;
+    --card-bg: rgba(255, 255, 255, 0.65);
+    --card-border: rgba(210, 218, 230, 0.7);
+    --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --card-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    --card-radius: 20px;
+    --backdrop-blur: 20px;
+
+    /* Semantic palette (preserved) */
+    --primary: #1E40AF;
+    --primary-light: #3B82F6;
+    --primary-faint: #EFF6FF;
+    --primary-glow: rgba(30, 64, 175, 0.08);
+
+    /* Status tints for glass backgrounds */
+    --success-tint: rgba(16, 185, 129, 0.08);
+    --danger-tint: rgba(239, 68, 68, 0.08);
+    --warning-tint: rgba(251, 191, 36, 0.08);
+    --info-tint: rgba(59, 130, 246, 0.08);
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--card-border);
+  }
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+}
+
+/* ────────────────────────────────────────────────────────
+   Body background: subtle gradient + decorative blobs
+   ──────────────────────────────────────────────────────── */
+.glass-body-bg {
+  position: relative;
+  background:
+    linear-gradient(145deg, #F8F9FC 0%, #EEF1F8 35%, #F4F0F9 65%, #F8F9FC 100%);
+  min-height: 100vh;
+}
+
+.glass-body-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 64, 175, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(245, 158, 11, 0.02) 0%, transparent 40%);
+}
+
+.glass-body-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ────────────────────────────────────────────────────────
+   Glass card utility (applied via Card component)
+   ──────────────────────────────────────────────────────── */
+@layer utilities {
+  .glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .glass-card {
+      backdrop-filter: blur(var(--backdrop-blur));
+      -webkit-backdrop-filter: blur(var(--backdrop-blur));
+    }
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .glass-card {
+      background: rgba(255, 255, 255, 0.92);
+    }
+  }
+
+  .glass-card-hover:hover {
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Glass header bar */
+  .glass-header {
+    background: rgba(255, 255, 255, 0.75);
+    border-bottom: 1px solid var(--card-border);
+    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .glass-header {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+  }
+
+  /* Glass nav pill bar */
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  @supports (backdrop-filter: blur(1px)) {
+    .glass-nav {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+  }
+
+  /* Glass inner section (for nested cards, stat items) */
+  .glass-inner {
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    border-radius: 12px;
+    transition: background 0.2s ease;
+  }
+
+  .glass-inner:hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  /* Status tinted glass */
+  .glass-success {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+
+  .glass-danger {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  .glass-warning {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
+    border-color: rgba(251, 191, 36, 0.2);
+  }
+
+  .glass-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  /* Row hover for data rows */
+  .row-hover {
+    @apply transition-all duration-150;
+    border-radius: 8px;
+  }
+  .row-hover:hover {
+    background: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  }
+
+  /* Text accent for key values */
+  .text-accent-value {
+    color: #1E40AF;
+  }
+}
+
+/* ────────────────────────────────────────────────────────
+   Smooth animations
+   ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in-scale {
+  animation: fadeInScale 0.25s ease-out forwards;
+}
+
+/* Tabular numbers for all mono-spaced data */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ────────────────────────────────────────────────────────
+   Network stats banner (glassmorphic dark)
+   ──────────────────────────────────────────────────────── */
+.glass-banner {
+  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.12);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .glass-banner {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* ────────────────────────────────────────────────────────
+   Modal overlay with glass backdrop
+   ──────────────────────────────────────────────────────── */
+.glass-modal-overlay {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .glass-modal-overlay {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+}
+
+.glass-modal {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .glass-modal {
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+}
+
+/* ────────────────────────────────────────────────────────
+   Select / dropdown styling
+   ──────────────────────────────────────────────────────── */
+select {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}

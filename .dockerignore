@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+!README.md
+tests
+docs
+.env*
+!.env.example
+Dockerfile
+.dockerignore
+screenshot.mjs
+vitest.config.ts
