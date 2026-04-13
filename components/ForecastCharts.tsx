@@ -12,7 +12,8 @@ import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { generateForecast, getStockToFlowTarget } from "@/lib/forecasting";
+import { getStockToFlowTarget } from "@/lib/forecasting";
+import { useForecast, useNetworkData } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { ForecastParams, ForecastPeriod } from "@/types";
 
@@ -67,7 +68,7 @@ function aggregatePeriods(
       const net = p.miningRevenueUsd - p.opexUsd - capex;
       cumCash += p.miningRevenueUsd - p.opexUsd;
       return {
-        label: formatDate(p.date),
+        label: formatDate(new Date(p.date)),
         btcMined: p.btcMined,
         btcSold: p.btcSold,
         revenue: p.miningRevenueUsd,
@@ -94,7 +95,7 @@ function aggregatePeriods(
     cumCash += revenue - opex;
     const last = chunk[chunk.length - 1];
 
-    const startDate = chunk[0].date;
+    const startDate = new Date(chunk[0].date);
     let label: string;
     if (granularity === "quarterly") {
       const q = Math.floor(startDate.getMonth() / 3) + 1;
@@ -137,18 +138,13 @@ export default function ForecastCharts() {
   const [granularity, setGranularity] = useState<Granularity>("monthly");
   const [tableExpanded, setTableExpanded] = useState(false);
 
-  // Fetch current BTC price on mount
+  // Fetch current BTC price via our API
+  const { data: networkData } = useNetworkData();
   useEffect(() => {
-    fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd")
-      .then((r) => r.json())
-      .then((data) => {
-        const price = data?.bitcoin?.usd;
-        if (typeof price === "number" && price > 0) {
-          setParams((prev) => ({ ...prev, startingBtcPrice: Math.round(price) }));
-        }
-      })
-      .catch(() => {}); // keep fallback
-  }, []);
+    if (networkData?.btcPriceUsd && networkData.btcPriceUsd > 0) {
+      setParams((prev) => ({ ...prev, startingBtcPrice: Math.round(networkData.btcPriceUsd) }));
+    }
+  }, [networkData?.btcPriceUsd]);
 
   // Auto-calculate S2F prices
   const s2fFinalPrice = useMemo(
@@ -175,50 +171,69 @@ export default function ForecastCharts() {
     [params, effectiveFinalPrice]
   );
 
-  const forecast = useMemo(() => {
-    if (config.miners.length === 0) return null;
-    return generateForecast(config, effectiveParams);
-  }, [config, effectiveParams]);
+  const { data: forecast } = useForecast(config, effectiveParams);
 
-  // Sensitivity analysis: run 4 what-if scenarios
-  const sensitivity = useMemo(() => {
-    if (!forecast || config.miners.length === 0) return null;
+  // Sensitivity analysis — fetch 4 what-if scenarios from API
+  const [sensitivity, setSensitivity] = useState<{ label: string; value: string; delta: number }[] | null>(null);
+
+  useEffect(() => {
+    if (!forecast || config.miners.length === 0) {
+      setSensitivity(null);
+      return;
+    }
 
     const base = forecast.summary.npv;
+    const controller = new AbortController();
 
-    // 1. Electricity +20%
-    const configElec = {
-      ...config,
-      regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
-    };
-    const elecNpv = generateForecast(configElec, effectiveParams).summary.npv;
+    async function runSensitivity() {
+      try {
+        const configElec = {
+          ...config,
+          regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
+        };
+        const bearFinalPrice = Math.round(effectiveFinalPrice * 0.9);
+        const paramsBear = { ...effectiveParams, finalBtcPrice: bearFinalPrice };
+        const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
+        const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
 
-    // 2. BTC price -10% further (reduce final price directly)
-    const bearFinalPrice = Math.round(effectiveFinalPrice * 0.9);
-    const paramsBear = { ...effectiveParams, finalBtcPrice: bearFinalPrice };
-    const bearNpv = generateForecast(config, paramsBear).summary.npv;
+        const [elecRes, bearRes, netRes, noDegRes] = await Promise.all([
+          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config: configElec, params: effectiveParams }), signal: controller.signal }),
+          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsBear }), signal: controller.signal }),
+          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNet }), signal: controller.signal }),
+          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNoDeg }), signal: controller.signal }),
+        ]);
 
-    // 3. Network growth +10%
-    const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
-    const netResult = generateForecast(config, paramsNet);
-    const netLastRevenue = netResult.periods[netResult.periods.length - 1]?.miningRevenueUsd ?? 0;
-    const baseLastRevenue = forecast.periods[forecast.periods.length - 1]?.miningRevenueUsd ?? 0;
-    const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
+        const [elecData, bearData, netData, noDegData] = await Promise.all([
+          elecRes.json(), bearRes.json(), netRes.json(), noDegRes.json(),
+        ]);
 
-    // 4. Zero degradation
-    const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
-    const noDegResult = generateForecast(config, paramsNoDeg);
-    const baseBtc = forecast.summary.totalBtcMined;
-    const noDegBtc = noDegResult.summary.totalBtcMined;
-    const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
+        const elecNpv = elecData.summary.npv;
+        const bearNpv = bearData.summary.npv;
 
-    return [
-      { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
-      { label: "BTC price -10% more", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
-      { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
-      { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
-    ];
-  }, [forecast, config, effectiveParams]);
+        const netLastRevenue = netData.periods[netData.periods.length - 1]?.miningRevenueUsd ?? 0;
+        const baseLastRevenue = forecast!.periods[forecast!.periods.length - 1]?.miningRevenueUsd ?? 0;
+        const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
+
+        const baseBtc = forecast!.summary.totalBtcMined;
+        const noDegBtc = noDegData.summary.totalBtcMined;
+        const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
+
+        if (!controller.signal.aborted) {
+          setSensitivity([
+            { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
+            { label: "BTC price -10% more", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
+            { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
+            { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
+          ]);
+        }
+      } catch {
+        // Aborted or failed — ignore
+      }
+    }
+
+    runSensitivity();
+    return () => controller.abort();
+  }, [forecast, config, effectiveParams, effectiveFinalPrice]);
 
   if (config.miners.length === 0) {
     return (
@@ -238,7 +253,7 @@ export default function ForecastCharts() {
 
   // Chart data
   const chartData = forecast?.periods.map((p, i) => ({
-    date: formatDate(p.date),
+    date: formatDate(new Date(p.date)),
     revenue: p.miningRevenueUsd,
     profit: p.profitUsd,
     btcPrice: p.btcPrice,

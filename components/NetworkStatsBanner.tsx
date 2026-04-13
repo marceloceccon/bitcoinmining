@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Activity, Clock } from "lucide-react";
-import { useNetworkStore } from "@/lib/networkStore";
+import { useNetworkData } from "@/lib/apiClient";
 import { formatUsd, formatNumber } from "@/lib/utils";
 
 function formatEh(eh: number): string {
@@ -15,8 +15,8 @@ function formatDifficulty(d: number): string {
   return formatNumber(d);
 }
 
-function timeAgo(date: Date): string {
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+function timeAgo(isoString: string): string {
+  const seconds = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
   if (seconds < 60) return "just now";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -25,16 +25,9 @@ function timeAgo(date: Date): string {
 }
 
 export default function NetworkStatsBanner() {
-  const { data, fetch: fetchData } = useNetworkStore();
+  const { data } = useNetworkData();
   const [agoText, setAgoText] = useState("");
 
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
-
-  // Update "time ago" text every 30 seconds
   useEffect(() => {
     if (!data) return;
     setAgoText(timeAgo(data.lastUpdated));

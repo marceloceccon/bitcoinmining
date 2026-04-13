@@ -1,4 +1,4 @@
-import type { FarmConfig, FarmMetrics, Miner } from '@/types';
+import type { FarmConfig, FarmMetrics, Miner, LocationData } from '@/types';
 import { DRY_COOLERS } from '@/lib/dryCoolerData';
 import { AIR_FANS } from '@/lib/airFanData';
 import { autoSelectTransformer } from '@/lib/transformerData';
@@ -10,6 +10,24 @@ const VOLTAGE = 220; // Standard industrial voltage
 const SOLAR_PANEL_WATTS = 400;
 const SQM_PER_KW_INSTALLED = 10; // ground-mounted solar with inter-row spacing
 const SQM_TO_SQFT = 10.7639;
+
+// Default climate: temperate, non-extreme (roughly Central Europe / US Mid-Atlantic)
+const DEFAULT_CLIMATE: LocationData = {
+  lat: 40,
+  lng: -80,
+  city: "Default (temperate)",
+  avgYearlyTempC: 25,
+  maxTempC: 35,
+  minTempC: 5,
+  avgHumidityPercent: 60,
+};
+
+/**
+ * Returns the user-selected location or a temperate fallback.
+ */
+export function getEffectiveClimate(config: FarmConfig): LocationData {
+  return config.temperature?.location ?? DEFAULT_CLIMATE;
+}
 
 // Infrastructure constants
 export const RACK_COST_USD = 700;            // cost per rack unit (steel rack for 50 miners)
@@ -235,14 +253,65 @@ export function calculateLaborCapex(config: FarmConfig): { laborCost: number; ca
 
 /**
  * Calculate ventilation airflow needed for air-cooled miners.
- * Formula: Q = P / (ρ × Cp × ΔT) where ρ=1.2 kg/m³, Cp=1005 J/kg·K, ΔT=15°C assumed rise
- * → Q (m³/h) = P_kW × 200
+ * Base formula: Q = P / (ρ × Cp × ΔT) where ρ=1.2 kg/m³, Cp=1005 J/kg·K
+ *
+ * Climate adjustments:
+ * - ΔT (air temperature rise across miners) shrinks in hot climates.
+ *   Base ΔT = 15°C at 35°C ambient. For hotter sites, effective ΔT = max(5, 50 - maxTempC).
+ *   This means hotter ambient → smaller ΔT → more airflow needed.
+ * - High humidity (>70%) reduces convective cooling efficiency.
+ *   Apply a penalty: +1% airflow per % humidity above 70, capped at 15%.
  */
 export function calculateVentilation(config: FarmConfig): { m3h: number; cfm: number } {
   const powerKw = calculateTotalPower(config);
-  const m3h = powerKw * 200;
+  const climate = getEffectiveClimate(config);
+
+  // Effective ΔT: at 35°C ambient → 15°C rise. At 45°C → 5°C rise (minimum).
+  const effectiveDeltaT = Math.max(5, 50 - climate.maxTempC);
+
+  // Base airflow: Q (m³/s) = P_W / (ρ × Cp × ΔT), convert to m³/h
+  // ρ=1.2, Cp=1005 → Q (m³/h) = P_kW × 1000 / (1.2 × 1005 × ΔT) × 3600
+  const baseM3h = (powerKw * 1000 * 3600) / (1.2 * 1005 * effectiveDeltaT);
+
+  // Humidity penalty: +1% per % above 70%, capped at 15%
+  const humidityExcess = Math.max(0, climate.avgHumidityPercent - 70);
+  const humidityPenalty = 1 + Math.min(humidityExcess * 0.01, 0.15);
+
+  const m3h = baseM3h * humidityPenalty;
   const cfm = m3h * 0.5886;
   return { m3h, cfm };
+}
+
+/**
+ * Dry cooler derating factor based on ambient temperature.
+ * Capacity is rated at 35°C. Above that, capacity drops ~3% per °C.
+ * Below 35°C, capacity improves ~2% per °C (less aggressive — manufacturers
+ * don't guarantee linear gains below rating).
+ * Returns a multiplier: 1.0 at 35°C, 0.7 at 45°C, 1.1 at 30°C, etc.
+ */
+export function getDryCoolerDeratingFactor(config: FarmConfig): number {
+  const climate = getEffectiveClimate(config);
+  const deltaAbove35 = climate.maxTempC - 35;
+  if (deltaAbove35 > 0) {
+    // 3% loss per °C above 35, floor at 50% capacity
+    return Math.max(0.5, 1 - deltaAbove35 * 0.03);
+  }
+  // 2% gain per °C below 35, cap at 130%
+  return Math.min(1.3, 1 + Math.abs(deltaAbove35) * 0.02);
+}
+
+/**
+ * Effective total dry cooler capacity in kW after climate derating.
+ */
+export function calculateEffectiveDryCoolerCapacityKw(config: FarmConfig): number {
+  const selections = config.temperature?.dryCoolerSelections;
+  if (!selections?.length) return 0;
+  const derating = getDryCoolerDeratingFactor(config);
+  return selections.reduce((total, sel) => {
+    const model = DRY_COOLERS.find((m) => m.model === sel.model);
+    if (!model || sel.quantity <= 0) return total;
+    return total + model.kw_capacity_35c * sel.quantity * derating;
+  }, 0);
 }
 
 /**
@@ -369,6 +438,11 @@ export function calculateFarmMetrics(config: FarmConfig): FarmMetrics {
     return total + (miner.price_usd * quantity);
   }, 0);
 
+  // Solar CAPEX is only rolled into totalCapex when the user opts in via
+  // `includeCommissioningInCapex`. The raw `solarCapex` metric is always
+  // reported so downstream UIs can still show the standalone project cost.
+  const solarCapexInTotal = config.solar.includeCommissioningInCapex ? solarCapex : 0;
+
   // Import taxes on hardware components
   const tax = config.importTax;
   const importTaxCapex =
@@ -379,7 +453,7 @@ export function calculateFarmMetrics(config: FarmConfig): FarmMetrics {
     dryCoolerCapex * (tax.dryCoolers / 100);
 
   const totalCapex = minerCost + transformerCost + cableCost + rackCost +
-                     containerCost + coolingCost + solarCapex + laborCost + cablesAndBreakers + dryCoolerCapex + airFanCapex + importTaxCapex;
+                     containerCost + coolingCost + solarCapexInTotal + laborCost + cablesAndBreakers + dryCoolerCapex + airFanCapex + importTaxCapex;
 
   const monthlyOpex = calculateMonthlyOpex(config, totalCapex);
   const monthlySolarMaintenance = calculateMonthlySolarMaintenance(config);

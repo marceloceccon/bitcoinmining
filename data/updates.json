@@ -1,0 +1,5 @@
+{
+  "miners": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" },
+  "dryCoolers": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" },
+  "airFans": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" }
+}

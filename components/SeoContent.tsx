@@ -220,8 +220,9 @@ export default function SeoContent() {
                 Is this Bitcoin mining calculator free?
               </h3>
               <p>
-                Yes. No account, no payment, no trial period. The simulator runs
-                entirely in your browser with no server-side processing of your data.
+                Yes. No account, no payment, no trial period. All calculations are
+                performed server-side via our free API. Your farm configuration
+                stays in your browser — nothing is stored.
               </p>
             </div>
 
@@ -271,18 +272,6 @@ export default function SeoContent() {
                 percentage. The forecast engine compounds inflation monthly, giving a
                 realistic cost curve over multi-year horizons. Solar offset reduces the
                 effective grid consumption.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
-                Is my data private?
-              </h3>
-              <p>
-                Yes. All calculations run client-side in your browser. The optional
-                save feature stores a snapshot &mdash; anyone with the link can view it,
-                but links use unguessable IDs. No accounts, no analytics, no cookies,
-                no tracking.
               </p>
             </div>
           </div>

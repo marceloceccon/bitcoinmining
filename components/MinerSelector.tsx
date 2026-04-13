@@ -7,32 +7,14 @@ import CardIllustration from "./ui/CardIllustration";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { useFarmStore } from "@/lib/store";
-import { getMiners } from "@/lib/supabase";
+import { useMiners } from "@/lib/apiClient";
 import type { Miner } from "@/types";
 import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 
 export default function MinerSelector() {
-  const [miners, setMiners] = useState<Miner[]>([]);
+  const { miners, loading } = useMiners();
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const { addMiner, updateMinerQuantity, config } = useFarmStore();
-
-  useEffect(() => {
-    loadMiners();
-  }, []);
-
-  async function loadMiners() {
-    try {
-      const data = await getMiners();
-      setMiners(data || []);
-    } catch (error) {
-      console.error("Failed to load miners:", error);
-      // Use fallback data if Supabase fails
-      setMiners(getFallbackMiners());
-    } finally {
-      setLoading(false);
-    }
-  }
 
   const filteredMiners = miners.filter(
     (m) =>
@@ -63,7 +45,6 @@ export default function MinerSelector() {
 
   return (
     <Card>
-      <CardIllustration theme="circuit" />
       <h2 className="text-lg font-bold text-slate-900 mb-4">Miner Database</h2>
 
       {/* Search */}
@@ -114,55 +95,4 @@ export default function MinerSelector() {
       )}
     </Card>
   );
-}
-
-// Fallback miner data (if Supabase fails)
-function getFallbackMiners(): Miner[] {
-  return [
-    {
-      id: "s21-pro",
-      name: "Antminer S21 Pro",
-      manufacturer: "Bitmain",
-      algorithm: "SHA-256",
-      hash_rate_ths: 234,
-      power_watts: 3510,
-      price_usd: 5499,
-      efficiency_jth: 15.0,
-      release_year: 2024,
-      watercooled: false,
-      degradation_year1: 2,
-      degradation_year2: 5,
-      degradation_year3plus: 8,
-    },
-    {
-      id: "s21-hyd",
-      name: "Antminer S21 Hyd",
-      manufacturer: "Bitmain",
-      algorithm: "SHA-256",
-      hash_rate_ths: 335,
-      power_watts: 5360,
-      price_usd: 7999,
-      efficiency_jth: 16.0,
-      release_year: 2024,
-      watercooled: true,
-      degradation_year1: 2,
-      degradation_year2: 5,
-      degradation_year3plus: 8,
-    },
-    {
-      id: "m60s",
-      name: "Whatsminer M60S",
-      manufacturer: "MicroBT",
-      algorithm: "SHA-256",
-      hash_rate_ths: 186,
-      power_watts: 3344,
-      price_usd: 4299,
-      efficiency_jth: 18.0,
-      release_year: 2024,
-      watercooled: false,
-      degradation_year1: 2,
-      degradation_year2: 5,
-      degradation_year3plus: 8,
-    },
-  ];
 }

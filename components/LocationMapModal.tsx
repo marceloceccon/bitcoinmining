@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import type { LatLng } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LocationData } from "@/types";
 
-// Fix leaflet default marker icons broken by webpack
+// Fix leaflet default marker icons broken by webpack. Uses require() so the
+// side-effecting mutation runs only on the client, inside the window guard —
+// a top-level import would execute during SSR and crash.
 if (typeof window !== "undefined") {
-  // eslint-disable-next-line
   const L = require("leaflet");
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
@@ -103,6 +105,27 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
   const [pick, setPick] = useState<PickState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Portal target is null until the component mounts on the client. This
+  // guards SSR (no `document` during server render) and avoids the flash
+  // where the modal briefly renders inside its parent's stacking context
+  // before being portaled — we simply render nothing until we can escape
+  // to document.body.
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
+  // Lock body scroll while the modal is open — prevents scroll chaining
+  // through the overlay and keeps the map interaction crisp.
+  useEffect(() => {
+    if (!portalTarget) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [portalTarget]);
 
   // Close on Escape
   useEffect(() => {
@@ -130,10 +153,15 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
     }
   }, []);
 
-  return (
+  if (!portalTarget) return null;
+
+  const modal = (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center glass-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose Location"
     >
       <div className="relative glass-modal w-full max-w-3xl mx-4 overflow-hidden flex flex-col animate-fade-in-scale">
         {/* Header */}
@@ -255,4 +283,6 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
       </div>
     </div>
   );
+
+  return createPortal(modal, portalTarget);
 }

@@ -20,7 +20,6 @@ export default function ImportTaxes() {
 
   return (
     <Card>
-      <CardIllustration theme="shield" />
       <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
         Import Taxes
         <Tooltip content="Import duty applied to hardware purchases. Each component class can have a different tax rate depending on your country's tariff schedule." />

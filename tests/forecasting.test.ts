@@ -36,6 +36,7 @@ function makeFarmConfig(minerCount: number = 10): FarmConfig {
       installationCostPerKw: 1200,
       maintenancePercentPerYear: 1.5,
       injectionRatePercent: 85,
+      includeCommissioningInCapex: false,
     },
     regional: {
       region: 'US',

@@ -25,7 +25,7 @@ const payoutSchemeTooltip = (
   </div>
 );
 
-export default function SolarPanel() {
+export default function MiningPoolParams() {
   const { config, updatePayoutScheme, updatePoolFee } = useFarmStore();
 
   const payoutSchemePresets: { scheme: PayoutScheme; label: string }[] = [
@@ -42,7 +42,6 @@ export default function SolarPanel() {
 
   return (
     <Card>
-      <CardIllustration theme="network" />
       <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
         <Layers className="h-5 w-5 text-blueprint-deep" />
         Mining Pool Parameters

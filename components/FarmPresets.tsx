@@ -109,7 +109,6 @@ export default function FarmPresets() {
 
   return (
     <Card>
-      <CardIllustration theme="racks" />
       <h2 className="text-lg font-bold text-slate-900 mb-1">
         {hasFarm ? "Farm Presets" : "Quick Start"}
       </h2>

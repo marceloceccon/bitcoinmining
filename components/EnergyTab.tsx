@@ -6,7 +6,6 @@ import Card from "./ui/Card";
 import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Input from "./ui/Input";
-import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { formatNumber } from "@/lib/utils";
@@ -35,72 +34,39 @@ export default function EnergyTab() {
     };
   }, [config]);
 
-  const regionalPresets = [
-    { region: "US" as const, label: "USA", price: 0.10 },
-    { region: "BR" as const, label: "Brazil", price: 0.12 },
-    { region: "CN" as const, label: "China", price: 0.08 },
-    { region: "EU" as const, label: "Europe", price: 0.25 },
-    { region: "CUSTOM" as const, label: "Custom", price: config.regional.electricityPriceKwh },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Regional Settings */}
       <Card>
-        <CardIllustration theme="gauge" />
         <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Settings className="h-5 w-5 text-slate-600" />
           Regional Settings
         </h2>
 
         <div className="space-y-4">
-          {/* Region Selector */}
-          <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-              Region
-              <Tooltip content="Select your geographic region to auto-fill typical electricity prices. Each region reflects average industrial or residential grid tariffs. Choose 'Custom' to enter your own rate." />
-            </label>
-            <div className="grid grid-cols-5 gap-2">
-              {regionalPresets.map((preset) => (
-                <Button
-                  key={preset.region}
-                  variant={config.regional.region === preset.region ? "primary" : "default"}
-                  size="sm"
-                  onClick={() =>
-                    updateRegional({
-                      region: preset.region,
-                      electricityPriceKwh: preset.price,
-                    })
-                  }
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
           {/* Electricity Price */}
-          <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-              Electricity Price ($/kWh)
-              <Tooltip content="The cost you pay per kilowatt-hour of grid electricity. This is your primary operating cost driver. Industrial miners typically negotiate bulk rates of $0.03–$0.08/kWh." />
-            </label>
-            <Input
-              type="number"
-              step="0.01"
-              value={config.regional.electricityPriceKwh}
-              onChange={(e) =>
-                updateRegional({ electricityPriceKwh: parseFloat(e.target.value) || 0 })
-              }
-            />
-            <button
-              onClick={() => setShowCalc(!showCalc)}
-              className="mt-1 text-xs text-blueprint-deep hover:underline flex items-center gap-1"
-            >
-              <Calculator className="h-3 w-3" />
-              {showCalc ? "Hide calculator" : "Don't know your $/kWh? Calculate from your bill"}
-            </button>
-          </div>
+          <Slider
+            label="Electricity Price"
+            unit=" $/kWh"
+            min={0.01}
+            max={2}
+            step={0.01}
+            value={config.regional.electricityPriceKwh}
+            onChange={(e) =>
+              updateRegional({
+                electricityPriceKwh: parseFloat(e.target.value),
+                region: "CUSTOM",
+              })
+            }
+            tooltip="The cost you pay per kilowatt-hour of grid electricity. This is your primary operating cost driver. Industrial miners typically negotiate bulk rates of $0.03–$0.08/kWh."
+          />
+          <button
+            onClick={() => setShowCalc(!showCalc)}
+            className="-mt-1 text-xs text-blueprint-deep hover:underline flex items-center gap-1"
+          >
+            <Calculator className="h-3 w-3" />
+            {showCalc ? "Hide calculator" : "Don't know your $/kWh? Calculate from your bill"}
+          </button>
 
           {/* Bill-based calculator */}
           {showCalc && (
@@ -142,7 +108,9 @@ export default function EnergyTab() {
                   <button
                     onClick={() => {
                       const rate = parseFloat(billAmount) / parseFloat(billKwh);
-                      updateRegional({ electricityPriceKwh: parseFloat(rate.toFixed(4)), region: "CUSTOM" });
+                      // Clamp to the slider bounds so the bill-derived rate is always representable.
+                      const clamped = Math.min(2, Math.max(0.01, parseFloat(rate.toFixed(2))));
+                      updateRegional({ electricityPriceKwh: clamped, region: "CUSTOM" });
                       setShowCalc(false);
                     }}
                     className="px-3 py-1.5 text-xs font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 transition-all shadow-sm"
@@ -154,9 +122,9 @@ export default function EnergyTab() {
             </div>
           )}
 
-          {/* Tax Adder */}
+          {/* Tax */}
           <Slider
-            label="Tax/Regulatory Adder"
+            label="Tax"
             unit="%"
             min={0}
             max={50}
@@ -186,7 +154,6 @@ export default function EnergyTab() {
 
       {/* Solar Configuration */}
       <Card>
-        <CardIllustration theme="sun" />
         <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Sun className="h-5 w-5 text-amber-500" />
           Solar Power
@@ -225,6 +192,27 @@ export default function EnergyTab() {
               <p className="text-xs text-slate-500 -mt-2">
                 How much of injected solar energy is credited by the grid. Lower = higher injection tax.
               </p>
+
+              {/* Commission in CAPEX toggle */}
+              <label className="flex items-start gap-3 p-3 glass-inner rounded-2xl cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={config.solar.includeCommissioningInCapex}
+                  onChange={(e) =>
+                    updateSolar({ includeCommissioningInCapex: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blueprint-deep focus:ring-blueprint-deep cursor-pointer"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1 text-sm font-medium text-slate-700">
+                    Include Solar Farm Commissioning on Capex
+                    <Tooltip content="Enable this if you are commissioning the solar farm as part of the mining farm build. When on, the solar installation cost is added to the project's total CAPEX alongside miners, racks, and cabling. When off, the solar farm is treated as a separate project and only its monthly maintenance affects your mining farm's OPEX." />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Rolls the full solar build estimate into the mining farm&apos;s total CAPEX.
+                  </p>
+                </div>
+              </label>
 
               {/* Installation Cost */}
               <div>

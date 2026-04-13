@@ -50,7 +50,7 @@ export default function FarmBuilder() {
 
   return (
     <Card>
-      <CardIllustration theme="racks" />
+     
       <h2 className="text-lg font-bold text-slate-900 mb-4">Farm Configuration</h2>
 
       {/* Miner list */}

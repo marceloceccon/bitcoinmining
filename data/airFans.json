@@ -1,0 +1,5 @@
+[
+  { "model": "JMD-1000 (36\")", "diameter_mm": 900, "hz": 50, "rpm": 1400, "airflow_m3h": 35000, "noise_db": 64, "power_w": 750, "height_mm": 1000, "width_mm": 1000, "cost_usd": 150, "man_hours_deploy": 2 },
+  { "model": "JMD-1380 (50\")", "diameter_mm": 1250, "hz": 50, "rpm": 1400, "airflow_m3h": 48000, "noise_db": 64, "power_w": 1100, "height_mm": 1380, "width_mm": 1380, "cost_usd": 180, "man_hours_deploy": 2.5 },
+  { "model": "JMD-1530 (56\")", "diameter_mm": 1400, "hz": 50, "rpm": 1400, "airflow_m3h": 55800, "noise_db": 64, "power_w": 1500, "height_mm": 1530, "width_mm": 1530, "cost_usd": 240, "man_hours_deploy": 3 }
+]

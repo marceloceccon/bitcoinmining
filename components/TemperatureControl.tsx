@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Thermometer, Wind, Droplets, Fan } from "lucide-react";
 import Card from "./ui/Card";
@@ -8,9 +8,7 @@ import CardIllustration from "./ui/CardIllustration";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { DRY_COOLERS } from "@/lib/dryCoolerData";
-import { AIR_FANS } from "@/lib/airFanData";
-import { calculateVentilation, calculateTotalPower, hasWatercooledMiners, hasAircooledMiners } from "@/lib/calculations";
+import { useDryCoolers, useAirFans, useCalculation } from "@/lib/apiClient";
 import { formatNumber, formatUsd } from "@/lib/utils";
 import type { DryCoolerSelection, AirFanSelection, LocationData } from "@/types";
 
@@ -26,12 +24,18 @@ export default function TemperatureControl() {
 
   const [showMap, setShowMap] = useState(false);
 
-  const isHydro = hasWatercooledMiners(config);
-  const isAir = hasAircooledMiners(config);
-  const totalPowerKw = calculateTotalPower(config);
-  const ventilation = useMemo(() => calculateVentilation(config), [config]);
+  const { dryCoolers: DRY_COOLERS } = useDryCoolers();
+  const { airFans: AIR_FANS } = useAirFans();
+  const { data: calcData } = useCalculation(config);
 
-  // Dry cooler logic (auto-selection happens in store when miners change)
+  const isHydro = config.miners.some(({ miner }) => miner.watercooled);
+  const isAir = config.miners.some(({ miner }) => !miner.watercooled);
+  const totalPowerKw = calcData?.totalPowerKw ?? 0;
+  const ventilation = calcData?.ventilation ?? { m3h: 0, cfm: 0 };
+
+  // Dry cooler logic (auto-selection happens in store when miners change).
+  // DRY_COOLERS is a module-level constant so its identity never changes; it
+  // is included in the deps array purely to satisfy react-hooks/exhaustive-deps.
   const dryCoolerCapexRows = useMemo(() => {
     const hourlyRate = config.labor.hourlyLaborCostUsd;
     return dryCoolerSelections.map((sel) => {
@@ -40,10 +44,12 @@ export default function TemperatureControl() {
       const unitCost = model.estimated_cost_usd + model.man_hours_deploy * hourlyRate + model.plumbing_fluid_cost_usd;
       return { ...sel, model, unitCost, totalCost: sel.quantity * unitCost };
     }).filter(Boolean) as Array<{ model: typeof DRY_COOLERS[0]; quantity: number; unitCost: number; totalCost: number }>;
-  }, [dryCoolerSelections, config.labor.hourlyLaborCostUsd]);
+  }, [dryCoolerSelections, config.labor.hourlyLaborCostUsd, DRY_COOLERS]);
 
   const totalDryCoolerCapex = dryCoolerCapexRows.reduce((s, r) => s + r.totalCost, 0);
-  const totalDryCoolerKw = dryCoolerCapexRows.reduce((s, r) => s + r.quantity * r.model.kw_capacity_35c, 0);
+  const totalDryCoolerKwRated = dryCoolerCapexRows.reduce((s, r) => s + r.quantity * r.model.kw_capacity_35c, 0);
+  const dryCoolerDerating = calcData?.dryCoolerDeratingFactor ?? 1;
+  const totalDryCoolerKw = totalDryCoolerKwRated * dryCoolerDerating;
   const totalDryCoolerNoise = dryCoolerCapexRows.length
     ? Math.max(...dryCoolerCapexRows.map((r) => r.model.sound_dba))
     : 0;
@@ -85,6 +91,8 @@ export default function TemperatureControl() {
   }
 
   // ─── Air fan state & handlers ────────────────────────────────────────────
+  // AIR_FANS is a module-level constant so its identity never changes; it
+  // is included in the deps array purely to satisfy react-hooks/exhaustive-deps.
   const airFanRows = useMemo(() => {
     const hourlyRate = config.labor.hourlyLaborCostUsd;
     return airFanSelections.map((sel) => {
@@ -93,7 +101,7 @@ export default function TemperatureControl() {
       const unitCost = model.cost_usd + model.man_hours_deploy * hourlyRate;
       return { ...sel, model, unitCost, totalCost: sel.quantity * unitCost };
     }).filter(Boolean) as Array<{ model: typeof AIR_FANS[0]; quantity: number; unitCost: number; totalCost: number }>;
-  }, [airFanSelections, config.labor.hourlyLaborCostUsd]);
+  }, [airFanSelections, config.labor.hourlyLaborCostUsd, AIR_FANS]);
 
   const totalFanAirflow = airFanRows.reduce((s, r) => s + r.quantity * r.model.airflow_m3h, 0);
   const totalFanPowerW  = airFanRows.reduce((s, r) => s + r.quantity * r.model.power_w, 0);
@@ -102,7 +110,10 @@ export default function TemperatureControl() {
   const totalFanManHours = airFanRows.reduce((s, r) => s + r.quantity * r.model.man_hours_deploy, 0);
   const airflowSufficient = totalFanAirflow >= ventilation.m3h;
 
-  const [selectedFanModel, setSelectedFanModel] = useState(AIR_FANS[0].model);
+  const [selectedFanModel, setSelectedFanModel] = useState(AIR_FANS[0]?.model ?? "");
+  useEffect(() => {
+    if (AIR_FANS.length > 0 && !selectedFanModel) setSelectedFanModel(AIR_FANS[0].model);
+  }, [AIR_FANS, selectedFanModel]);
   const addedFanModels = new Set(airFanSelections.map((s) => s.model));
 
   function handleAddFan(model: string) {
@@ -128,7 +139,10 @@ export default function TemperatureControl() {
   const previewFanModel = AIR_FANS.find((m) => m.model === selectedFanModel);
 
   // ─── Dry cooler dropdown state ────────────────────────────────────────────
-  const [selectedModel, setSelectedModel] = useState(DRY_COOLERS[0].model);
+  const [selectedModel, setSelectedModel] = useState(DRY_COOLERS[0]?.model ?? "");
+  useEffect(() => {
+    if (DRY_COOLERS.length > 0 && !selectedModel) setSelectedModel(DRY_COOLERS[0].model);
+  }, [DRY_COOLERS, selectedModel]);
   const addedModels = new Set(dryCoolerSelections.map((s) => s.model));
   const availableModels = DRY_COOLERS.filter((m) => !addedModels.has(m.model));
   const previewModel = DRY_COOLERS.find((m) => m.model === selectedModel);
@@ -541,10 +555,15 @@ export default function TemperatureControl() {
               <div className="mt-2 pt-3 border-t border-slate-200/50 text-sm space-y-1">
                 <div className="flex justify-between text-slate-500">
                   <span className="flex items-center gap-1">
-                    Total cooling capacity
-                    <Tooltip content="Sum of all dry cooler kW capacities at 35 C ambient. Should exceed your farm heat load. For hot climates, derate ~3% per C above 35 C." />
+                    Effective cooling capacity
+                    <Tooltip content={`Rated capacity (${formatNumber(totalDryCoolerKwRated, 1)} kW @ 35°C) adjusted for site climate. Derating factor: ${(dryCoolerDerating * 100).toFixed(0)}% based on ${calcData?.climate.maxTempC ?? 35}°C max ambient.`} />
                   </span>
-                  <span className="font-mono tabular-nums">{formatNumber(totalDryCoolerKw, 1)} kW {totalDryCoolerKw < totalPowerKw ? "— undersized" : "OK"}</span>
+                  <span className="font-mono tabular-nums">
+                    {formatNumber(totalDryCoolerKw, 1)} kW
+                    {dryCoolerDerating < 1 && <span className="text-amber-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
+                    {dryCoolerDerating > 1 && <span className="text-emerald-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
+                    {" "}{totalDryCoolerKw < totalPowerKw ? "— undersized" : "OK"}
+                  </span>
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span className="flex items-center gap-1">

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import SeoContent from "@/components/SeoContent";
-import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
 const SITE_URL = "https://bitcoinminingfarmcalculator.com";
@@ -121,8 +120,7 @@ const jsonLd = {
       "Dry cooler and ventilation fan sizing with ERA5 climate data",
       "Deployment labor and electrical infrastructure estimation",
       "Country-specific import tax calculator",
-      "Interactive farm schematic visualization",
-      "Encrypted client-side save and load with NaCl",
+      "Free API for developers and AI agents",
     ],
   },
   {
@@ -168,14 +166,6 @@ const jsonLd = {
           text: "You set a base electricity rate in dollars per kWh and an annual energy inflation percentage. The forecast engine compounds inflation monthly, giving a realistic cost curve over multi-year horizons. Solar offset reduces the effective grid consumption.",
         },
       },
-      {
-        "@type": "Question",
-        name: "Is my data private?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. All calculations run client-side in your browser. The optional save feature stores a snapshot of your config — anyone with the link can view it, but links are unguessable UUIDs. No accounts, no analytics, no cookies, no tracking.",
-        },
-      },
     ],
   },
   {
@@ -201,9 +191,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        {children}
         <SeoContent />
         <Analytics />
       </body>

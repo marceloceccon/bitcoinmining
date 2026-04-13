@@ -1,0 +1,77 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bitcoin Mining Farm Calculator API",
+    "version": "1.0.0",
+    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute for external callers.",
+    "contact": {
+      "name": "Bitcoin Mining Farm Calculator",
+      "url": "https://bitcoinminingfarmcalculator.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://bitcoinminingfarmcalculator.com/api",
+      "description": "Production server"
+    },
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local development server"
+    }
+  ],
+  "components": {},
+  "defaultResponseSet": "public",
+  "responseSets": {
+    "public": [
+      "400",
+      "429",
+      "500"
+    ]
+  },
+  "errorConfig": {
+    "template": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "example": "{{ERROR_MESSAGE}}"
+        }
+      }
+    },
+    "codes": {
+      "400": {
+        "description": "Bad Request — invalid or missing request body",
+        "variables": {
+          "ERROR_MESSAGE": "Invalid request parameters"
+        }
+      },
+      "429": {
+        "description": "Too Many Requests — rate limit exceeded (60 req/min for external callers)",
+        "variables": {
+          "ERROR_MESSAGE": "Too many requests"
+        }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "variables": {
+          "ERROR_MESSAGE": "An unexpected error occurred"
+        }
+      }
+    }
+  },
+  "apiDir": "./app/api",
+  "schemaDir": "./app/api",
+  "schemaType": "typescript",
+  "schemaFiles": [],
+  "docsUrl": "api-docs",
+  "ui": "scalar",
+  "outputFile": "openapi.json",
+  "outputDir": "./public",
+  "includeOpenApiRoutes": false,
+  "ignoreRoutes": [],
+  "debug": false
+}

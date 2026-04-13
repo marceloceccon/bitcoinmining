@@ -61,7 +61,7 @@ export interface TemperatureConfig {
   airFanSelections: AirFanSelection[];
 }
 
-// Database Types
+// Miner Types
 export interface Miner {
   id: string;
   name: string;
@@ -77,13 +77,6 @@ export interface Miner {
   degradation_year2: number;
   degradation_year3plus: number;
   notes?: string;
-}
-
-export interface SavedFarm {
-  id: string;
-  config: string;
-  created_at: string;
-  updated_at: string;
 }
 
 // Application Types
@@ -109,15 +102,21 @@ export interface SolarConfig {
   installationCostPerKw: number;
   maintenancePercentPerYear: number;
   injectionRatePercent: number; // 0-100, how much of daytime injection is credited (100 = no tax)
+  /**
+   * When true, the solar farm's build cost is rolled into the mining farm's
+   * totalCapex. When false (default), solar is treated as a separate project
+   * and only its maintenance OPEX affects monthly costs.
+   */
+  includeCommissioningInCapex: boolean;
 }
 
 export interface LaborConfig {
-  manHoursPerMiner: number;        // default 2.5
-  hourlyLaborCostUsd: number;      // default 35
-  cablesPerMinerUsd: number;       // default 85 — 6m copper cable + dedicated fuse breaker
+  manHoursPerMiner: number;        // default 1 — unpack → mount → wire → configure, per unit
+  hourlyLaborCostUsd: number;      // default 20
+  cablesPerMinerUsd: number;       // default 40 — 6m copper cable + dedicated fuse breaker
   manHoursPerTransformer: number;  // default 8
   manHoursPerRack: number;         // default 4
-  manHoursPerContainer: number;    // default 40
+  manHoursPerContainer: number;    // default 80
 }
 
 export interface RegionalConfig {

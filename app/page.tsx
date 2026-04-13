@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useFarmStore } from "@/lib/store";
 import MinerSelector from "@/components/MinerSelector";
 import FarmBuilder from "@/components/FarmBuilder";
 import MetricsDashboard from "@/components/MetricsDashboard";
-import SolarPanel from "@/components/SolarPanel";
+import MiningPoolParams from "@/components/MiningPoolParams";
 import EnergyTab from "@/components/EnergyTab";
 import LaborCosts from "@/components/LaborCosts";
 import TemperatureControl from "@/components/TemperatureControl";
 import ForecastCharts from "@/components/ForecastCharts";
 import ImportTaxes from "@/components/ImportTaxes";
-import SaveLoadPanel from "@/components/SaveLoadPanel";
 import NetworkStatsBanner from "@/components/NetworkStatsBanner";
 import FarmWarnings from "@/components/FarmWarnings";
 import FarmPresets from "@/components/FarmPresets";
@@ -20,6 +20,14 @@ type Tab = "build" | "energy" | "labor" | "temperature" | "forecast" | "about";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
+  const setDryCoolerCatalog = useFarmStore((s) => s.setDryCoolerCatalog);
+  const setAirFanCatalog = useFarmStore((s) => s.setAirFanCatalog);
+
+  // Load catalog data into the store for auto-configure cooling
+  useEffect(() => {
+    fetch("/api/dry-coolers").then((r) => r.json()).then(setDryCoolerCatalog).catch(() => {});
+    fetch("/api/air-fans").then((r) => r.json()).then(setAirFanCatalog).catch(() => {});
+  }, [setDryCoolerCatalog, setAirFanCatalog]);
 
   const showMetrics = activeTab === "build" || activeTab === "labor" || activeTab === "temperature";
 
@@ -45,7 +53,6 @@ export default function Home() {
                 <p className="text-xs text-slate-500">Free CAPEX &amp; ROI Tool</p>
               </div>
             </div>
-            <SaveLoadPanel />
           </div>
         </div>
       </header>
@@ -59,7 +66,7 @@ export default function Home() {
           Plan your entire Bitcoin mining operation — from a single ASIC to a 10,000-unit industrial farm.
           Model hardware procurement, import duties, deployment labor, electrical infrastructure, cooling
           systems, solar offset, pool fees, and multi-year revenue forecasts. No account. No tracking.
-          Runs entirely in your browser.
+          Free API for developers and AI agents.
         </p>
         <Image
           src="/screenshot.png"
@@ -76,7 +83,7 @@ export default function Home() {
         <div className="glass-nav p-1.5 inline-flex gap-1 flex-wrap">
           {(
             [
-              { id: "build", label: "Build Farm", icon: "01" },
+              { id: "build", label: "Miners", icon: "01" },
               { id: "energy", label: "Energy", icon: "02" },
               { id: "labor", label: "Deploy & Labor", icon: "03" },
               { id: "temperature", label: "Thermal", icon: "04" },
@@ -111,7 +118,7 @@ export default function Home() {
               <MinerSelector />
               <FarmBuilder />
               <ImportTaxes />
-              <SolarPanel />
+              <MiningPoolParams />
             </div>
             <div className="space-y-6">
               <MetricsDashboard />
@@ -171,6 +178,49 @@ export default function Home() {
               </p>
             </div>
 
+            {/* API */}
+            <div className="glass-card p-8">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Free API for Developers &amp; AI Agents</h3>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Every calculation in this tool is available as a free REST API. Build your own mining dashboards,
+                integrate into AI agent workflows, or automate farm planning with programmatic access to the same
+                engine that powers this website.
+              </p>
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="p-3 glass-inner rounded-xl">
+                    <code className="text-xs text-blueprint-deep font-semibold">POST /api/calculate</code>
+                    <p className="text-xs text-slate-500 mt-1">Full CAPEX/OPEX/metrics from a farm config</p>
+                  </div>
+                  <div className="p-3 glass-inner rounded-xl">
+                    <code className="text-xs text-blueprint-deep font-semibold">POST /api/forecast</code>
+                    <p className="text-xs text-slate-500 mt-1">Multi-year revenue forecast with S2F model</p>
+                  </div>
+                  <div className="p-3 glass-inner rounded-xl">
+                    <code className="text-xs text-blueprint-deep font-semibold">GET /api/miners</code>
+                    <p className="text-xs text-slate-500 mt-1">50+ ASIC miner catalog with specs &amp; pricing</p>
+                  </div>
+                  <div className="p-3 glass-inner rounded-xl">
+                    <code className="text-xs text-blueprint-deep font-semibold">GET /api/network</code>
+                    <p className="text-xs text-slate-500 mt-1">Live BTC price, hashrate, difficulty</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 p-3 glass-info rounded-xl text-xs text-blue-800 space-y-1">
+                <p><strong>Rate limits:</strong> 60 requests per minute per IP for external callers. Fair use &mdash; no API key required.</p>
+                <p><strong>CORS:</strong> All endpoints support cross-origin requests.</p>
+                <p><strong>OpenAPI spec:</strong> <code className="bg-blue-100 px-1 rounded">/openapi.json</code></p>
+              </div>
+              <div className="mt-4">
+                <a
+                  href="/api-docs"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 transition-all shadow-md"
+                >
+                  View API Documentation
+                </a>
+              </div>
+            </div>
+
             {/* Disclaimer */}
             <div className="glass-card glass-warning p-8">
               <h3 className="text-lg font-semibold text-amber-700 mb-3">Disclaimer</h3>
@@ -199,7 +249,7 @@ export default function Home() {
             <div className="glass-card p-8">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Privacy</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                No accounts. Your farm configuration lives entirely in your browser. The optional save feature stores a snapshot — anyone with the link can view it, but links use unguessable IDs. No tracking, no cookies.
+                No accounts. No tracking. No cookies. Your farm configuration lives entirely in your browser.
               </p>
             </div>
 
@@ -221,7 +271,7 @@ export default function Home() {
       <footer className="container mx-auto px-4 py-6 mt-10 border-t border-slate-200/50">
         <div className="text-center text-slate-500 text-sm">
           <p>&copy; 2026 Bitcoin Mining Farm Calculator &middot; Simulation tool only &middot; No real mining or financial advice</p>
-          <p className="mt-1">Built by Marcelo Ceccon. Independent tool for miners &amp; investors.</p>
+          <p className="mt-1">Built by Marcelo Ceccon. Independent tool for miners &amp; investors. <a href="/api-docs" className="text-blueprint-deep hover:underline">Free API</a></p>
           <p className="mt-3 font-mono text-xs text-slate-300">
             {process.env.NEXT_PUBLIC_COMMIT_HASH ?? 'dev'} &middot; {process.env.NEXT_PUBLIC_COMMIT_DATE ?? ''}
           </p>

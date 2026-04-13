@@ -7,11 +7,8 @@ import Card from "./ui/Card";
 import CardIllustration from "./ui/CardIllustration";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { useNetworkStore } from "@/lib/networkStore";
-import { calculateFarmMetrics, calculateTotalHashRate, calculateTotalPower } from "@/lib/calculations";
-import { DRY_COOLERS } from "@/lib/dryCoolerData";
-import { AIR_FANS } from "@/lib/airFanData";
-import { CURRENT_NETWORK_HASHRATE_EH, CURRENT_BLOCK_REWARD } from "@/lib/forecasting";
+import { useCalculation, useNetworkData } from "@/lib/apiClient";
+import { useDryCoolers, useAirFans } from "@/lib/apiClient";
 import { autoSelectTransformer, NO_TRANSFORMER_THRESHOLD_KVA } from "@/lib/transformerData";
 import {
   formatHashRate,
@@ -22,21 +19,22 @@ import {
 } from "@/lib/utils";
 
 const BLOCKS_PER_DAY = 144;
+const CURRENT_NETWORK_HASHRATE_EH = 750;
+const CURRENT_BLOCK_REWARD = 3.125;
 
 export default function MetricsDashboard() {
   const config = useFarmStore((state) => state.config);
-  const networkData = useNetworkStore((state) => state.data);
+  const { data: networkData } = useNetworkData();
+  const { data: calcData, loading: calcLoading } = useCalculation(config);
+  const { dryCoolers } = useDryCoolers();
+  const { airFans } = useAirFans();
 
-  // Use live data when available, fall back to hardcoded constants
   const networkHashrateEh = networkData?.networkHashrateEh ?? CURRENT_NETWORK_HASHRATE_EH;
   const blockReward = networkData?.blockReward ?? CURRENT_BLOCK_REWARD;
   const btcPriceUsd = networkData?.btcPriceUsd ?? 0;
   const marketHashprice = networkData?.hashpriceUsdPhDay ?? 0;
 
-  const metrics = useMemo(() => {
-    if (config.miners.length === 0) return null;
-    return calculateFarmMetrics(config);
-  }, [config]);
+  const metrics = calcData?.metrics ?? null;
 
   if (!metrics) {
     return (
@@ -95,14 +93,12 @@ export default function MetricsDashboard() {
     },
   ];
 
-  // BTC mining estimate using live network data
-  const farmHashrateThs = calculateTotalHashRate(config);
+  const farmHashrateThs = calcData?.totalHashRateThs ?? 0;
   const farmHashrateEh = farmHashrateThs / 1e6;
   const poolShare = networkHashrateEh > 0 ? farmHashrateEh / networkHashrateEh : 0;
   const monthlyBtcMined = BLOCKS_PER_DAY * 30 * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
   const costPerBtc = monthlyBtcMined > 0 ? metrics.monthlyOpex / monthlyBtcMined : 0;
 
-  // Farm hashprice: daily revenue per PH
   const farmPh = farmHashrateThs / 1e3;
   const farmDailyBtc = BLOCKS_PER_DAY * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
   const farmHashprice = farmPh > 0 && btcPriceUsd > 0 ? (farmDailyBtc * btcPriceUsd) / farmPh : 0;
@@ -127,13 +123,11 @@ export default function MetricsDashboard() {
     ...(metrics.importTaxCapex > 0 ? [{ label: "Import Taxes", value: metrics.importTaxCapex }] : []),
   ];
 
-  // CAPEX pie chart data (only include items with value > 0)
   const PIE_COLORS = ["#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#7c3aed", "#a78bfa", "#c4b5fd", "#f59e0b", "#fbbf24", "#fcd34d"];
   const pieData = costBreakdown
     .filter((item) => item.value > 0)
     .map((item) => ({ name: item.label, value: item.value }));
 
-  // Profitability: compare cost per BTC vs market price
   const isProfitable = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc < btcPriceUsd;
   const isMarginal = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc >= btcPriceUsd * 0.8 && costPerBtc < btcPriceUsd;
   const isUnprofitable = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc >= btcPriceUsd;
@@ -178,7 +172,6 @@ export default function MetricsDashboard() {
               <span className="font-mono font-medium text-slate-700 tabular-nums">{formatUsd(item.value)}</span>
             </div>
           ))}
-          {/* Donut Chart */}
           {pieData.length > 1 && (
             <div className="py-3 mt-3 border-t border-slate-200/50">
               <div className="h-48 relative">
@@ -204,7 +197,6 @@ export default function MetricsDashboard() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
-                {/* Center label */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
                     <div className="text-xs text-slate-400">CAPEX</div>
@@ -319,7 +311,7 @@ export default function MetricsDashboard() {
       </Card>
 
       {/* Noise Level */}
-      <NoiseCard config={config} />
+      <NoiseCard config={config} dryCoolers={dryCoolers} airFans={airFans} />
 
       {/* Electrical Panel */}
       <BreakerCard totalPowerKw={metrics.totalPowerKw} totalAmps={metrics.electricalCurrentAmps} transformerKva={metrics.transformerKva} />
@@ -342,22 +334,21 @@ const NOISE_REFS = [
   { db: 110, label: "Rock concert" },
 ];
 
-function NoiseCard({ config }: { config: ReturnType<typeof useFarmStore.getState>["config"] }) {
-  // Estimate miner noise: typical ASIC is 75 dB per unit
+import type { FarmConfig, DryCoolerModel, AirFanModel } from "@/types";
+
+function NoiseCard({ config, dryCoolers, airFans }: { config: FarmConfig; dryCoolers: DryCoolerModel[]; airFans: AirFanModel[] }) {
   const MINER_DB = 75;
   const totalMiners = config.miners.reduce((sum, { quantity }) => sum + quantity, 0);
   if (totalMiners === 0) return null;
 
   const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
 
-  // dB addition: Ltotal = Lref + 10*log10(N)
   const minerNoise = totalMiners > 0 ? MINER_DB + 10 * Math.log10(totalMiners) : 0;
 
-  // Fan noise
   let maxFanDb = 0;
   let totalFans = 0;
   for (const sel of temperature.airFanSelections) {
-    const model = AIR_FANS.find((m) => m.model === sel.model);
+    const model = airFans.find((m) => m.model === sel.model);
     if (model) {
       maxFanDb = Math.max(maxFanDb, model.noise_db);
       totalFans += sel.quantity;
@@ -365,11 +356,10 @@ function NoiseCard({ config }: { config: ReturnType<typeof useFarmStore.getState
   }
   const fanNoise = totalFans > 0 && maxFanDb > 0 ? maxFanDb + 10 * Math.log10(totalFans) : 0;
 
-  // Dry cooler noise
   let maxCoolerDb = 0;
   let totalCoolers = 0;
   for (const sel of temperature.dryCoolerSelections) {
-    const model = DRY_COOLERS.find((m) => m.model === sel.model);
+    const model = dryCoolers.find((m) => m.model === sel.model);
     if (model) {
       maxCoolerDb = Math.max(maxCoolerDb, model.sound_dba);
       totalCoolers += sel.quantity;
@@ -377,7 +367,6 @@ function NoiseCard({ config }: { config: ReturnType<typeof useFarmStore.getState
   }
   const coolerNoise = totalCoolers > 0 && maxCoolerDb > 0 ? maxCoolerDb + 10 * Math.log10(totalCoolers) : 0;
 
-  // Combined: sum of powers → dB
   const sources = [minerNoise, fanNoise, coolerNoise].filter((n) => n > 0);
   const totalNoise = sources.length > 0
     ? 10 * Math.log10(sources.reduce((sum, db) => sum + Math.pow(10, db / 10), 0))
@@ -441,17 +430,14 @@ function BreakerCard({ totalPowerKw, totalAmps, transformerKva }: { totalPowerKw
   if (totalPowerKw <= 0) return null;
 
   const VOLTAGE = 220;
-  // NEC 80% rule: continuous load must not exceed 80% of breaker rating
   const mainBreakerAmps = totalAmps / 0.8;
   const mainBreakerSize = BREAKER_SIZES.find((s) => s >= mainBreakerAmps) ?? Math.ceil(mainBreakerAmps / 100) * 100;
 
-  // Branch circuits: assume 30A breakers for mining (typical PDU breaker)
   const branchBreakerAmps = 30;
-  const usableAmpsPerCircuit = branchBreakerAmps * 0.8; // NEC 80%
+  const usableAmpsPerCircuit = branchBreakerAmps * 0.8;
   const circuitsNeeded = Math.ceil(totalAmps / usableAmpsPerCircuit);
 
-  // Panel capacity
-  const panelSlots = Math.ceil(circuitsNeeded / 2) * 2; // panels have even slot counts
+  const panelSlots = Math.ceil(circuitsNeeded / 2) * 2;
   const panelSize = panelSlots <= 20 ? 20 : panelSlots <= 30 ? 30 : panelSlots <= 42 ? 42 : Math.ceil(panelSlots / 42) * 42;
   const panelCount = Math.ceil(panelSlots / 42);
 

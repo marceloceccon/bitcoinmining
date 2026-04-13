@@ -3,59 +3,53 @@
 import { useMemo } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useFarmStore } from "@/lib/store";
-import {
-  calculateFarmMetrics,
-  calculateTotalPower,
-  calculateVentilation,
-  hasWatercooledMiners,
-  hasAircooledMiners,
-} from "@/lib/calculations";
-import { useNetworkStore } from "@/lib/networkStore";
-import { CURRENT_NETWORK_HASHRATE_EH, CURRENT_BLOCK_REWARD } from "@/lib/forecasting";
-import { DRY_COOLERS } from "@/lib/dryCoolerData";
-import { AIR_FANS } from "@/lib/airFanData";
+import { useCalculation, useNetworkData, useAirFans } from "@/lib/apiClient";
 import { formatNumber, formatUsd } from "@/lib/utils";
+
+const BLOCKS_PER_DAY = 144;
+const CURRENT_NETWORK_HASHRATE_EH = 750;
+const CURRENT_BLOCK_REWARD = 3.125;
 
 interface Warning {
   type: "error" | "warning" | "info";
   message: string;
 }
 
-const BLOCKS_PER_DAY = 144;
-
 export default function FarmWarnings() {
   const config = useFarmStore((state) => state.config);
-  const networkData = useNetworkStore((state) => state.data);
+  const { data: networkData } = useNetworkData();
+  const { data: calcData } = useCalculation(config);
+  const { airFans } = useAirFans();
 
   const warnings = useMemo(() => {
     const w: Warning[] = [];
-    if (config.miners.length === 0) return w;
+    if (config.miners.length === 0 || !calcData) return w;
 
-    const metrics = calculateFarmMetrics(config);
-    const totalPowerKw = calculateTotalPower(config);
+    const { metrics, ventilation, totalPowerKw } = calcData;
     const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
-    const isHydro = hasWatercooledMiners(config);
-    const isAir = hasAircooledMiners(config);
+    const isHydro = config.miners.some(({ miner }) => miner.watercooled);
+    const isAir = config.miners.some(({ miner }) => !miner.watercooled);
 
-    // Cooling checks for hydro miners
+    // Cooling checks for hydro miners (uses climate-derated capacity)
     if (isHydro) {
       if (temperature.dryCoolerSelections.length === 0) {
         w.push({ type: "error", message: "Water-cooled miners detected but no dry coolers configured. Go to the Thermal tab." });
       } else {
-        const totalCoolingKw = temperature.dryCoolerSelections.reduce((sum, sel) => {
-          const model = DRY_COOLERS.find((m) => m.model === sel.model);
-          return sum + (model ? model.kw_capacity_35c * sel.quantity : 0);
-        }, 0);
-        const ratio = totalCoolingKw / totalPowerKw;
+        const effectiveCapacity = calcData.effectiveDryCoolerCapacityKw;
+        const ratio = effectiveCapacity / totalPowerKw;
+        const derating = calcData.dryCoolerDeratingFactor;
+        const deratingNote = derating < 1
+          ? ` (derated to ${(derating * 100).toFixed(0)}% at ${calcData.climate.maxTempC}°C ambient)`
+          : "";
         if (ratio < 1) {
           w.push({
             type: "error",
-            message: `Dry cooler capacity (${formatNumber(totalCoolingKw, 1)} kW) is ${((1 - ratio) * 100).toFixed(0)}% below your heat load (${formatNumber(totalPowerKw, 1)} kW).`,
+            message: `Effective dry cooler capacity (${formatNumber(effectiveCapacity, 1)} kW${deratingNote}) is ${((1 - ratio) * 100).toFixed(0)}% below your heat load (${formatNumber(totalPowerKw, 1)} kW).`,
           });
         } else if (ratio > 1.5) {
           w.push({
             type: "info",
-            message: `Dry coolers are oversized by ${((ratio - 1) * 100).toFixed(0)}%. Consider downsizing to save on CAPEX.`,
+            message: `Dry coolers are oversized by ${((ratio - 1) * 100).toFixed(0)}%${deratingNote}. Consider downsizing to save on CAPEX.`,
           });
         }
       }
@@ -63,12 +57,11 @@ export default function FarmWarnings() {
 
     // Cooling checks for air-cooled miners
     if (isAir) {
-      const ventilation = calculateVentilation(config);
       if (temperature.airFanSelections.length === 0) {
         w.push({ type: "warning", message: "Air-cooled miners detected but no ventilation fans configured. Go to the Thermal tab." });
       } else {
         const totalAirflow = temperature.airFanSelections.reduce((sum, sel) => {
-          const model = AIR_FANS.find((m) => m.model === sel.model);
+          const model = airFans.find((m) => m.model === sel.model);
           return sum + (model ? model.airflow_m3h * sel.quantity : 0);
         }, 0);
         if (totalAirflow < ventilation.m3h) {
@@ -86,7 +79,6 @@ export default function FarmWarnings() {
     const btcPriceUsd = networkData?.btcPriceUsd ?? 0;
 
     if (btcPriceUsd > 0) {
-      const totalMiners = config.miners.reduce((sum, { quantity }) => sum + quantity, 0);
       const farmHashrateEh = metrics.totalHashRateThs / 1e6;
       const poolShare = networkHashrateEh > 0 ? farmHashrateEh / networkHashrateEh : 0;
       const monthlyBtc = BLOCKS_PER_DAY * 30 * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
@@ -109,7 +101,7 @@ export default function FarmWarnings() {
     }
 
     return w;
-  }, [config, networkData]);
+  }, [config, networkData, calcData, airFans]);
 
   if (warnings.length === 0) return null;
 

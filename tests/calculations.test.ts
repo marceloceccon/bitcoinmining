@@ -80,6 +80,7 @@ function makeFarmConfig(overrides: Partial<FarmConfig> = {}): FarmConfig {
       installationCostPerKw: 1200,
       maintenancePercentPerYear: 1.5,
       injectionRatePercent: 85,
+      includeCommissioningInCapex: false,
     },
     regional: {
       region: 'US',
@@ -431,6 +432,7 @@ describe('Solar calculations', () => {
         installationCostPerKw: 1200,
         maintenancePercentPerYear: 1.5,
         injectionRatePercent,
+        includeCommissioningInCapex: false,
       },
     });
 
@@ -562,11 +564,52 @@ describe('calculateVentilation', () => {
     expect(result.cfm).toBe(0);
   });
 
-  it('10 × S21 Pro: 36.855 kW × 200 = 7,371 m³/h', () => {
+  it('10 × S21 Pro at default climate (35°C max, 60% humidity): ΔT=15°C → ≈7,334 m³/h', () => {
     const config = withMiners(S21_PRO, 10);
     const result = calculateVentilation(config);
-    expect(result.m3h).toBeCloseTo(36.855 * 200, 0);
-    expect(result.cfm).toBeCloseTo(36.855 * 200 * 0.5886, 0);
+    // Q (m³/h) = P_W × 3600 / (ρ × Cp × ΔT)
+    //         = 36855 × 3600 / (1.2 × 1005 × 15)
+    //         ≈ 7333.78 m³/h
+    const expectedM3h = (36855 * 3600) / (1.2 * 1005 * 15);
+    expect(result.m3h).toBeCloseTo(expectedM3h, 0);
+    expect(result.cfm).toBeCloseTo(expectedM3h * 0.5886, 0);
+  });
+
+  it('hot climate (45°C max) shrinks ΔT to 5°C → 3× more airflow than 35°C', () => {
+    const cool = withMiners(S21_PRO, 10);
+    const hot = withMiners(S21_PRO, 10, {
+      temperature: {
+        location: {
+          lat: 0, lng: 0, city: 'hot',
+          avgYearlyTempC: 35, maxTempC: 45, minTempC: 25,
+          avgHumidityPercent: 50,
+        },
+        dryCoolerSelections: [],
+        airFanSelections: [],
+      },
+    });
+    const coolResult = calculateVentilation(cool);
+    const hotResult = calculateVentilation(hot);
+    // ΔT=15 (cool, default) vs ΔT=5 (hot) → ratio = 3
+    expect(hotResult.m3h / coolResult.m3h).toBeCloseTo(3, 1);
+  });
+
+  it('high humidity (>70%) adds penalty up to +15%', () => {
+    const dry = withMiners(S21_PRO, 10);
+    const humid = withMiners(S21_PRO, 10, {
+      temperature: {
+        location: {
+          lat: 0, lng: 0, city: 'humid',
+          avgYearlyTempC: 25, maxTempC: 35, minTempC: 5,
+          avgHumidityPercent: 100, // 30% above 70 → capped at 15%
+        },
+        dryCoolerSelections: [],
+        airFanSelections: [],
+      },
+    });
+    const dryResult = calculateVentilation(dry);
+    const humidResult = calculateVentilation(humid);
+    expect(humidResult.m3h / dryResult.m3h).toBeCloseTo(1.15, 2);
   });
 
   it('m³/h to CFM conversion factor is approximately 0.5886', () => {
@@ -716,6 +759,7 @@ describe('calculateMonthlyOpex', () => {
         installationCostPerKw: 1200,
         maintenancePercentPerYear: 1.5,
         injectionRatePercent: 100,
+        includeCommissioningInCapex: false,
       },
     });
 
@@ -800,6 +844,69 @@ describe('calculateFarmMetrics', () => {
     const m = calculateFarmMetrics(config);
     expect(m.containerCost).toBe(2 * CONTAINER_BASE_COST_USD); // 300/250 = 2 containers
     expect(m.totalCapex).toBeGreaterThan(m.minerCost + m.containerCost);
+  });
+
+  it('solar CAPEX is EXCLUDED from totalCapex by default (treated as a separate project)', () => {
+    const config = withMiners(S21_PRO, 10, {
+      solar: {
+        coveragePercent: 100,
+        installationCostPerKw: 1200,
+        maintenancePercentPerYear: 1.5,
+        injectionRatePercent: 100,
+        includeCommissioningInCapex: false,
+      },
+    });
+    const m = calculateFarmMetrics(config);
+    // solarCapex reported separately but NOT folded into totalCapex
+    expect(m.solarCapex).toBeGreaterThan(0);
+    const totalExcludingSolar =
+      m.minerCost + m.transformerCost + m.cableCost + m.rackCost +
+      m.containerCost + m.coolingCost + m.laborCost + m.cablesAndBreakers +
+      m.dryCoolerCapex + m.airFanCapex + m.importTaxCapex;
+    expect(m.totalCapex).toBeCloseTo(totalExcludingSolar, 2);
+  });
+
+  it('solar CAPEX IS INCLUDED in totalCapex when includeCommissioningInCapex is true', () => {
+    const config = withMiners(S21_PRO, 10, {
+      solar: {
+        coveragePercent: 100,
+        installationCostPerKw: 1200,
+        maintenancePercentPerYear: 1.5,
+        injectionRatePercent: 100,
+        includeCommissioningInCapex: true,
+      },
+    });
+    const m = calculateFarmMetrics(config);
+    expect(m.solarCapex).toBeGreaterThan(0);
+    const totalExcludingSolar =
+      m.minerCost + m.transformerCost + m.cableCost + m.rackCost +
+      m.containerCost + m.coolingCost + m.laborCost + m.cablesAndBreakers +
+      m.dryCoolerCapex + m.airFanCapex + m.importTaxCapex;
+    expect(m.totalCapex).toBeCloseTo(totalExcludingSolar + m.solarCapex, 2);
+  });
+
+  it('toggling includeCommissioningInCapex only affects totalCapex, not solarCapex reporting', () => {
+    const base = {
+      solar: {
+        coveragePercent: 50,
+        installationCostPerKw: 1200,
+        maintenancePercentPerYear: 1.5,
+        injectionRatePercent: 100,
+        includeCommissioningInCapex: false,
+      },
+    };
+    const off = withMiners(S21_PRO, 10, base);
+    const on = withMiners(S21_PRO, 10, {
+      solar: { ...base.solar, includeCommissioningInCapex: true },
+    });
+
+    const offMetrics = calculateFarmMetrics(off);
+    const onMetrics = calculateFarmMetrics(on);
+
+    // Solar CAPEX reporting is identical in both modes.
+    expect(onMetrics.solarCapex).toBe(offMetrics.solarCapex);
+    // Total CAPEX difference equals exactly the solar CAPEX.
+    expect(onMetrics.totalCapex - offMetrics.totalCapex).toBeCloseTo(offMetrics.solarCapex, 2);
   });
 });
 

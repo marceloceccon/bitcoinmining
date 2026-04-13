@@ -1,0 +1,33 @@
+{
+  "configPath": "/home/vscode/workspace/bitcoinmining/next.openapi.json",
+  "outputFile": "/home/vscode/workspace/bitcoinmining/public/openapi.json",
+  "diagnostics": [],
+  "performance": {
+    "prepareTemplateMs": 0.12183299999992414,
+    "loadCustomFragmentsMs": 0.00041699999997035775,
+    "prepareDocumentMs": 0.1222499999998945,
+    "scanRouteFilesMs": 1.838624999999979,
+    "deriveRoutePathMs": 0.24195800000029521,
+    "filterRouteCandidatesMs": 0.01795700000002398,
+    "sourcePrecheckMs": 1.5643320000000358,
+    "readRouteFilesMs": 1.1562900000000127,
+    "parseRouteFilesMs": 15.251709000000119,
+    "analyzeRouteFilesMs": 10.334708000000205,
+    "typescriptResponseInferenceMs": 0,
+    "processRouteFilesMs": 25.781624999999963,
+    "registerRouteMs": 47.786248999999884,
+    "getSchemaContentMs": 3.071374999999989,
+    "createRequestParamsMs": 0,
+    "createRequestBodyMs": 0,
+    "processResponsesMs": 44.21008299999994,
+    "createResponseSchemaMs": 0,
+    "buildOperationsMs": 47.81037599999979,
+    "sortAndMergePathsMs": 0.6345000000000027,
+    "buildPathsMs": 0.6345000000000027,
+    "defaultComponentsAndErrorsMs": 0.19620899999995345,
+    "mergeSchemasMs": 0.18420900000000984,
+    "finalizeDocumentMs": 2.6604580000000624,
+    "totalMs": 81.47962499999994,
+    "scanRoutesMs": 75.43062599999973
+  }
+}

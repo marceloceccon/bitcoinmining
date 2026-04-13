@@ -1,0 +1,1957 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bitcoin Mining Farm Calculator API",
+    "version": "1.0.0",
+    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute for external callers.",
+    "contact": {
+      "name": "Bitcoin Mining Farm Calculator",
+      "url": "https://bitcoinminingfarmcalculator.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://bitcoinminingfarmcalculator.com/api",
+      "description": "Production server"
+    },
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local development server"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "AirFanItem": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "* Fan blade diameter (mm)"
+          },
+          "diameter_mm": {
+            "type": "number",
+            "description": "* Motor frequency (Hz, typically 50 or 60)"
+          },
+          "hz": {
+            "type": "number",
+            "description": "* Rotational speed (revolutions per minute)"
+          },
+          "rpm": {
+            "type": "number",
+            "description": "* Maximum airflow capacity (m³/h)"
+          },
+          "airflow_m3h": {
+            "type": "number",
+            "description": "* Sound pressure level (dB at rated speed)"
+          },
+          "noise_db": {
+            "type": "number",
+            "description": "* Electrical power consumption (W)"
+          },
+          "power_w": {
+            "type": "number",
+            "description": "* Unit height including frame (mm)"
+          },
+          "height_mm": {
+            "type": "number",
+            "description": "* Unit width including frame (mm)"
+          },
+          "width_mm": {
+            "type": "number",
+            "description": "* Purchase cost per unit (USD)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "description": "* Labor hours required for on-site deployment"
+          },
+          "man_hours_deploy": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "model",
+          "diameter_mm",
+          "hz",
+          "rpm",
+          "airflow_m3h",
+          "noise_db",
+          "power_w",
+          "height_mm",
+          "width_mm",
+          "cost_usd",
+          "man_hours_deploy"
+        ]
+      },
+      "CalculateBody": {
+        "type": "object",
+        "properties": {
+          "miners": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "miner": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "* Display name (e.g. \"Antminer S21 Pro\")",
+                      "nullable": false
+                    },
+                    "name": {
+                      "type": "string",
+                      "description": "* Manufacturer name (e.g. \"Bitmain\")",
+                      "nullable": false
+                    },
+                    "manufacturer": {
+                      "type": "string",
+                      "description": "* Mining algorithm (e.g. \"SHA-256\")",
+                      "nullable": false
+                    },
+                    "algorithm": {
+                      "type": "string",
+                      "description": "* Hash rate in terahashes per second",
+                      "nullable": false
+                    },
+                    "hash_rate_ths": {
+                      "type": "number",
+                      "description": "* Wall power consumption in watts",
+                      "nullable": false
+                    },
+                    "power_watts": {
+                      "type": "number",
+                      "description": "* Purchase price per unit in USD",
+                      "nullable": false
+                    },
+                    "price_usd": {
+                      "type": "number",
+                      "description": "* Energy efficiency in joules per terahash",
+                      "nullable": false
+                    },
+                    "efficiency_jth": {
+                      "type": "number",
+                      "description": "* Year the model was released",
+                      "nullable": false
+                    },
+                    "release_year": {
+                      "type": "number",
+                      "description": "* Whether this miner requires water cooling",
+                      "nullable": false
+                    },
+                    "watercooled": {
+                      "type": "boolean",
+                      "description": "* Hashrate degradation in year 1 (fraction, e.g. 0.02)",
+                      "nullable": false
+                    },
+                    "degradation_year1": {
+                      "type": "number",
+                      "description": "* Hashrate degradation in year 2 (fraction)",
+                      "nullable": false
+                    },
+                    "degradation_year2": {
+                      "type": "number",
+                      "description": "* Hashrate degradation in year 3+ (fraction per year)",
+                      "nullable": false
+                    },
+                    "degradation_year3plus": {
+                      "type": "number",
+                      "description": "* Optional notes about the miner model",
+                      "nullable": false
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "manufacturer",
+                    "algorithm",
+                    "hash_rate_ths",
+                    "power_watts",
+                    "price_usd",
+                    "efficiency_jth",
+                    "release_year",
+                    "watercooled",
+                    "degradation_year1",
+                    "degradation_year2",
+                    "degradation_year3plus"
+                  ],
+                  "description": "* Number of units of this miner model to deploy",
+                  "nullable": false
+                },
+                "quantity": {
+                  "type": "number",
+                  "nullable": false
+                }
+              },
+              "required": [
+                "miner",
+                "quantity"
+              ]
+            },
+            "description": "* Electrical infrastructure configuration",
+            "nullable": false
+          },
+          "electrical": {
+            "type": "object",
+            "properties": {
+              "cableLength": {
+                "type": "number",
+                "description": "* Cable gauge (AWG)",
+                "nullable": false
+              },
+              "cableGauge": {
+                "type": "number",
+                "description": "* Copper commodity price used for cable cost estimation (USD/kg)",
+                "nullable": false
+              },
+              "copperPricePerKg": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "cableLength",
+              "cableGauge",
+              "copperPricePerKg"
+            ],
+            "description": "* Cooling system configuration",
+            "nullable": false
+          },
+          "cooling": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "air",
+                  "hydro"
+                ],
+                "description": "* Per-miner air cooling infrastructure cost in USD (used when type is \"air\")",
+                "nullable": false
+              },
+              "airCost": {
+                "type": "number",
+                "description": "* Per-miner hydro dry-cooler infrastructure cost in USD (used when type is \"hydro\")",
+                "nullable": true
+              },
+              "hydroDryingCost": {
+                "type": "number",
+                "nullable": true
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "description": "* Solar power offset configuration",
+            "nullable": false
+          },
+          "solar": {
+            "type": "object",
+            "properties": {
+              "coveragePercent": {
+                "type": "number",
+                "description": "* Solar panel + inverter installation cost per kW (USD)",
+                "nullable": false
+              },
+              "installationCostPerKw": {
+                "type": "number",
+                "description": "* Annual solar maintenance as a percent of solar CAPEX",
+                "nullable": false
+              },
+              "maintenancePercentPerYear": {
+                "type": "number",
+                "description": "* Grid injection credit rate — 100 means full credit, 0 means no credit (0-100)",
+                "nullable": false
+              },
+              "injectionRatePercent": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "coveragePercent",
+              "installationCostPerKw",
+              "maintenancePercentPerYear",
+              "injectionRatePercent"
+            ],
+            "description": "* Regional electricity and tax settings",
+            "nullable": false
+          },
+          "regional": {
+            "type": "object",
+            "properties": {
+              "region": {
+                "type": "string",
+                "enum": [
+                  "BR",
+                  "US",
+                  "CN",
+                  "EU",
+                  "CUSTOM"
+                ],
+                "description": "* Electricity price per kWh in USD",
+                "nullable": false
+              },
+              "electricityPriceKwh": {
+                "type": "number",
+                "description": "* Additional tax on electricity as a percentage",
+                "nullable": false
+              },
+              "taxAdderPercent": {
+                "type": "number",
+                "description": "* Annual energy price inflation percentage (default 3)",
+                "nullable": false
+              },
+              "energyInflationPercent": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "region",
+              "electricityPriceKwh",
+              "taxAdderPercent",
+              "energyInflationPercent"
+            ],
+            "description": "* Parasitic load as a percentage of total miner power (lighting, networking, etc.) — default 5",
+            "nullable": false
+          },
+          "parasiticLoadPercent": {
+            "type": "number",
+            "description": "* Expected uptime percentage — default 98",
+            "nullable": false
+          },
+          "uptimePercent": {
+            "type": "number",
+            "description": "* Mining pool fee percentage — default 1-2",
+            "nullable": false
+          },
+          "poolFeePercent": {
+            "type": "number",
+            "description": "* Monthly maintenance OPEX as a percentage of total CAPEX — default 5",
+            "nullable": false
+          },
+          "maintenanceOpexPercent": {
+            "type": "number",
+            "description": "* Mining pool payout scheme — default \"fpps\"",
+            "nullable": false
+          },
+          "payoutScheme": {
+            "type": "string",
+            "enum": [
+              "pps",
+              "pplns",
+              "fpps",
+              "ppsplus"
+            ],
+            "description": "* Labor cost parameters for deployment",
+            "nullable": false
+          },
+          "labor": {
+            "type": "object",
+            "properties": {
+              "manHoursPerMiner": {
+                "type": "number",
+                "description": "* Hourly labor rate in USD — default 35",
+                "nullable": false
+              },
+              "hourlyLaborCostUsd": {
+                "type": "number",
+                "description": "* Cable + dedicated fuse breaker cost per miner in USD — default 85",
+                "nullable": false
+              },
+              "cablesPerMinerUsd": {
+                "type": "number",
+                "description": "* Man-hours to install each transformer — default 8",
+                "nullable": false
+              },
+              "manHoursPerTransformer": {
+                "type": "number",
+                "description": "* Man-hours to assemble each rack — default 4",
+                "nullable": false
+              },
+              "manHoursPerRack": {
+                "type": "number",
+                "description": "* Man-hours to set up each container — default 40",
+                "nullable": false
+              },
+              "manHoursPerContainer": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "manHoursPerMiner",
+              "hourlyLaborCostUsd",
+              "cablesPerMinerUsd",
+              "manHoursPerTransformer",
+              "manHoursPerRack",
+              "manHoursPerContainer"
+            ],
+            "description": "* Temperature management and cooling hardware selections (optional)",
+            "nullable": false
+          },
+          "temperature": {
+            "type": "object",
+            "properties": {
+              "location": {
+                "type": "object",
+                "properties": {
+                  "lat": {
+                    "type": "number",
+                    "description": "* Longitude",
+                    "nullable": false
+                  },
+                  "lng": {
+                    "type": "number",
+                    "description": "* City name",
+                    "nullable": false
+                  },
+                  "city": {
+                    "type": "string",
+                    "description": "* Average yearly temperature (°C)",
+                    "nullable": false
+                  },
+                  "avgYearlyTempC": {
+                    "type": "number",
+                    "description": "* Maximum recorded temperature (°C)",
+                    "nullable": false
+                  },
+                  "maxTempC": {
+                    "type": "number",
+                    "description": "* Minimum recorded temperature (°C)",
+                    "nullable": false
+                  },
+                  "minTempC": {
+                    "type": "number",
+                    "description": "* Average relative humidity (%)",
+                    "nullable": false
+                  },
+                  "avgHumidityPercent": {
+                    "type": "number",
+                    "nullable": false
+                  }
+                },
+                "required": [
+                  "lat",
+                  "lng",
+                  "city",
+                  "avgYearlyTempC",
+                  "maxTempC",
+                  "minTempC",
+                  "avgHumidityPercent"
+                ],
+                "nullable": false,
+                "description": "* Selected dry cooler models and quantities for hydro cooling"
+              },
+              "dryCoolerSelections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "description": "* Number of units",
+                      "nullable": false
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "nullable": false
+                    }
+                  },
+                  "required": [
+                    "model",
+                    "quantity"
+                  ]
+                },
+                "description": "* Selected air fan models and quantities for ventilation",
+                "nullable": false
+              },
+              "airFanSelections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "description": "* Number of units",
+                      "nullable": false
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "nullable": false
+                    }
+                  },
+                  "required": [
+                    "model",
+                    "quantity"
+                  ]
+                },
+                "nullable": false
+              }
+            },
+            "required": [
+              "location",
+              "dryCoolerSelections",
+              "airFanSelections"
+            ],
+            "description": "* Infrastructure housing type — \"racks\" or \"containers\"",
+            "nullable": true
+          },
+          "infrastructureType": {
+            "type": "string",
+            "enum": [
+              "racks",
+              "containers"
+            ],
+            "description": "* Import tax percentages applied to hardware CAPEX by category",
+            "nullable": false
+          },
+          "importTax": {
+            "type": "object",
+            "properties": {
+              "containers": {
+                "type": "number",
+                "description": "* Import tax on racks (%)",
+                "nullable": false
+              },
+              "racks": {
+                "type": "number",
+                "description": "* Import tax on ASIC miners (%)",
+                "nullable": false
+              },
+              "miners": {
+                "type": "number",
+                "description": "* Import tax on ventilation fans (%)",
+                "nullable": false
+              },
+              "fans": {
+                "type": "number",
+                "description": "* Import tax on dry coolers (%)",
+                "nullable": false
+              },
+              "dryCoolers": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "containers",
+              "racks",
+              "miners",
+              "fans",
+              "dryCoolers"
+            ],
+            "description": "* Ongoing maintenance labor configuration",
+            "nullable": false
+          },
+          "maintenanceLabor": {
+            "type": "object",
+            "properties": {
+              "hourlyMaintenanceCostUsd": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "hourlyMaintenanceCostUsd"
+            ],
+            "nullable": false
+          }
+        },
+        "required": [
+          "miners",
+          "electrical",
+          "cooling",
+          "solar",
+          "regional",
+          "parasiticLoadPercent",
+          "uptimePercent",
+          "poolFeePercent",
+          "maintenanceOpexPercent",
+          "payoutScheme",
+          "labor",
+          "infrastructureType",
+          "importTax",
+          "maintenanceLabor"
+        ]
+      },
+      "FarmMetricsResponse": {
+        "type": "object",
+        "properties": {
+          "totalHashRateThs": {
+            "type": "number",
+            "description": "* Total wall power draw of all miners (kW)"
+          },
+          "totalPowerKw": {
+            "type": "number",
+            "description": "* Estimated monthly energy consumption (kWh)"
+          },
+          "monthlyKwh": {
+            "type": "number",
+            "description": "* Total heat output (BTU/h)"
+          },
+          "heatOutputBtuPerHour": {
+            "type": "number",
+            "description": "* Total electrical current draw (A)"
+          },
+          "electricalCurrentAmps": {
+            "type": "number",
+            "description": "* Required transformer capacity (kVA)"
+          },
+          "transformerKva": {
+            "type": "number",
+            "description": "* Transformer purchase cost (USD)"
+          },
+          "transformerCost": {
+            "type": "number",
+            "description": "* Total copper cable cost (USD)"
+          },
+          "cableCost": {
+            "type": "number",
+            "description": "* Rack hardware cost (USD, 0 if using containers)"
+          },
+          "rackCost": {
+            "type": "number",
+            "description": "* Container hardware cost (USD, 0 if using racks)"
+          },
+          "containerCost": {
+            "type": "number",
+            "description": "* Cooling infrastructure cost (USD)"
+          },
+          "coolingCost": {
+            "type": "number",
+            "description": "* Solar panel system CAPEX (USD)"
+          },
+          "solarCapex": {
+            "type": "number",
+            "description": "* Total deployment labor cost (USD)"
+          },
+          "laborCost": {
+            "type": "number",
+            "description": "* Total cables and breakers cost (USD)"
+          },
+          "cablesAndBreakers": {
+            "type": "number",
+            "description": "* Dry cooler equipment CAPEX (USD)"
+          },
+          "dryCoolerCapex": {
+            "type": "number",
+            "description": "* Air fan equipment CAPEX (USD)"
+          },
+          "airFanCapex": {
+            "type": "number",
+            "description": "* Total power consumed by air fans (kW)"
+          },
+          "airFanPowerKw": {
+            "type": "number",
+            "description": "* Total miner hardware cost (USD)"
+          },
+          "minerCost": {
+            "type": "number",
+            "description": "* Total import tax on all hardware (USD)"
+          },
+          "importTaxCapex": {
+            "type": "number",
+            "description": "* Grand total capital expenditure (USD)"
+          },
+          "totalCapex": {
+            "type": "number",
+            "description": "* Total monthly operating expenditure (USD)"
+          },
+          "monthlyOpex": {
+            "type": "number",
+            "description": "* Monthly solar maintenance cost (USD)"
+          },
+          "monthlySolarMaintenance": {
+            "type": "number",
+            "description": "* Monthly maintenance labor cost (USD)"
+          },
+          "maintenanceLaborOpex": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalHashRateThs",
+          "totalPowerKw",
+          "monthlyKwh",
+          "heatOutputBtuPerHour",
+          "electricalCurrentAmps",
+          "transformerKva",
+          "transformerCost",
+          "cableCost",
+          "rackCost",
+          "containerCost",
+          "coolingCost",
+          "solarCapex",
+          "laborCost",
+          "cablesAndBreakers",
+          "dryCoolerCapex",
+          "airFanCapex",
+          "airFanPowerKw",
+          "minerCost",
+          "importTaxCapex",
+          "totalCapex",
+          "monthlyOpex",
+          "monthlySolarMaintenance",
+          "maintenanceLaborOpex"
+        ]
+      },
+      "CalculateResponse": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "totalHashRateThs": {
+                "type": "number",
+                "description": "* Total wall power draw of all miners (kW)"
+              },
+              "totalPowerKw": {
+                "type": "number",
+                "description": "* Estimated monthly energy consumption (kWh)"
+              },
+              "monthlyKwh": {
+                "type": "number",
+                "description": "* Total heat output (BTU/h)"
+              },
+              "heatOutputBtuPerHour": {
+                "type": "number",
+                "description": "* Total electrical current draw (A)"
+              },
+              "electricalCurrentAmps": {
+                "type": "number",
+                "description": "* Required transformer capacity (kVA)"
+              },
+              "transformerKva": {
+                "type": "number",
+                "description": "* Transformer purchase cost (USD)"
+              },
+              "transformerCost": {
+                "type": "number",
+                "description": "* Total copper cable cost (USD)"
+              },
+              "cableCost": {
+                "type": "number",
+                "description": "* Rack hardware cost (USD, 0 if using containers)"
+              },
+              "rackCost": {
+                "type": "number",
+                "description": "* Container hardware cost (USD, 0 if using racks)"
+              },
+              "containerCost": {
+                "type": "number",
+                "description": "* Cooling infrastructure cost (USD)"
+              },
+              "coolingCost": {
+                "type": "number",
+                "description": "* Solar panel system CAPEX (USD)"
+              },
+              "solarCapex": {
+                "type": "number",
+                "description": "* Total deployment labor cost (USD)"
+              },
+              "laborCost": {
+                "type": "number",
+                "description": "* Total cables and breakers cost (USD)"
+              },
+              "cablesAndBreakers": {
+                "type": "number",
+                "description": "* Dry cooler equipment CAPEX (USD)"
+              },
+              "dryCoolerCapex": {
+                "type": "number",
+                "description": "* Air fan equipment CAPEX (USD)"
+              },
+              "airFanCapex": {
+                "type": "number",
+                "description": "* Total power consumed by air fans (kW)"
+              },
+              "airFanPowerKw": {
+                "type": "number",
+                "description": "* Total miner hardware cost (USD)"
+              },
+              "minerCost": {
+                "type": "number",
+                "description": "* Total import tax on all hardware (USD)"
+              },
+              "importTaxCapex": {
+                "type": "number",
+                "description": "* Grand total capital expenditure (USD)"
+              },
+              "totalCapex": {
+                "type": "number",
+                "description": "* Total monthly operating expenditure (USD)"
+              },
+              "monthlyOpex": {
+                "type": "number",
+                "description": "* Monthly solar maintenance cost (USD)"
+              },
+              "monthlySolarMaintenance": {
+                "type": "number",
+                "description": "* Monthly maintenance labor cost (USD)"
+              },
+              "maintenanceLaborOpex": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "totalHashRateThs",
+              "totalPowerKw",
+              "monthlyKwh",
+              "heatOutputBtuPerHour",
+              "electricalCurrentAmps",
+              "transformerKva",
+              "transformerCost",
+              "cableCost",
+              "rackCost",
+              "containerCost",
+              "coolingCost",
+              "solarCapex",
+              "laborCost",
+              "cablesAndBreakers",
+              "dryCoolerCapex",
+              "airFanCapex",
+              "airFanPowerKw",
+              "minerCost",
+              "importTaxCapex",
+              "totalCapex",
+              "monthlyOpex",
+              "monthlySolarMaintenance",
+              "maintenanceLaborOpex"
+            ],
+            "description": "* Required ventilation airflow"
+          },
+          "ventilation": {
+            "type": "object",
+            "properties": {
+              "m3h": {
+                "type": "number",
+                "description": "* Airflow in cubic feet per minute"
+              },
+              "cfm": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "m3h",
+              "cfm"
+            ],
+            "description": "* Combined hash rate of all miners (TH/s)"
+          },
+          "totalHashRateThs": {
+            "type": "number",
+            "description": "* Combined wall power of all miners (kW)"
+          },
+          "totalPowerKw": {
+            "type": "number",
+            "description": "* Total power consumed by air cooling fans (kW)"
+          },
+          "airFanPowerKw": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "metrics",
+          "ventilation",
+          "totalHashRateThs",
+          "totalPowerKw",
+          "airFanPowerKw"
+        ]
+      },
+      "DryCoolerItem": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "* Heat rejection capacity at 35 °C ambient (kW)"
+          },
+          "kw_capacity_35c": {
+            "type": "number",
+            "description": "* Water flow rate (m³/h)"
+          },
+          "water_flow_m3h": {
+            "type": "number",
+            "description": "* Water-side pressure drop (kPa)"
+          },
+          "pressure_drop_kpa": {
+            "type": "number",
+            "description": "* Air flow rate through the unit (m³/h)"
+          },
+          "air_flow_m3h": {
+            "type": "number",
+            "description": "* Fan motor power consumption (W)"
+          },
+          "fan_motor_w": {
+            "type": "number",
+            "description": "* Fan motor current draw (A)"
+          },
+          "fan_motor_a": {
+            "type": "number",
+            "description": "* Sound pressure level (dBA at 10 m)"
+          },
+          "sound_dba": {
+            "type": "number",
+            "description": "* Unit length (mm)"
+          },
+          "length_mm": {
+            "type": "number",
+            "description": "* Unit width (mm)"
+          },
+          "width_mm": {
+            "type": "number",
+            "description": "* Unit height (mm)"
+          },
+          "height_mm": {
+            "type": "number",
+            "description": "* Inlet pipe diameter (mm, as string e.g. \"DN80\")"
+          },
+          "inlet_mm": {
+            "type": "string",
+            "description": "* Dry weight (kg)"
+          },
+          "weight_kg": {
+            "type": "number",
+            "description": "* Estimated purchase cost (USD)"
+          },
+          "estimated_cost_usd": {
+            "type": "number",
+            "description": "* Labor hours required for on-site deployment"
+          },
+          "man_hours_deploy": {
+            "type": "number",
+            "description": "* Plumbing and glycol fluid cost (USD)"
+          },
+          "plumbing_fluid_cost_usd": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "model",
+          "kw_capacity_35c",
+          "water_flow_m3h",
+          "pressure_drop_kpa",
+          "air_flow_m3h",
+          "fan_motor_w",
+          "fan_motor_a",
+          "sound_dba",
+          "length_mm",
+          "width_mm",
+          "height_mm",
+          "inlet_mm",
+          "weight_kg",
+          "estimated_cost_usd",
+          "man_hours_deploy",
+          "plumbing_fluid_cost_usd"
+        ]
+      },
+      "FarmConfig": {},
+      "ForecastParamsBody": {
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "number",
+            "enum": [
+              12,
+              24,
+              36,
+              48,
+              72
+            ],
+            "description": "* Revenue strategy: sell all BTC immediately, hold all BTC, or sell only enough to cover OPEX",
+            "nullable": false
+          },
+          "revenueMode": {
+            "type": "string",
+            "enum": [
+              "sell_all",
+              "hold_all",
+              "sell_opex"
+            ],
+            "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+            "nullable": false
+          },
+          "btcPriceModel": {
+            "type": "string",
+            "enum": [
+              "fixed",
+              "stock_to_flow",
+              "stock_to_flow_pessimistic",
+              "custom"
+            ],
+            "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+            "nullable": false
+          },
+          "pessimisticAdjustPercent": {
+            "type": "number",
+            "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
+            "nullable": false
+          },
+          "networkHashrateGrowthPercent": {
+            "type": "number",
+            "description": "* Annual ASIC performance degradation (percent, e.g. 5 for 5% YoY hashrate loss)",
+            "nullable": false
+          },
+          "asicDegradationPercent": {
+            "type": "number",
+            "description": "* Annual discount rate for NPV / IRR calculations (percent, default 10)",
+            "nullable": false
+          },
+          "discountRatePercent": {
+            "type": "number",
+            "description": "* Starting BTC price in USD (current market price)",
+            "nullable": false
+          },
+          "startingBtcPrice": {
+            "type": "number",
+            "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
+            "nullable": false
+          },
+          "finalBtcPrice": {
+            "type": "number",
+            "nullable": false
+          }
+        },
+        "required": [
+          "months",
+          "revenueMode",
+          "btcPriceModel",
+          "pessimisticAdjustPercent",
+          "networkHashrateGrowthPercent",
+          "asicDegradationPercent",
+          "discountRatePercent",
+          "startingBtcPrice",
+          "finalBtcPrice"
+        ]
+      },
+      "ForecastBody": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "description": "* Forecast simulation parameters",
+            "nullable": false
+          },
+          "params": {
+            "type": "object",
+            "properties": {
+              "months": {
+                "type": "number",
+                "enum": [
+                  12,
+                  24,
+                  36,
+                  48,
+                  72
+                ],
+                "description": "* Revenue strategy: sell all BTC immediately, hold all BTC, or sell only enough to cover OPEX",
+                "nullable": false
+              },
+              "revenueMode": {
+                "type": "string",
+                "enum": [
+                  "sell_all",
+                  "hold_all",
+                  "sell_opex"
+                ],
+                "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+                "nullable": false
+              },
+              "btcPriceModel": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "stock_to_flow",
+                  "stock_to_flow_pessimistic",
+                  "custom"
+                ],
+                "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+                "nullable": false
+              },
+              "pessimisticAdjustPercent": {
+                "type": "number",
+                "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
+                "nullable": false
+              },
+              "networkHashrateGrowthPercent": {
+                "type": "number",
+                "description": "* Annual ASIC performance degradation (percent, e.g. 5 for 5% YoY hashrate loss)",
+                "nullable": false
+              },
+              "asicDegradationPercent": {
+                "type": "number",
+                "description": "* Annual discount rate for NPV / IRR calculations (percent, default 10)",
+                "nullable": false
+              },
+              "discountRatePercent": {
+                "type": "number",
+                "description": "* Starting BTC price in USD (current market price)",
+                "nullable": false
+              },
+              "startingBtcPrice": {
+                "type": "number",
+                "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
+                "nullable": false
+              },
+              "finalBtcPrice": {
+                "type": "number",
+                "nullable": false
+              }
+            },
+            "required": [
+              "months",
+              "revenueMode",
+              "btcPriceModel",
+              "pessimisticAdjustPercent",
+              "networkHashrateGrowthPercent",
+              "asicDegradationPercent",
+              "discountRatePercent",
+              "startingBtcPrice",
+              "finalBtcPrice"
+            ],
+            "nullable": false
+          }
+        },
+        "required": [
+          "config",
+          "params"
+        ]
+      },
+      "ForecastPeriodResponse": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "number",
+            "description": "* ISO 8601 date string for this period"
+          },
+          "date": {
+            "type": "string",
+            "description": "* Projected BTC price in USD for this month"
+          },
+          "btcPrice": {
+            "type": "number",
+            "description": "* Projected total network hashrate in TH/s"
+          },
+          "networkHashrateThs": {
+            "type": "number",
+            "description": "* Projected mining difficulty"
+          },
+          "difficulty": {
+            "type": "number",
+            "description": "* Block reward at this point (accounts for halvings)"
+          },
+          "blockReward": {
+            "type": "number",
+            "description": "* Gross mining revenue in USD for this month"
+          },
+          "miningRevenueUsd": {
+            "type": "number",
+            "description": "* Electricity cost in USD for this month"
+          },
+          "electricityCostUsd": {
+            "type": "number",
+            "description": "* Total operating expenses in USD for this month"
+          },
+          "opexUsd": {
+            "type": "number",
+            "description": "* Net profit (revenue minus OPEX) in USD"
+          },
+          "profitUsd": {
+            "type": "number",
+            "description": "* BTC mined this month"
+          },
+          "btcMined": {
+            "type": "number",
+            "description": "* BTC sold this month (depends on revenueMode)"
+          },
+          "btcSold": {
+            "type": "number",
+            "description": "* Cumulative BTC balance held"
+          },
+          "btcBalance": {
+            "type": "number",
+            "description": "* Running total profit/loss in USD (includes CAPEX)"
+          },
+          "cumulativeProfitUsd": {
+            "type": "number",
+            "description": "* Return on investment to date (percent)"
+          },
+          "roi": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "date",
+          "btcPrice",
+          "networkHashrateThs",
+          "difficulty",
+          "blockReward",
+          "miningRevenueUsd",
+          "electricityCostUsd",
+          "opexUsd",
+          "profitUsd",
+          "btcMined",
+          "btcSold",
+          "btcBalance",
+          "cumulativeProfitUsd",
+          "roi"
+        ]
+      },
+      "ForecastSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "totalRevenue": {
+            "type": "number",
+            "description": "* Total costs including CAPEX and OPEX (USD)"
+          },
+          "totalCosts": {
+            "type": "number",
+            "description": "* Net profit over the full forecast horizon (USD)"
+          },
+          "totalProfit": {
+            "type": "number",
+            "description": "* BTC remaining in wallet at the end of the forecast"
+          },
+          "finalBtcBalance": {
+            "type": "number",
+            "description": "* Overall return on investment (percent)"
+          },
+          "roiPercent": {
+            "type": "number",
+            "description": "* Months until cumulative profit turns positive — null if never reached"
+          },
+          "paybackMonths": {
+            "type": "number",
+            "nullable": true,
+            "description": "* Internal rate of return (annualized, as a decimal)"
+          },
+          "irr": {
+            "type": "number",
+            "description": "* Net present value of all cash flows (USD)"
+          },
+          "npv": {
+            "type": "number",
+            "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+          },
+          "breakEvenBtcPrice": {
+            "type": "number",
+            "description": "* BTC price at which total revenue covers CAPEX + all OPEX (USD)"
+          },
+          "breakEvenBtcPriceWithCapex": {
+            "type": "number",
+            "description": "* Average hashprice over the forecast ($/PH/day)"
+          },
+          "avgHashpriceUsd": {
+            "type": "number",
+            "description": "* Total BTC mined over the full forecast"
+          },
+          "totalBtcMined": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalRevenue",
+          "totalCosts",
+          "totalProfit",
+          "finalBtcBalance",
+          "roiPercent",
+          "paybackMonths",
+          "irr",
+          "npv",
+          "breakEvenBtcPrice",
+          "breakEvenBtcPriceWithCapex",
+          "avgHashpriceUsd",
+          "totalBtcMined"
+        ]
+      },
+      "ForecastResponse": {
+        "type": "object",
+        "properties": {
+          "periods": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "month": {
+                  "type": "number",
+                  "description": "* ISO 8601 date string for this period"
+                },
+                "date": {
+                  "type": "string",
+                  "description": "* Projected BTC price in USD for this month"
+                },
+                "btcPrice": {
+                  "type": "number",
+                  "description": "* Projected total network hashrate in TH/s"
+                },
+                "networkHashrateThs": {
+                  "type": "number",
+                  "description": "* Projected mining difficulty"
+                },
+                "difficulty": {
+                  "type": "number",
+                  "description": "* Block reward at this point (accounts for halvings)"
+                },
+                "blockReward": {
+                  "type": "number",
+                  "description": "* Gross mining revenue in USD for this month"
+                },
+                "miningRevenueUsd": {
+                  "type": "number",
+                  "description": "* Electricity cost in USD for this month"
+                },
+                "electricityCostUsd": {
+                  "type": "number",
+                  "description": "* Total operating expenses in USD for this month"
+                },
+                "opexUsd": {
+                  "type": "number",
+                  "description": "* Net profit (revenue minus OPEX) in USD"
+                },
+                "profitUsd": {
+                  "type": "number",
+                  "description": "* BTC mined this month"
+                },
+                "btcMined": {
+                  "type": "number",
+                  "description": "* BTC sold this month (depends on revenueMode)"
+                },
+                "btcSold": {
+                  "type": "number",
+                  "description": "* Cumulative BTC balance held"
+                },
+                "btcBalance": {
+                  "type": "number",
+                  "description": "* Running total profit/loss in USD (includes CAPEX)"
+                },
+                "cumulativeProfitUsd": {
+                  "type": "number",
+                  "description": "* Return on investment to date (percent)"
+                },
+                "roi": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "month",
+                "date",
+                "btcPrice",
+                "networkHashrateThs",
+                "difficulty",
+                "blockReward",
+                "miningRevenueUsd",
+                "electricityCostUsd",
+                "opexUsd",
+                "profitUsd",
+                "btcMined",
+                "btcSold",
+                "btcBalance",
+                "cumulativeProfitUsd",
+                "roi"
+              ]
+            },
+            "description": "* Total upfront capital expenditure (USD)"
+          },
+          "totalCapex": {
+            "type": "number",
+            "description": "* Aggregated forecast summary metrics"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "totalRevenue": {
+                "type": "number",
+                "description": "* Total costs including CAPEX and OPEX (USD)"
+              },
+              "totalCosts": {
+                "type": "number",
+                "description": "* Net profit over the full forecast horizon (USD)"
+              },
+              "totalProfit": {
+                "type": "number",
+                "description": "* BTC remaining in wallet at the end of the forecast"
+              },
+              "finalBtcBalance": {
+                "type": "number",
+                "description": "* Overall return on investment (percent)"
+              },
+              "roiPercent": {
+                "type": "number",
+                "description": "* Months until cumulative profit turns positive — null if never reached"
+              },
+              "paybackMonths": {
+                "type": "number",
+                "nullable": true,
+                "description": "* Internal rate of return (annualized, as a decimal)"
+              },
+              "irr": {
+                "type": "number",
+                "description": "* Net present value of all cash flows (USD)"
+              },
+              "npv": {
+                "type": "number",
+                "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+              },
+              "breakEvenBtcPrice": {
+                "type": "number",
+                "description": "* BTC price at which total revenue covers CAPEX + all OPEX (USD)"
+              },
+              "breakEvenBtcPriceWithCapex": {
+                "type": "number",
+                "description": "* Average hashprice over the forecast ($/PH/day)"
+              },
+              "avgHashpriceUsd": {
+                "type": "number",
+                "description": "* Total BTC mined over the full forecast"
+              },
+              "totalBtcMined": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "totalRevenue",
+              "totalCosts",
+              "totalProfit",
+              "finalBtcBalance",
+              "roiPercent",
+              "paybackMonths",
+              "irr",
+              "npv",
+              "breakEvenBtcPrice",
+              "breakEvenBtcPriceWithCapex",
+              "avgHashpriceUsd",
+              "totalBtcMined"
+            ]
+          }
+        },
+        "required": [
+          "periods",
+          "totalCapex",
+          "summary"
+        ]
+      },
+      "MinerResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique miner identifier, e.g. \"s21-pro\""
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable model name, e.g. \"Antminer S21 Pro\""
+          },
+          "manufacturer": {
+            "type": "string",
+            "description": "Manufacturer name: Bitmain, MicroBT, Canaan, etc."
+          },
+          "algorithm": {
+            "type": "string",
+            "description": "Mining algorithm, always \"SHA-256\" for Bitcoin"
+          },
+          "hash_rate_ths": {
+            "type": "number",
+            "description": "Hash rate in terahashes per second (TH/s)"
+          },
+          "power_watts": {
+            "type": "number",
+            "description": "Power consumption in watts"
+          },
+          "price_usd": {
+            "type": "number",
+            "description": "Approximate market price in USD"
+          },
+          "efficiency_jth": {
+            "type": "number",
+            "description": "Energy efficiency in joules per terahash (J/TH), lower is better"
+          },
+          "release_year": {
+            "type": "number",
+            "description": "Year the model was released"
+          },
+          "watercooled": {
+            "type": "boolean",
+            "description": "Whether the miner requires water/hydro cooling"
+          },
+          "degradation_year1": {
+            "type": "number",
+            "description": "Annual hashrate degradation % in year 1"
+          },
+          "degradation_year2": {
+            "type": "number",
+            "description": "Annual hashrate degradation % in year 2"
+          },
+          "degradation_year3plus": {
+            "type": "number",
+            "description": "Annual hashrate degradation % in year 3+"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "manufacturer",
+          "algorithm",
+          "hash_rate_ths",
+          "power_watts",
+          "price_usd",
+          "efficiency_jth",
+          "release_year",
+          "watercooled",
+          "degradation_year1",
+          "degradation_year2",
+          "degradation_year3plus"
+        ]
+      },
+      "NetworkDataResponse": {
+        "type": "object",
+        "properties": {
+          "btcPriceUsd": {
+            "type": "number",
+            "description": "* Total network hashrate in exahashes per second (EH/s)"
+          },
+          "networkHashrateEh": {
+            "type": "number",
+            "description": "* Current mining difficulty"
+          },
+          "difficulty": {
+            "type": "number",
+            "description": "* Current block subsidy reward in BTC (e.g. 3.125 after 2024 halving)"
+          },
+          "blockReward": {
+            "type": "number",
+            "description": "* Mining hashprice in USD per petahash per day ($/PH/day)"
+          },
+          "hashpriceUsdPhDay": {
+            "type": "number",
+            "description": "* ISO 8601 timestamp of when this data was last fetched"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "description": "* Whether the data is from a live API call (true) or fallback estimates (false)"
+          },
+          "isLive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "btcPriceUsd",
+          "networkHashrateEh",
+          "difficulty",
+          "blockReward",
+          "hashpriceUsdPhDay",
+          "lastUpdated",
+          "isLive"
+        ]
+      },
+      "CatalogUpdate": {
+        "type": "object",
+        "properties": {
+          "lastUpdated": {
+            "type": "string",
+            "description": "* Human-readable note describing what changed"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lastUpdated",
+          "note"
+        ]
+      },
+      "UpdatesResponse": {
+        "type": "object",
+        "properties": {
+          "miners": {
+            "type": "object",
+            "properties": {
+              "lastUpdated": {
+                "type": "string",
+                "description": "* Human-readable note describing what changed"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lastUpdated",
+              "note"
+            ],
+            "description": "* Last update info for the dry cooler catalog"
+          },
+          "dryCoolers": {
+            "type": "object",
+            "properties": {
+              "lastUpdated": {
+                "type": "string",
+                "description": "* Human-readable note describing what changed"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lastUpdated",
+              "note"
+            ],
+            "description": "* Last update info for the air fan catalog"
+          },
+          "airFans": {
+            "type": "object",
+            "properties": {
+              "lastUpdated": {
+                "type": "string",
+                "description": "* Human-readable note describing what changed"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "lastUpdated",
+              "note"
+            ]
+          }
+        },
+        "required": [
+          "miners",
+          "dryCoolers",
+          "airFans"
+        ]
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "Bad Request — invalid or missing request body",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Invalid request parameters"
+                }
+              }
+            }
+          }
+        }
+      },
+      "429": {
+        "description": "Too Many Requests — rate limit exceeded (60 req/min for external callers)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Too many requests"
+                }
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/air-fans": {
+      "get": {
+        "operationId": "get-air-fans",
+        "summary": "List all air cooling fan models",
+        "description": "Returns the catalog of industrial axial fan models for air-cooled Bitcoin mining ventilation. Includes airflow capacity, power consumption, noise level, and deployment labor.",
+        "tags": [
+          "Air-fans"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AirFanItem"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/calculate": {
+      "post": {
+        "operationId": "post-calculate",
+        "summary": "Calculate farm metrics",
+        "description": "Calculates comprehensive CAPEX, OPEX, and operational metrics for a Bitcoin mining farm configuration. Accepts a complete FarmConfig and returns all derived values including total hash rate, power draw, heat output, transformer sizing, infrastructure costs, and monthly operating expenses. This is the primary calculation endpoint — send your full farm configuration and receive all metrics in one call.",
+        "tags": [
+          "Calculate"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculateBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalculateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/dry-coolers": {
+      "get": {
+        "operationId": "get-dry-coolers",
+        "summary": "List all dry cooler models",
+        "description": "Returns the catalog of industrial dry cooler models for hydro-cooled Bitcoin mining farms. Includes capacity ratings at 35°C ambient, physical dimensions, noise levels, and deployment costs.",
+        "tags": [
+          "Dry-coolers"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DryCoolerItem"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/forecast": {
+      "post": {
+        "operationId": "post-forecast",
+        "summary": "Generate multi-year revenue forecast",
+        "description": "Generates a month-by-month Bitcoin mining revenue forecast with BTC price modeling (Stock-to-Flow), network difficulty growth, ASIC degradation, energy inflation, and halving events. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.",
+        "tags": [
+          "Forecast"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/miners": {
+      "get": {
+        "operationId": "get-miners",
+        "summary": "List all ASIC miners",
+        "description": "Returns the complete catalog of 50+ Bitcoin ASIC mining hardware models with specs, pricing, and degradation curves. Sorted by hash rate descending. Check GET /updates for last data update timestamp.",
+        "tags": [
+          "Miners"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MinerResponse"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/network": {
+      "get": {
+        "operationId": "get-network",
+        "summary": "Get live Bitcoin network data",
+        "description": "Returns current Bitcoin network statistics including BTC price (USD), total network hashrate (EH/s), mining difficulty, block reward, and hashprice ($/PH/day). Data is sourced from mempool.space and CoinGecko with a 60-second server-side cache. Falls back to estimated values when APIs are unreachable.",
+        "tags": [
+          "Network"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkDataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/updates": {
+      "get": {
+        "operationId": "get-updates",
+        "summary": "Get data update timestamps",
+        "description": "Returns the last update timestamps for all hardware catalogs (miners, dry coolers, air fans). Use this to check data freshness before making calculation requests.",
+        "tags": [
+          "Updates"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdatesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Air-fans"
+    },
+    {
+      "name": "Calculate"
+    },
+    {
+      "name": "Dry-coolers"
+    },
+    {
+      "name": "Forecast"
+    },
+    {
+      "name": "Miners"
+    },
+    {
+      "name": "Network"
+    },
+    {
+      "name": "Updates"
+    }
+  ]
+}

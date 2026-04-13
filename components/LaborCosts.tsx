@@ -8,22 +8,27 @@ import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { formatUsd, formatNumber } from "@/lib/utils";
+import {
+  RACK_MINERS_CAPACITY,
+  CONTAINER_MINERS_CAPACITY,
+} from "@/lib/calculations";
 
 export default function LaborCosts() {
   const { config, updateLabor, updateMaintenanceLabor } = useFarmStore();
   const { labor, miners, maintenanceLabor } = config;
+  const isContainerSetup = config.infrastructureType === "containers";
 
   const breakdown = useMemo(() => {
     const totalMiners = miners.reduce((sum, { quantity }) => sum + quantity, 0);
     if (totalMiners === 0) return null;
 
-    const racksNeeded = Math.ceil(totalMiners / 10);
-    const containersNeeded = Math.ceil(totalMiners / 100);
+    const racksNeeded = Math.ceil(totalMiners / RACK_MINERS_CAPACITY);
+    const containersNeeded = Math.ceil(totalMiners / CONTAINER_MINERS_CAPACITY);
 
     const minerHours = totalMiners * labor.manHoursPerMiner;
     const transformerHours = 1 * labor.manHoursPerTransformer;
     const rackHours = racksNeeded * labor.manHoursPerRack;
-    const containerHours = containersNeeded * labor.manHoursPerContainer;
+    const containerHours = isContainerSetup ? containersNeeded * labor.manHoursPerContainer : 0;
     const totalLaborHours = minerHours + transformerHours + rackHours + containerHours;
 
     const laborCost = totalLaborHours * labor.hourlyLaborCostUsd;
@@ -43,7 +48,7 @@ export default function LaborCosts() {
       cablesAndBreakers,
       totalDeploymentCapex,
     };
-  }, [miners, labor]);
+  }, [miners, labor, isContainerSetup]);
 
   function handleChange(field: keyof typeof labor, value: string) {
     const num = parseFloat(value);
@@ -61,7 +66,7 @@ export default function LaborCosts() {
       label: "Man hours per miner",
       step: "0.5",
       tooltip:
-        "Labor hours required to rack, cable, and configure one ASIC miner. Includes unboxing, mounting on rack, running power and ethernet, and initial firmware setup. Typical range: 1.5–4 hours.",
+        "Total labor hours spent per miner throughout the full deployment flow: unpacking, installing in place, connecting power and network, and configuring firmware. Default is 1 hour per unit; set higher for first-time crews or complex site constraints.",
     },
     {
       key: "hourlyLaborCostUsd",
