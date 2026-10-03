@@ -1,7 +1,6 @@
 "use client";
 
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";

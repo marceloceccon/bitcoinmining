@@ -2,7 +2,6 @@
 
 import { Trash2, Plus, Minus, Layers, Container } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";

@@ -2,7 +2,6 @@
 
 import { Home, Warehouse, Factory, Building2 } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import { useFarmStore } from "@/lib/store";
 import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 import type { Miner, InfrastructureType } from "@/types";

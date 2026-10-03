@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { Zap, Flame, Gauge, DollarSign, TrendingUp, Factory, Volume2, CircuitBoard } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { useCalculation, useNetworkData } from "@/lib/apiClient";
@@ -140,7 +139,6 @@ export default function MetricsDashboard() {
     <div className="space-y-6">
       {/* Metrics Grid */}
       <Card>
-        <CardIllustration theme="gauge" />
         <h2 className="text-lg font-bold text-slate-900 mb-4">Live Metrics</h2>
         <div className="space-y-2">
           {metricItems.map((item) => {
@@ -163,7 +161,6 @@ export default function MetricsDashboard() {
 
       {/* Cost Breakdown */}
       <Card>
-        <CardIllustration theme="chart" />
         <h2 className="text-lg font-bold text-slate-900 mb-4">Cost Breakdown</h2>
         <div className="space-y-1">
           {costBreakdown.map((item) => (
@@ -218,7 +215,6 @@ export default function MetricsDashboard() {
 
       {/* Bitcoin Mined */}
       <Card>
-        <CardIllustration theme="bitcoin" />
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-1">
           Price of Bitcoin Mined
           <Tooltip content={`Estimated monthly BTC at current network conditions (${networkLabel}, ${blockReward} BTC reward). Does not account for future difficulty growth or ASIC degradation.`} />

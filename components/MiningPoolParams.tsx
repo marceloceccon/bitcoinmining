@@ -2,7 +2,6 @@
 
 import { Layers } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";

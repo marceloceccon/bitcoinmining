@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { useFarmStore } from "@/lib/store";

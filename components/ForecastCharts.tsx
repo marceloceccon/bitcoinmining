@@ -7,7 +7,6 @@ import {
 } from "recharts";
 import { TrendingUp, Bitcoin, ChevronDown, ChevronUp, Activity } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
@@ -273,7 +272,6 @@ export default function ForecastCharts() {
     <div className="space-y-6">
       {/* Controls */}
       <Card>
-        <CardIllustration theme="chart" />
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-blueprint-deep" />
           Forecast Parameters

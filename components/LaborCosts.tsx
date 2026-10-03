@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import { HardHat, Wrench } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
@@ -109,7 +108,6 @@ export default function LaborCosts() {
     <div className="space-y-6">
       {/* Input Card */}
       <Card>
-        <CardIllustration theme="tools" />
         <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
           <HardHat className="h-5 w-5" />
           Deployment Labor Costs
@@ -139,7 +137,6 @@ export default function LaborCosts() {
 
       {/* Maintenance Labor Costs */}
       <Card>
-        <CardIllustration theme="tools" />
         <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
           <Wrench className="h-5 w-5" />
           Maintenance Labor Costs
@@ -222,7 +219,6 @@ export default function LaborCosts() {
       {/* Summary Card */}
       {breakdown ? (
         <Card>
-          <CardIllustration theme="chart" />
           <h2 className="text-lg font-bold text-slate-900 mb-4">
             Deployment Cost Breakdown
           </h2>

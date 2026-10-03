@@ -3,7 +3,6 @@
 import { Sun, Settings, Calculator } from "lucide-react";
 import { useState, useMemo } from "react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";

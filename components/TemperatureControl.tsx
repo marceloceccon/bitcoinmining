@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Thermometer, Wind, Droplets, Fan } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
@@ -151,7 +150,6 @@ export default function TemperatureControl() {
     <div className="space-y-6">
       {/* Location Card */}
       <Card>
-        <CardIllustration theme="thermal" />
         <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
           <Thermometer className="h-5 w-5 text-blueprint-deep" />
           Site Location & Climate
@@ -254,7 +252,6 @@ export default function TemperatureControl() {
       {/* Air Cooling Ventilation Card */}
       {isAir && config.miners.length > 0 && (
         <Card>
-          <CardIllustration theme="thermal" />
           <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
             <Wind className="h-5 w-5 text-blueprint-deep" />
             Air Ventilation Requirement
@@ -303,7 +300,6 @@ export default function TemperatureControl() {
       {/* Air Cooling Fans Card */}
       {isAir && config.miners.length > 0 && (
         <Card>
-          <CardIllustration theme="thermal" />
           <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
             <Fan className="h-5 w-5 text-blueprint-deep" />
             Air Cooling Fans
@@ -453,7 +449,6 @@ export default function TemperatureControl() {
       {/* Hydro Dry Cooler Card */}
       {isHydro && config.miners.length > 0 && (
         <Card>
-          <CardIllustration theme="thermal" />
           <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
             <Droplets className="h-5 w-5 text-blueprint-deep" />
             Dry Cooler Sizing
