@@ -1,6 +1,5 @@
 import type { FarmConfig, FarmMetrics, Miner, LocationData } from '@/types';
-import { DRY_COOLERS } from '@/lib/dryCoolerData';
-import { AIR_FANS } from '@/lib/airFanData';
+import { DRY_COOLERS, AIR_FANS } from '@/lib/catalog';
 import { autoSelectTransformer } from '@/lib/transformerData';
 
 // Constants
