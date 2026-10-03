@@ -77,12 +77,12 @@ export default function OgImage() {
             padding: "0 80px",
           }}
         >
-          Bitcoin Mining Farm Calculator — Free CAPEX &amp; ROI Tool
+          Plan CAPEX, OPEX &amp; ROI for any ASIC mining farm
         </div>
 
         {/* Feature pills */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", padding: "0 60px" }}>
-          {["CAPEX Calculator", "ROI Forecast", "Solar Offset", "Cooling Sizing", "Farm Visualizer"].map(
+          {["CAPEX Calculator", "ROI Forecast", "Solar Offset", "Cooling Sizing", "Electrical Sizing"].map(
             (label) => (
               <div
                 key={label}
@@ -110,7 +110,7 @@ export default function OgImage() {
             color: "#94A3B8",
           }}
         >
-          Free · No Account · Browser-Based
+          Free · No Account · Open API
         </div>
       </div>
     ),
