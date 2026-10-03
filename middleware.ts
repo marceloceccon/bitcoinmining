@@ -2,23 +2,30 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 /**
- * Public-API rate limiter and same-origin pass-through.
+ * Public-API rate limiter.
  *
  * Lives at the edge layer: every request to /api/* hits this before any route handler.
- * Internal callers (browser opening this app's own UI) skip rate limiting entirely;
- * external callers (other websites, AI agents, scripts) get 60 requests/minute per IP.
+ * **Every** request is rate-limited per IP, in one of two tiers:
+ *   - first-party (this app's own UI, which fires debounced bursts): 600 requests/minute
+ *   - external (other websites, AI agents, MCP clients, curl, scripts): 60 requests/minute
  *
- * The limiter is **per-instance**: serverless deployments will get one bucket per warm
- * instance. For globally enforced quotas, plug in Upstash, Vercel KV, or Redis.
+ * First-party is detected from `Sec-Fetch-Site: same-origin` (browsers send it on every
+ * fetch, including same-origin GETs that omit `Origin`) or an `Origin` matching `Host`.
+ * Both headers can be forged by non-browser clients; that only buys them the higher
+ * bucket, never an unlimited one.
+ *
+ * The limiter is **best-effort and per-instance**: each warm serverless instance keeps its
+ * own in-memory buckets. For globally enforced quotas, plug in Upstash, Vercel KV, or Redis.
  */
 
 const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS = 60; // per window per IP
+const MAX_REQUESTS = 60; // per window per IP, external callers
+const MAX_FIRST_PARTY_REQUESTS = 600; // per window per IP, this app's own UI
 const CLEANUP_SAMPLE_RATE = 0.01; // ~1% of requests trigger a sweep
 const MAX_TRACKED_IPS = 10_000; // hard cap to bound memory under attack
 
-// In-memory rate limiter for external requests.
-// Map of IP -> array of request timestamps within the current window.
+// In-memory rate limiter.
+// Map of bucket key (`fp:<ip>` or `ext:<ip>`) -> request timestamps within the current window.
 const rateLimitMap = new Map<string, number[]>();
 
 /**
@@ -43,14 +50,13 @@ function resolveClientIp(request: NextRequest): string {
 }
 
 /**
- * Returns true when the request originates from the app's own UI (same-origin)
- * or has no Origin header at all (e.g. a curl from a script — we don't rate-limit
- * server-to-server, that's only for header-bearing browser callers).
+ * Returns true when the Origin header names this host. A missing Origin is *not*
+ * same-origin: curl, scripts and MCP clients send none.
  *
  * Tolerant of malformed Origin: a bad URL is treated as cross-origin, never crashes.
  */
 function isSameOriginRequest(origin: string | null, host: string): boolean {
-  if (!origin) return true;
+  if (!origin) return false;
   let originHost: string | null = null;
   try {
     originHost = new URL(origin).host;
@@ -58,6 +64,12 @@ function isSameOriginRequest(origin: string | null, host: string): boolean {
     return false;
   }
   return originHost === host;
+}
+
+/** True when the request comes from this app's own UI (see the tiers above). */
+function isFirstPartyRequest(request: NextRequest): boolean {
+  if (request.headers.get('sec-fetch-site') === 'same-origin') return true;
+  return isSameOriginRequest(request.headers.get('origin'), request.headers.get('host') ?? '');
 }
 
 function pruneStaleEntries(now: number): void {
@@ -87,23 +99,20 @@ function evictOldestUntilUnderCap(): void {
 
 export function middleware(request: NextRequest) {
   const origin = request.headers.get('origin');
-  const host = request.headers.get('host') ?? '';
-
-  if (isSameOriginRequest(origin, host)) {
-    return NextResponse.next();
-  }
-
-  const ip = resolveClientIp(request);
+  const firstParty = isFirstPartyRequest(request);
+  const limit = firstParty ? MAX_FIRST_PARTY_REQUESTS : MAX_REQUESTS;
+  // Separate buckets so a visitor using the UI doesn't eat into their own API quota.
+  const key = `${firstParty ? 'fp' : 'ext'}:${resolveClientIp(request)}`;
   const now = Date.now();
 
   if (Math.random() < CLEANUP_SAMPLE_RATE) {
     pruneStaleEntries(now);
   }
 
-  const timestamps = rateLimitMap.get(ip) ?? [];
+  const timestamps = rateLimitMap.get(key) ?? [];
   const recentTimestamps = timestamps.filter((t) => now - t < WINDOW_MS);
 
-  if (recentTimestamps.length >= MAX_REQUESTS) {
+  if (recentTimestamps.length >= limit) {
     const oldestInWindow = recentTimestamps[0];
     const retryAfterSec = Math.max(1, Math.ceil((oldestInWindow + WINDOW_MS - now) / 1000));
 
@@ -121,7 +130,7 @@ export function middleware(request: NextRequest) {
   }
 
   recentTimestamps.push(now);
-  rateLimitMap.set(ip, recentTimestamps);
+  rateLimitMap.set(key, recentTimestamps);
   evictOldestUntilUnderCap();
 
   return NextResponse.next();
@@ -138,11 +147,13 @@ export const config = {
 export const __test__ = {
   resolveClientIp,
   isSameOriginRequest,
+  isFirstPartyRequest,
   pruneStaleEntries,
   evictOldestUntilUnderCap,
   rateLimitMap,
   WINDOW_MS,
   MAX_REQUESTS,
+  MAX_FIRST_PARTY_REQUESTS,
   MAX_TRACKED_IPS,
   CLEANUP_SAMPLE_RATE,
 };

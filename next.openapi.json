@@ -3,7 +3,7 @@
   "info": {
     "title": "Bitcoin Mining Farm Calculator API",
     "version": "1.0.0",
-    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute for external callers.",
+    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute per IP for external callers (best-effort, per serverless instance).",
     "contact": {
       "name": "Bitcoin Mining Farm Calculator",
       "url": "https://bitcoinminingfarmcalculator.com"
@@ -50,7 +50,7 @@
         }
       },
       "429": {
-        "description": "Too Many Requests — rate limit exceeded (60 req/min for external callers)",
+        "description": "Too Many Requests — rate limit exceeded (60 req/min per IP for external callers). See the Retry-After header.",
         "variables": {
           "ERROR_MESSAGE": "Too many requests"
         }

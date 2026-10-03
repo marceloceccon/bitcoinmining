@@ -197,7 +197,7 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-4 p-3 glass-info rounded-xl text-xs text-blue-800 space-y-1">
-                <p><strong>Rate limits:</strong> 60 requests per minute per IP for external callers. Fair use &mdash; no API key required.</p>
+                <p><strong>Rate limits:</strong> 60 requests per minute per IP for external callers (best-effort). Fair use &mdash; no API key required.</p>
                 <p><strong>CORS:</strong> All endpoints support cross-origin requests.</p>
                 <p><strong>OpenAPI spec:</strong> <code className="bg-blue-100 px-1 rounded">/openapi.json</code></p>
               </div>

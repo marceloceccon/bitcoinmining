@@ -5,11 +5,13 @@ import { middleware, __test__ } from '@/middleware';
 const {
   resolveClientIp,
   isSameOriginRequest,
+  isFirstPartyRequest,
   pruneStaleEntries,
   evictOldestUntilUnderCap,
   rateLimitMap,
   WINDOW_MS,
   MAX_REQUESTS,
+  MAX_FIRST_PARTY_REQUESTS,
   MAX_TRACKED_IPS,
 } = __test__;
 
@@ -28,12 +30,12 @@ beforeEach(() => {
 // ════════════════════════════════════════════════════════════════════════
 
 describe('isSameOriginRequest', () => {
-  it('treats a missing Origin header as same-origin (server-to-server / curl)', () => {
-    expect(isSameOriginRequest(null, 'api.example.com')).toBe(true);
+  it('does NOT treat a missing Origin header as same-origin (curl, scripts, MCP clients)', () => {
+    expect(isSameOriginRequest(null, 'api.example.com')).toBe(false);
   });
 
-  it('treats an empty Origin header as same-origin', () => {
-    expect(isSameOriginRequest('', 'api.example.com')).toBe(true);
+  it('does NOT treat an empty Origin header as same-origin', () => {
+    expect(isSameOriginRequest('', 'api.example.com')).toBe(false);
   });
 
   it('treats matching origin host as same-origin', () => {
@@ -62,6 +64,34 @@ describe('isSameOriginRequest', () => {
   it('treats Origin with non-matching port as cross-origin', () => {
     expect(
       isSameOriginRequest('https://api.example.com:8443', 'api.example.com'),
+    ).toBe(false);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// isFirstPartyRequest — which tier a request lands in
+// ════════════════════════════════════════════════════════════════════════
+
+describe('isFirstPartyRequest', () => {
+  it('is first-party for Sec-Fetch-Site: same-origin without an Origin header (browser GET)', () => {
+    expect(isFirstPartyRequest(makeRequest({ host: 'api.example.com', 'sec-fetch-site': 'same-origin' }))).toBe(true);
+  });
+
+  it('is first-party when Origin matches Host', () => {
+    expect(
+      isFirstPartyRequest(makeRequest({ origin: 'https://api.example.com', host: 'api.example.com' })),
+    ).toBe(true);
+  });
+
+  it('is external with no Origin and no Sec-Fetch-Site (curl)', () => {
+    expect(isFirstPartyRequest(makeRequest({ host: 'api.example.com' }))).toBe(false);
+  });
+
+  it('is external for Sec-Fetch-Site: cross-site', () => {
+    expect(
+      isFirstPartyRequest(
+        makeRequest({ origin: 'https://attacker.com', host: 'api.example.com', 'sec-fetch-site': 'cross-site' }),
+      ),
     ).toBe(false);
   });
 });
@@ -129,18 +159,42 @@ describe('middleware rate limiting', () => {
     expect(response.status).toBe(200);
   });
 
-  it('passes through internal (same-origin) requests without counting', () => {
+  it('rate-limits requests without an Origin header (curl, scripts, MCP clients)', () => {
+    const request = makeRequest({ host: 'api.example.com', 'x-real-ip': '1.1.1.2' });
+    for (let i = 0; i < MAX_REQUESTS; i++) {
+      expect(middleware(request).status).toBe(200);
+    }
+    expect(middleware(request).status).toBe(429);
+  });
+
+  it('does not falsely reject a same-origin browser GET without Origin past the external limit', () => {
     const request = makeRequest({
-      origin: 'https://api.example.com',
       host: 'api.example.com',
+      'sec-fetch-site': 'same-origin',
       'x-real-ip': '1.1.1.1',
     });
     for (let i = 0; i < MAX_REQUESTS + 50; i++) {
-      const response = middleware(request);
-      expect(response.status).toBe(200);
+      expect(middleware(request).status).toBe(200);
     }
-    // Same-origin must never appear in the bucket.
-    expect(rateLimitMap.has('1.1.1.1')).toBe(false);
+  });
+
+  it('still limits first-party requests at the higher first-party limit', () => {
+    const request = makeRequest({
+      origin: 'https://api.example.com',
+      host: 'api.example.com',
+      'x-real-ip': '1.1.1.3',
+    });
+    for (let i = 0; i < MAX_FIRST_PARTY_REQUESTS; i++) {
+      expect(middleware(request).status).toBe(200);
+    }
+    expect(middleware(request).status).toBe(429);
+  });
+
+  it('keeps first-party and external buckets separate for the same IP', () => {
+    const ip = '1.1.1.4';
+    const uiRequest = makeRequest({ host: 'api.example.com', 'sec-fetch-site': 'same-origin', 'x-real-ip': ip });
+    for (let i = 0; i < MAX_REQUESTS + 10; i++) middleware(uiRequest);
+    expect(middleware(externalRequest(ip)).status).toBe(200);
   });
 
   it('returns 429 with Retry-After after MAX_REQUESTS calls in the window', () => {
@@ -186,7 +240,7 @@ describe('middleware rate limiting', () => {
     const response = middleware(request);
     expect([200, 429]).toContain(response.status);
     // Verify it landed in the rate-limit bucket (i.e. was treated as external).
-    expect(rateLimitMap.has('6.6.6.6')).toBe(true);
+    expect(rateLimitMap.has('ext:6.6.6.6')).toBe(true);
   });
 });
 

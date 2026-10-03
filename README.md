@@ -36,7 +36,7 @@ All calculations are available as a free, rate-limited REST API:
 | `/api/network` | GET | Live BTC price, hashrate, difficulty |
 | `/api/updates` | GET | Last update timestamps for data |
 
-**Rate limits**: 60 requests/minute per IP for external callers. No limits for same-origin requests from the website.
+**Rate limits**: 60 requests/minute per IP for external callers (scripts, agents, other sites). The website's own UI gets a higher 600/minute bucket. Limits are best-effort and enforced per serverless instance.
 
 ## Tech Stack
 
