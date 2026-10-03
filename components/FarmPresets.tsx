@@ -7,7 +7,7 @@ import { useFarmStore } from "@/lib/store";
 import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 import type { Miner, InfrastructureType } from "@/types";
 
-// Embedded miner snapshots so presets work even when Supabase is down
+// Embedded miner snapshots so presets work before the catalog has loaded
 const PRESET_MINERS: Record<string, Miner> = {
   "s21-pro": {
     id: "s21-pro", name: "Antminer S21 Pro", manufacturer: "Bitmain",

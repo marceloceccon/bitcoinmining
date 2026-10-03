@@ -7,7 +7,6 @@ node_modules
 tests
 docs
 .env*
-!.env.example
 Dockerfile
 .dockerignore
 screenshot.mjs
