@@ -355,28 +355,47 @@ export function calculateMaintenanceLaborOpex(config: FarmConfig): number {
   return hours * config.maintenanceLabor.hourlyMaintenanceCostUsd;
 }
 
+export interface MonthlyOpexBreakdown {
+  /** Grid electricity after solar offset, including the tax adder */
+  electricity: number;
+  /** Equipment maintenance: maintenanceOpexPercent of CAPEX per year, monthly */
+  maintenance: number;
+  solarMaintenance: number;
+  maintenanceLabor: number;
+  total: number;
+}
+
 /**
- * Calculate monthly OPEX
+ * Monthly OPEX, itemized. The dashboard and the forecast both use this, so
+ * month 1 of a forecast (before energy inflation) matches `monthlyOpex`.
  */
-export function calculateMonthlyOpex(config: FarmConfig, totalCapex: number): number {
+export function calculateMonthlyOpexBreakdown(config: FarmConfig, totalCapex: number): MonthlyOpexBreakdown {
   const monthlyKwh = calculateMonthlyKwh(config);
   const { electricityPriceKwh, taxAdderPercent } = config.regional;
 
   // Electricity cost (injection rate reduces effective solar offset)
   const effectiveSolarCoverage = calculateEffectiveSolarCoverage(config) / 100;
   const gridKwh = monthlyKwh * (1 - effectiveSolarCoverage);
-  const electricityCost = gridKwh * electricityPriceKwh * (1 + taxAdderPercent / 100);
+  const electricity = gridKwh * electricityPriceKwh * (1 + taxAdderPercent / 100);
 
-  // Maintenance cost (annual divided by 12)
-  const maintenanceCost = (totalCapex * (config.maintenanceOpexPercent / 100)) / 12;
-
-  // Solar maintenance
+  const maintenance = (totalCapex * (config.maintenanceOpexPercent / 100)) / 12;
   const solarMaintenance = calculateMonthlySolarMaintenance(config);
+  const maintenanceLabor = calculateMaintenanceLaborOpex(config);
 
-  // Maintenance labor
-  const maintenanceLaborOpex = calculateMaintenanceLaborOpex(config);
+  return {
+    electricity,
+    maintenance,
+    solarMaintenance,
+    maintenanceLabor,
+    total: electricity + maintenance + solarMaintenance + maintenanceLabor,
+  };
+}
 
-  return electricityCost + maintenanceCost + solarMaintenance + maintenanceLaborOpex;
+/**
+ * Calculate monthly OPEX
+ */
+export function calculateMonthlyOpex(config: FarmConfig, totalCapex: number): number {
+  return calculateMonthlyOpexBreakdown(config, totalCapex).total;
 }
 
 /**

@@ -2,9 +2,8 @@ import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod, Market
 import {
   DAYS_PER_MONTH,
   calculateTotalHashRate,
-  calculateMonthlyKwh,
-  calculateEffectiveSolarCoverage,
   calculateFarmMetrics,
+  calculateMonthlyOpexBreakdown,
 } from './calculations';
 import { BLOCKS_PER_DAY, averageSubsidy } from './bitcoin';
 import { monthlyBtcMined } from './unitEconomics';
@@ -130,14 +129,7 @@ export function generateForecast(
   // Initial values
   const startDate = new Date(now);
   const farmHashrateThs = calculateTotalHashRate(config);
-  const monthlyKwh = calculateMonthlyKwh(config);
-  const baseElectricityCostPerKwh = config.regional.electricityPriceKwh *
-                                    (1 + config.regional.taxAdderPercent / 100);
   const energyInflationPercent = config.regional.energyInflationPercent ?? 3;
-
-  // Solar offset (injection rate reduces effective coverage)
-  const effectiveSolarCoverage = calculateEffectiveSolarCoverage(config) / 100;
-  const gridKwh = monthlyKwh * (1 - effectiveSolarCoverage);
 
   let networkHashrateEh = market.networkHashrateEh;
   let btcBalance = 0;
@@ -145,6 +137,9 @@ export function generateForecast(
   let paybackMonths: number | null = null;
 
   const totalCapex = calculateFarmMetrics(config).totalCapex;
+  // Same itemized OPEX as the dashboard; only electricity inflates over time.
+  const baseOpex = calculateMonthlyOpexBreakdown(config, totalCapex);
+  const fixedOpexUsd = baseOpex.maintenance + baseOpex.solarMaintenance + baseOpex.maintenanceLabor;
   const feesPerBlockBtc = params.feesPerBlockBtc ?? market.avgFeesPerBlockBtc;
   const monthlyCashFlows: number[] = [];
 
@@ -187,9 +182,8 @@ export function generateForecast(
 
     // Costs — apply energy inflation compounded per year
     const inflationFactor = Math.pow(1 + energyInflationPercent / 100, month / 12);
-    const electricityCostUsd = gridKwh * baseElectricityCostPerKwh * inflationFactor;
-    const maintenanceUsd = totalCapex > 0 ? (totalCapex * (config.maintenanceOpexPercent / 100)) / 12 : 500;
-    const opexUsd = electricityCostUsd + maintenanceUsd;
+    const electricityCostUsd = baseOpex.electricity * inflationFactor;
+    const opexUsd = electricityCostUsd + fixedOpexUsd;
 
     // Profit calculation based on revenue mode
     let profitUsd = 0;

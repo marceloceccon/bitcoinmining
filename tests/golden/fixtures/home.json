@@ -135,13 +135,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 536.6780247598464,
         "electricityCostUsd": 269.8897583908076,
-        "opexUsd": 328.91809172414094,
-        "profitUsd": 0,
+        "opexUsd": 608.9180917241408,
+        "profitUsd": -72.24006696429444,
         "btcMined": 0.006336222252182366,
-        "btcSold": 0.0038833304808044973,
-        "btcBalance": 0.0024528917713778687,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.006336222252182366,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -72.24006696429444,
+        "roi": -0.509925085158924
       },
       {
         "month": 2,
@@ -152,13 +152,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 530.6241660222407,
         "electricityCostUsd": 270.5553793437811,
-        "opexUsd": 329.5837126771145,
-        "profitUsd": 0,
+        "opexUsd": 609.5837126771144,
+        "profitUsd": -78.95954665487363,
         "btcMined": 0.006264748123048887,
-        "btcSold": 0.003891189051677857,
-        "btcBalance": 0.004826450842748898,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.006264748123048887,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -151.19961361916808,
+        "roi": -1.0672813452520546
       },
       {
         "month": 3,
@@ -169,13 +169,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 524.6385962846016,
         "electricityCostUsd": 271.2226418975908,
-        "opexUsd": 330.25097523092415,
-        "profitUsd": 0,
+        "opexUsd": 610.250975230924,
+        "profitUsd": -85.61237894632245,
         "btcMined": 0.006194080239487622,
-        "btcSold": 0.003899067003907015,
-        "btcBalance": 0.007121464078329505,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.006194080239487622,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -236.81199256549053,
+        "roi": -1.6715983324779804
       },
       {
         "month": 4,
@@ -186,13 +186,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 518.7205452303889,
         "electricityCostUsd": 271.89155010086716,
-        "opexUsd": 330.91988343420053,
-        "profitUsd": 0,
+        "opexUsd": 610.9198834342005,
+        "profitUsd": -92.19933820381164,
         "btcMined": 0.0061242095068522896,
-        "btcSold": 0.003906964385291624,
-        "btcBalance": 0.009338709199890171,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.0061242095068522896,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -329.01133076930216,
+        "roi": -2.3224110650909324
       },
       {
         "month": 5,
@@ -203,13 +203,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 512.869251232421,
         "electricityCostUsd": 272.56210801222574,
-        "opexUsd": 331.59044134555904,
-        "profitUsd": 0,
+        "opexUsd": 611.590441345559,
+        "profitUsd": -98.72119011313805,
         "btcMined": 0.006055126933086434,
-        "btcSold": 0.003914881243749222,
-        "btcBalance": 0.011478954889227382,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.006055126933086434,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -427.7325208824402,
+        "roi": -3.0192599661351913
       },
       {
         "month": 6,
@@ -220,13 +220,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 507.0839612548556,
         "electricityCostUsd": 273.2343197002916,
-        "opexUsd": 332.26265303362493,
-        "profitUsd": 0,
+        "opexUsd": 612.2626530336249,
+        "profitUsd": -105.17869177876935,
         "btcMined": 0.005986823627566182,
-        "btcSold": 0.0039228176273155245,
-        "btcBalance": 0.01354296088947804,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005986823627566182,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -532.9112126612096,
+        "roi": -3.76169080287157
       },
       {
         "month": 7,
@@ -237,13 +237,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 501.36393075627853,
         "electricityCostUsd": 273.9081892437244,
-        "opexUsd": 332.93652257705776,
-        "profitUsd": 0,
+        "opexUsd": 612.9365225770578,
+        "profitUsd": -111.57259182077922,
         "btcMined": 0.005919290799956063,
-        "btcSold": 0.00393077358414472,
-        "btcBalance": 0.015531478105289383,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005919290799956063,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -644.4838044819887,
+        "roi": -4.549254626888138
       },
       {
         "month": 8,
@@ -254,13 +254,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 495.7084235938837,
         "electricityCostUsd": 274.58372073124264,
-        "opexUsd": 333.612054064576,
-        "profitUsd": 0,
+        "opexUsd": 613.6120540645759,
+        "profitUsd": -117.90363047069218,
         "btcMined": 0.00585251975907773,
-        "btcSold": 0.003938749162509752,
-        "btcBalance": 0.01744524870185736,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.00585251975907773,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -762.3874349526809,
+        "roi": -5.381507714887491
       },
       {
         "month": 9,
@@ -271,13 +271,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 490.1167119287351,
         "electricityCostUsd": 275.2609182616487,
-        "opexUsd": 334.28925159498203,
-        "profitUsd": 0,
+        "opexUsd": 614.289251594982,
+        "profitUsd": -124.1725396662469,
         "btcMined": 0.005786501911791442,
-        "btcSold": 0.003946744410802621,
-        "btcBalance": 0.01928500620284618,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005786501911791442,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -886.5599746189278,
+        "roi": -6.258011510142925
       },
       {
         "month": 10,
@@ -288,13 +288,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 484.5880761320967,
         "electricityCostUsd": 275.93978594385396,
-        "opexUsd": 334.96811927718727,
-        "profitUsd": 0,
+        "opexUsd": 614.9681192771873,
+        "profitUsd": -130.38004314509055,
         "btcMined": 0.005721228761890162,
-        "btcSold": 0.003954759377534678,
-        "btcBalance": 0.021051475587201666,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005721228761890162,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1016.9400177640183,
+        "roi": -7.178332564615992
       },
       {
         "month": 11,
@@ -305,13 +305,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 479.1218046928206,
         "electricityCostUsd": 276.62032789690323,
-        "opexUsd": 335.6486612302366,
-        "profitUsd": 0,
+        "opexUsd": 615.6486612302365,
+        "profitUsd": -136.52685653741588,
         "btcMined": 0.0056566919090061465,
-        "btcSold": 0.003962794111336914,
-        "btcBalance": 0.0227453733848709,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.0056566919090061465,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1153.4668743014342,
+        "roi": -8.142042481727943
       },
       {
         "month": 12,
@@ -322,13 +322,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 473.71719412577716,
         "electricityCostUsd": 277.3025482500001,
-        "opexUsd": 336.3308815833334,
-        "profitUsd": 0,
+        "opexUsd": 616.3308815833334,
+        "profitUsd": -142.61368745755624,
         "btcMined": 0.005592883047529837,
-        "btcSold": 0.003970848660960253,
-        "btcBalance": 0.02436740777144048,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005592883047529837,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1296.0805617589904,
+        "roi": -9.148717859777724
       },
       {
         "month": 13,
@@ -339,13 +339,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 468.3735488813205,
         "electricityCostUsd": 277.9864511425318,
-        "opexUsd": 337.0147844758651,
-        "profitUsd": 0,
+        "opexUsd": 617.0147844758651,
+        "profitUsd": -148.64123559454458,
         "btcMined": 0.005529793965540974,
-        "btcSold": 0.003978923075275857,
-        "btcBalance": 0.0259182786617056,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005529793965540974,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1444.7217973535348,
+        "roi": -10.197940235999202
       },
       {
         "month": 14,
@@ -356,13 +356,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 463.09018125577364,
         "electricityCostUsd": 278.6720407240946,
-        "opexUsd": 337.7003740574279,
-        "profitUsd": 0,
+        "opexUsd": 617.7003740574279,
+        "profitUsd": -154.61019280165425,
         "btcMined": 0.005467416543751755,
-        "btcSold": 0.003987017403275418,
-        "btcBalance": 0.027398677802181935,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005467416543751755,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1599.331990155189,
+        "roi": -11.289296031250453
       },
       {
         "month": 15,
@@ -373,13 +373,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 457.8664113029249,
         "electricityCostUsd": 279.35932115451857,
-        "opexUsd": 338.38765448785193,
-        "profitUsd": 0,
+        "opexUsd": 618.3876544878519,
+        "profitUsd": -160.52124318492702,
         "btcMined": 0.005405742754461923,
-        "btcSold": 0.003995131694071451,
-        "btcBalance": 0.028809288862572408,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005405742754461923,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1759.853233340116,
+        "roi": -12.422376495327923
       },
       {
         "month": 16,
@@ -390,13 +390,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 452.7015667465212,
         "electricityCostUsd": 280.0482966038932,
-        "opexUsd": 339.0766299372266,
-        "profitUsd": 0,
+        "opexUsd": 619.0766299372265,
+        "profitUsd": -166.37506319070525,
         "btcMined": 0.005344764660525634,
-        "btcSold": 0.004003265996897598,
-        "btcBalance": 0.030150787526200443,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005344764660525634,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -1926.2282965308214,
+        "roi": -13.596777652898476
       },
       {
         "month": 17,
@@ -407,13 +407,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 447.59498289374915,
         "electricityCostUsd": 280.73897125259253,
-        "opexUsd": 339.7673045859259,
-        "profitUsd": 0,
+        "opexUsd": 619.7673045859258,
+        "profitUsd": -172.17232169217664,
         "btcMined": 0.005284474414329978,
-        "btcSold": 0.004011420361108925,
-        "btcBalance": 0.0314238415794215,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005284474414329978,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -2098.4006182229978,
+        "roi": -14.812100250042338
       },
       {
         "month": 18,
@@ -424,13 +424,13 @@
         "blockReward": 3.125,
         "miningRevenueUsd": 442.54600254969193,
         "electricityCostUsd": 281.4313492913004,
-        "opexUsd": 340.45968262463373,
-        "profitUsd": 0,
+        "opexUsd": 620.4596826246337,
+        "profitUsd": -177.9136800749418,
         "btcMined": 0.005224864256785029,
-        "btcSold": 0.004019594836182217,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": 0,
-        "roi": 0
+        "btcSold": 0.005224864256785029,
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -2276.31429829794,
+        "roi": -16.067949701400032
       },
       {
         "month": 19,
@@ -441,13 +441,13 @@
         "blockReward": 2.04126739676021,
         "miningRevenueUsd": 287.11250721589863,
         "electricityCostUsd": 282.1254349210362,
-        "opexUsd": 341.15376825436954,
-        "profitUsd": -54.04126103847091,
+        "opexUsd": 621.1537682543694,
+        "profitUsd": -334.0412610384708,
         "btcMined": 0.0033897580544970324,
         "btcSold": 0.0033897580544970324,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -54.04126103847091,
-        "roi": -0.38146413472676194
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -2610.355559336411,
+        "roi": -18.425865822461045
       },
       {
         "month": 20,
@@ -458,13 +458,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 218.16203210959245,
         "electricityCostUsd": 282.8212323531799,
-        "opexUsd": 341.8495656865132,
-        "profitUsd": -123.68753357692074,
+        "opexUsd": 621.8495656865132,
+        "profitUsd": -403.6875335769207,
         "btcMined": 0.0025757028584367466,
         "btcSold": 0.0025757028584367466,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -177.72879461539165,
-        "roi": -1.2545443898085076
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -3014.0430929133317,
+        "roi": -21.275398063877034
       },
       {
         "month": 21,
@@ -475,13 +475,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 215.70111129046347,
         "electricityCostUsd": 283.51874580949817,
-        "opexUsd": 342.54707914283154,
-        "profitUsd": -126.84596785236806,
+        "opexUsd": 622.5470791428315,
+        "profitUsd": -406.84596785236806,
         "btcMined": 0.002546648303311257,
         "btcSold": 0.002546648303311257,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -304.5747624677597,
-        "roi": -2.1499192652381605
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -3420.8890607657,
+        "roi": -24.147224925640938
       },
       {
         "month": 22,
@@ -492,13 +492,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 213.26795025712067,
         "electricityCostUsd": 284.2179795221696,
-        "opexUsd": 343.246312855503,
-        "profitUsd": -129.97836259838232,
+        "opexUsd": 623.246312855503,
+        "profitUsd": -409.9783625983823,
         "btcMined": 0.002517921490638969,
         "btcSold": 0.002517921490638969,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -434.553125066142,
-        "roi": -3.067404954302609
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -3830.8674233640822,
+        "roi": -27.04116260103963
       },
       {
         "month": 23,
@@ -509,13 +509,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 210.86223587242404,
         "electricityCostUsd": 284.9189377338103,
-        "opexUsd": 343.9472710671437,
-        "profitUsd": -133.08503519471964,
+        "opexUsd": 623.9472710671437,
+        "profitUsd": -413.08503519471964,
         "btcMined": 0.0024895187234052424,
         "btcSold": 0.0024895187234052424,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -567.6381602608617,
-        "roi": -4.006819890595348
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -4243.9524585588015,
+        "roi": -29.957029523666613
       },
       {
         "month": 24,
@@ -526,13 +526,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 208.48365853149687,
         "electricityCostUsd": 285.62162469750007,
-        "opexUsd": 344.64995803083343,
-        "profitUsd": -136.16629949933656,
+        "opexUsd": 624.6499580308334,
+        "profitUsd": -416.16629949933656,
         "btcMined": 0.0024614363462986642,
         "btcSold": 0.0024614363462986642,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -703.8044597601983,
-        "roi": -4.967984723156946
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -4660.118758058138,
+        "roi": -32.89464634256246
       },
       {
         "month": 25,
@@ -543,13 +543,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 206.13191212188056,
         "electricityCostUsd": 286.3260446768077,
-        "opexUsd": 345.3543780101411,
-        "profitUsd": -139.22246588826053,
+        "opexUsd": 625.3543780101411,
+        "profitUsd": -419.22246588826056,
         "btcMined": 0.0024336707452406207,
         "btcSold": 0.0024336707452406207,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -843.0269256484588,
-        "roi": -5.9507222918969624
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -5079.341223946399,
+        "roi": -35.85383589763672
       },
       {
         "month": 26,
@@ -560,13 +560,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 203.80669398413994,
         "electricityCostUsd": 287.03220194581746,
-        "opexUsd": 346.0605352791508,
-        "profitUsd": -142.2538412950109,
+        "opexUsd": 626.0605352791508,
+        "profitUsd": -422.2538412950109,
         "btcMined": 0.0024062183469201882,
         "btcSold": 0.0024062183469201882,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -985.2807669434696,
-        "roi": -6.9548576032941085
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -5501.595065241409,
+        "roi": -38.83442319536811
       },
       {
         "month": 27,
@@ -577,13 +577,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 201.50770487291157,
         "electricityCostUsd": 287.7401007891541,
-        "opexUsd": 346.7684341224874,
-        "profitUsd": -145.26072924957583,
+        "opexUsd": 626.7684341224874,
+        "profitUsd": -425.26072924957583,
         "btcMined": 0.002379075618334257,
         "btcSold": 0.002379075618334257,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1130.5414961930455,
-        "roi": -7.980217806371556
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -5926.855794490985,
+        "roi": -41.836235384779805
       },
       {
         "month": 28,
@@ -594,13 +594,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 199.23464891839282,
         "electricityCostUsd": 288.44974550201005,
-        "opexUsd": 347.47807883534335,
-        "profitUsd": -148.24342991695053,
+        "opexUsd": 627.4780788353434,
+        "profitUsd": -428.2434299169505,
         "btcMined": 0.002352239066332855,
         "btcSold": 0.002352239066332855,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1278.7849261099961,
-        "roi": -9.026632168944266
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -6355.099224407936,
+        "roi": -44.859101733686764
       },
       {
         "month": 29,
@@ -611,13 +611,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 196.9872335882642,
         "electricityCostUsd": 289.16114039017026,
-        "opexUsd": 348.1894737235036,
-        "profitUsd": -151.20224013523944,
+        "opexUsd": 628.1894737235036,
+        "profitUsd": -431.20224013523944,
         "btcMined": 0.002325705237169589,
         "btcSold": 0.002325705237169589,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1429.9871662452356,
-        "roi": -10.093932054135271
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -6786.301464543176,
+        "roi": -47.90285360521202
       },
       {
         "month": 30,
@@ -628,13 +628,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 194.76516965004214,
         "electricityCostUsd": 289.8742897700394,
-        "opexUsd": 348.9026231033728,
-        "profitUsd": -154.13745345333064,
+        "opexUsd": 628.9026231033727,
+        "profitUsd": -434.1374534533305,
         "btcMined": 0.002299470716057168,
         "btcSold": 0.002299470716057168,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1584.1246196985662,
-        "roi": -11.181950897157906
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -7220.4389179965065,
+        "roi": -50.967324434568894
       },
       {
         "month": 31,
@@ -645,13 +645,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 192.5681711338558,
         "electricityCostUsd": 290.58919796866724,
-        "opexUsd": 349.61753130200054,
-        "profitUsd": -157.04936016814474,
+        "opexUsd": 629.6175313020005,
+        "profitUsd": -437.04936016814474,
         "btcMined": 0.0022735321267279315,
         "btcSold": 0.0022735321267279315,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1741.1739798667109,
-        "roi": -12.290524182360949
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -7657.488278164651,
+        "roi": -54.052349706106185
       },
       {
         "month": 32,
@@ -662,13 +662,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 190.3959552956442,
         "electricityCostUsd": 291.3058693237753,
-        "opexUsd": 350.3342026571087,
-        "profitUsd": -159.93824736146448,
+        "opexUsd": 630.3342026571086,
+        "profitUsd": -439.9382473614644,
         "btcMined": 0.0022478861309993413,
         "btcSold": 0.0022478861309993413,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -1901.1122272281752,
-        "roi": -13.41948942053375
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -8097.426525526115,
+        "roi": -57.15776693061323
       },
       {
         "month": 33,
@@ -679,13 +679,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 188.24824258076814,
         "electricityCostUsd": 292.02430818378315,
-        "opexUsd": 351.0526415171165,
-        "profitUsd": -162.80439893634838,
+        "opexUsd": 631.0526415171164,
+        "profitUsd": -442.80439893634826,
         "btcMined": 0.00222252942834437,
         "btcSold": 0.00222252942834437,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2063.9166261645237,
-        "roi": -14.56868612646839
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -8540.230924462463,
+        "roi": -60.28341562288212
       },
       {
         "month": 34,
@@ -696,13 +696,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 186.12475658803257,
         "electricityCostUsd": 292.7445189078347,
-        "opexUsd": 351.77285224116804,
-        "profitUsd": -165.64809565313547,
+        "opexUsd": 631.772852241168,
+        "profitUsd": -445.64809565313544,
         "btcMined": 0.0021974587554667363,
         "btcSold": 0.0021974587554667363,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2229.564721817659,
-        "roi": -15.73795579677598
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -8985.879020115599,
+        "roi": -63.42913727952395
       },
       {
         "month": 35,
@@ -713,13 +713,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 184.02522403411555,
         "electricityCostUsd": 293.4665058658247,
-        "opexUsd": 352.49483919915804,
-        "profitUsd": -168.46961516504248,
+        "opexUsd": 632.4948391991579,
+        "profitUsd": -448.46961516504234,
         "btcMined": 0.002172670885880939,
         "btcSold": 0.002172670885880939,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2398.0343369827015,
-        "roi": -16.927141887954242
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -9434.348635280641,
+        "roi": -66.59477535703647
       },
       {
         "month": 36,
@@ -730,13 +730,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 181.9493747183972,
         "electricityCostUsd": 294.19027343842504,
-        "opexUsd": 353.21860677175835,
-        "profitUsd": -171.26923205336115,
+        "opexUsd": 633.2186067717583,
+        "profitUsd": -451.2692320533612,
         "btcMined": 0.002148162629497015,
         "btcSold": 0.002148162629497015,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2569.3035690360625,
-        "roi": -18.13608979470355
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -9885.617867334002,
+        "roi": -69.78017525012001
       },
       {
         "month": 37,
@@ -747,13 +747,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 179.89694148818668,
         "electricityCostUsd": 294.915826017112,
-        "opexUsd": 353.9441593504454,
-        "profitUsd": -174.0472178622587,
+        "opexUsd": 633.9441593504453,
+        "profitUsd": -454.04721786225855,
         "btcMined": 0.0021239308322099962,
         "btcSold": 0.0021239308322099962,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2743.350786898321,
-        "roi": -19.36464682848859
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -10339.66508519626,
+        "roi": -72.9851842702393
       },
       {
         "month": 38,
@@ -764,13 +764,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 177.8676602043402,
         "electricityCostUsd": 295.6431680041919,
-        "opexUsd": 354.6715013375252,
-        "profitUsd": -176.80384113318502,
+        "opexUsd": 634.6715013375252,
+        "profitUsd": -456.803841133185,
         "btcMined": 0.0020999723754939813,
         "btcSold": 0.0020999723754939813,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -2920.154628031506,
-        "roi": -20.612662196342903
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -10796.468926329446,
+        "roi": -76.20965162442786
       },
       {
         "month": 39,
@@ -781,13 +781,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 175.86126970726826,
         "electricityCostUsd": 296.37230381282876,
-        "opexUsd": 355.4006371461621,
-        "profitUsd": -179.53936743889386,
+        "opexUsd": 635.4006371461621,
+        "profitUsd": -459.53936743889386,
         "btcMined": 0.002076284176000806,
         "btcSold": 0.002076284176000806,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -3099.6939954704,
-        "roi": -21.879986979913603
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -11256.00829376834,
+        "roi": -79.45342839433282
       },
       {
         "month": 40,
@@ -798,13 +798,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 173.87751178332462,
         "electricityCostUsd": 297.10323786707033,
-        "opexUsd": 356.13157120040364,
-        "profitUsd": -182.25405941707902,
+        "opexUsd": 636.1315712004036,
+        "profitUsd": -462.254059417079,
         "btcMined": 0.0020528631851632188,
         "btcSold": 0.0020528631851632188,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -3281.948054887479,
-        "roi": -23.16647411474348
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -11718.262353185419,
+        "roi": -82.71636751549694
       },
       {
         "month": 41,
@@ -815,13 +815,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 171.91613113157598,
         "electricityCostUsd": 297.8359746018754,
-        "opexUsd": 356.8643079352088,
-        "profitUsd": -184.9481768036328,
+        "opexUsd": 636.8643079352087,
+        "profitUsd": -464.9481768036327,
         "btcMined": 0.00202970638880255,
         "btcSold": 0.00202970638880255,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -3466.896231691112,
-        "roi": -24.4719783697879
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -12183.210529989052,
+        "roi": -85.99832375687559
       },
       {
         "month": 42,
@@ -832,13 +832,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 169.97687533094583,
         "electricityCostUsd": 298.5705184631406,
-        "opexUsd": 357.5988517964739,
-        "profitUsd": -187.6219764655281,
+        "opexUsd": 637.5988517964739,
+        "profitUsd": -467.62197646552806,
         "btcMined": 0.002006810806740801,
         "btcSold": 0.002006810806740801,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -3654.51820815664,
-        "roi": -25.796356327163792
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -12650.83250645458,
+        "roi": -89.29915370058575
       },
       {
         "month": 43,
@@ -849,13 +849,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 168.05949480772875,
         "electricityCostUsd": 299.30687390772727,
-        "opexUsd": 358.33520724106063,
-        "profitUsd": -190.27571243333188,
+        "opexUsd": 638.3352072410605,
+        "profitUsd": -470.27571243333176,
         "btcMined": 0.0019841734924171046,
         "btcSold": 0.0019841734924171046,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -3844.793920589972,
-        "roi": -27.13946636212816
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -13121.108218887912,
+        "roi": -92.61871572188434
       },
       {
         "month": 44,
@@ -866,13 +866,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 166.16374280347134,
         "electricityCostUsd": 300.0450454034886,
-        "opexUsd": 359.07337873682195,
-        "profitUsd": -192.90963593335061,
+        "opexUsd": 639.073378736822,
+        "profitUsd": -472.9096359333506,
         "btcMined": 0.0019617915325085165,
         "btcSold": 0.0019617915325085165,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -4037.7035565233227,
-        "roi": -28.501168623283473
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -13594.017854821263,
+        "roi": -95.95686996937391
       },
       {
         "month": 45,
@@ -883,13 +883,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 164.28937534321577,
         "electricityCostUsd": 300.78503742929666,
-        "opexUsd": 359.81337076263003,
-        "profitUsd": -195.52399541941426,
+        "opexUsd": 639.81337076263,
+        "profitUsd": -475.5239954194143,
         "btcMined": 0.001939662046555086,
         "btcSold": 0.001939662046555086,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -4233.227551942737,
-        "roi": -29.88132501300743
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -14069.541850240677,
+        "roi": -99.31347834543213
       },
       {
         "month": 46,
@@ -900,13 +900,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 162.43615120410118,
         "electricityCostUsd": 301.52685447506974,
-        "opexUsd": 360.55518780840305,
-        "profitUsd": -198.11903660430187,
+        "opexUsd": 640.555187808403,
+        "profitUsd": -478.11903660430187,
         "btcMined": 0.001917782186589152,
         "btcSold": 0.001917782186589152,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -4431.346588547039,
-        "roi": -31.279799168104578
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -14547.660886844978,
+        "roi": -102.68840448686352
       },
       {
         "month": 47,
@@ -917,13 +917,13 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 160.60383188431902,
         "electricityCostUsd": 302.2705010417994,
-        "opexUsd": 361.29883437513274,
-        "profitUsd": -200.69500249081372,
+        "opexUsd": 641.2988343751326,
+        "profitUsd": -480.69500249081364,
         "btcMined": 0.0018961491367688198,
         "btcSold": 0.0018961491367688198,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -4632.041591037852,
-        "roi": -32.69645644067716
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -15028.355889335791,
+        "roi": -106.08151374577032
       },
       {
         "month": 48,
@@ -934,27 +934,27 @@
         "blockReward": 1.5625,
         "miningRevenueUsd": 158.79218157241934,
         "electricityCostUsd": 303.01598164157787,
-        "opexUsd": 362.04431497491123,
-        "profitUsd": -203.2521334024919,
+        "opexUsd": 642.0443149749112,
+        "profitUsd": -483.2521334024919,
         "btcMined": 0.0018747601130155766,
         "btcSold": 0.0018747601130155766,
-        "btcBalance": 0.03262911100002431,
-        "cumulativeProfitUsd": -4835.293724440345,
-        "roi": -34.131163879212984
+        "btcBalance": 0,
+        "cumulativeProfitUsd": -15511.608022738283,
+        "roi": -109.4926731706404
       }
     ],
     "totalCapex": 14166.8,
     "summary": {
       "totalRevenue": 14496.479129668267,
-      "totalCosts": 16568.087152406548,
-      "totalProfit": -2071.608022738281,
-      "finalBtcBalance": 0.03262911100002431,
-      "roiPercent": -14.622977826596555,
+      "totalCosts": 30008.08715240654,
+      "totalProfit": -15511.608022738274,
+      "finalBtcBalance": 0,
+      "roiPercent": -109.49267317064033,
       "paybackMonths": null,
       "irr": -99,
-      "npv": -15248.872629951346,
-      "breakEvenBtcPrice": 96803.98731694982,
-      "breakEvenBtcPriceWithCapex": 179577.73874078668,
+      "npv": -26379.380462001405,
+      "breakEvenBtcPrice": 175331.19311757994,
+      "breakEvenBtcPriceWithCapex": 258104.94454141677,
       "avgHashpriceUsd": 0.021201494014853817,
       "totalBtcMined": 0.171150875202695
     }
