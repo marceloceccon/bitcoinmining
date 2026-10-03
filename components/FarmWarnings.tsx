@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useFarmStore } from "@/lib/store";
-import { useCalculation, useNetworkData, useAirFans } from "@/lib/apiClient";
+import { useCalculation, useNetworkData } from "@/lib/apiClient";
+import { coolingHeatLoadKw } from "@/lib/cooling";
 import { formatNumber, formatUsd } from "@/lib/utils";
 
 const BLOCKS_PER_DAY = 144;
@@ -19,13 +20,13 @@ export default function FarmWarnings() {
   const config = useFarmStore((state) => state.config);
   const { data: networkData } = useNetworkData();
   const { data: calcData } = useCalculation(config);
-  const { airFans } = useAirFans();
+  const airFans = useFarmStore((state) => state.airFanCatalog);
 
   const warnings = useMemo(() => {
     const w: Warning[] = [];
     if (config.miners.length === 0 || !calcData) return w;
 
-    const { metrics, ventilation, totalPowerKw } = calcData;
+    const { metrics, ventilation } = calcData;
     const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
     const isHydro = config.miners.some(({ miner }) => miner.watercooled);
     const isAir = config.miners.some(({ miner }) => !miner.watercooled);
@@ -36,7 +37,8 @@ export default function FarmWarnings() {
         w.push({ type: "error", message: "Water-cooled miners detected but no dry coolers configured. Go to the Thermal tab." });
       } else {
         const effectiveCapacity = calcData.effectiveDryCoolerCapacityKw;
-        const ratio = effectiveCapacity / totalPowerKw;
+        const hydroHeatKw = coolingHeatLoadKw(config, "hydro");
+        const ratio = effectiveCapacity / hydroHeatKw;
         const derating = calcData.dryCoolerDeratingFactor;
         const deratingNote = derating < 1
           ? ` (derated to ${(derating * 100).toFixed(0)}% at ${calcData.climate.maxTempC}°C ambient)`
@@ -44,7 +46,7 @@ export default function FarmWarnings() {
         if (ratio < 1) {
           w.push({
             type: "error",
-            message: `Effective dry cooler capacity (${formatNumber(effectiveCapacity, 1)} kW${deratingNote}) is ${((1 - ratio) * 100).toFixed(0)}% below your heat load (${formatNumber(totalPowerKw, 1)} kW).`,
+            message: `Effective dry cooler capacity (${formatNumber(effectiveCapacity, 1)} kW${deratingNote}) is ${((1 - ratio) * 100).toFixed(0)}% below your hydro heat load (${formatNumber(hydroHeatKw, 1)} kW).`,
           });
         } else if (ratio > 1.5) {
           w.push({

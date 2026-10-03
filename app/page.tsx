@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
-import { useFarmStore } from "@/lib/store";
-import { fetchJson } from "@/lib/apiClient";
-import type { AirFanModel, DryCoolerModel } from "@/types";
 import MinerSelector from "@/components/MinerSelector";
 import FarmBuilder from "@/components/FarmBuilder";
 import MetricsDashboard from "@/components/MetricsDashboard";
@@ -22,15 +19,6 @@ type Tab = "build" | "energy" | "labor" | "temperature" | "forecast" | "about";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("build");
-  const setDryCoolerCatalog = useFarmStore((s) => s.setDryCoolerCatalog);
-  const setAirFanCatalog = useFarmStore((s) => s.setAirFanCatalog);
-
-  // Load catalog data into the store for auto-configure cooling
-  useEffect(() => {
-    fetchJson<DryCoolerModel[]>("/api/dry-coolers").then(setDryCoolerCatalog).catch(() => {});
-    fetchJson<AirFanModel[]>("/api/air-fans").then(setAirFanCatalog).catch(() => {});
-  }, [setDryCoolerCatalog, setAirFanCatalog]);
-
   return (
     <div className="min-h-screen glass-body-bg">
       {/* Live Network Stats */}

@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type {
   Miner,
-  DryCoolerModel,
-  AirFanModel,
   FarmConfig,
   FarmMetrics,
   ForecastParams,
@@ -56,16 +54,6 @@ function useCatalog<T>(url: string): { data: T[]; loading: boolean } {
 export function useMiners() {
   const { data, loading } = useCatalog<Miner>("/api/miners");
   return { miners: data, loading };
-}
-
-export function useDryCoolers() {
-  const { data, loading } = useCatalog<DryCoolerModel>("/api/dry-coolers");
-  return { dryCoolers: data, loading };
-}
-
-export function useAirFans() {
-  const { data, loading } = useCatalog<AirFanModel>("/api/air-fans");
-  return { airFans: data, loading };
 }
 
 // ─── Calculation response type ─────────────────────────────────────────────────

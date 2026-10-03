@@ -7,7 +7,15 @@ import Card from "./ui/Card";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { useDryCoolers, useAirFans, useCalculation } from "@/lib/apiClient";
+import { useCalculation } from "@/lib/apiClient";
+import { getDryCoolerDeratingFactor } from "@/lib/calculations";
+import {
+  airFanQuantity,
+  airFanUnitCostUsd,
+  coolingHeatLoadKw,
+  dryCoolerQuantity,
+  dryCoolerUnitCostUsd,
+} from "@/lib/cooling";
 import { formatNumber, formatUsd } from "@/lib/utils";
 import type { DryCoolerSelection, AirFanSelection, LocationData } from "@/types";
 
@@ -17,37 +25,37 @@ const LocationMapModal = dynamic(() => import("./LocationMapModal"), { ssr: fals
 function cToF(c: number) { return parseFloat((c * 9 / 5 + 32).toFixed(1)); }
 
 export default function TemperatureControl() {
-  const { config, updateTemperature } = useFarmStore();
+  const { config, updateTemperature, coolingOverridden, resetCoolingToAuto } = useFarmStore();
+  const DRY_COOLERS = useFarmStore((s) => s.dryCoolerCatalog);
+  const AIR_FANS = useFarmStore((s) => s.airFanCatalog);
   const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
   const { location, dryCoolerSelections, airFanSelections } = temperature;
 
   const [showMap, setShowMap] = useState(false);
 
-  const { dryCoolers: DRY_COOLERS } = useDryCoolers();
-  const { airFans: AIR_FANS } = useAirFans();
   const { data: calcData } = useCalculation(config);
 
   const isHydro = config.miners.some(({ miner }) => miner.watercooled);
   const isAir = config.miners.some(({ miner }) => !miner.watercooled);
-  const totalPowerKw = calcData?.totalPowerKw ?? 0;
+  // Heat each cooling system must reject (same function the auto-sizing uses).
+  const hydroHeatKw = coolingHeatLoadKw(config, "hydro");
+  const airHeatKw = coolingHeatLoadKw(config, "air");
   const ventilation = calcData?.ventilation ?? { m3h: 0, cfm: 0 };
 
-  // Dry cooler logic (auto-selection happens in store when miners change).
-  // DRY_COOLERS is a module-level constant so its identity never changes; it
-  // is included in the deps array purely to satisfy react-hooks/exhaustive-deps.
+  // Dry cooler logic (auto-selection happens in the store, via lib/cooling.ts).
   const dryCoolerCapexRows = useMemo(() => {
     const hourlyRate = config.labor.hourlyLaborCostUsd;
     return dryCoolerSelections.map((sel) => {
       const model = DRY_COOLERS.find((m) => m.model === sel.model);
       if (!model) return null;
-      const unitCost = model.estimated_cost_usd + model.man_hours_deploy * hourlyRate + model.plumbing_fluid_cost_usd;
+      const unitCost = dryCoolerUnitCostUsd(model, hourlyRate);
       return { ...sel, model, unitCost, totalCost: sel.quantity * unitCost };
     }).filter(Boolean) as Array<{ model: typeof DRY_COOLERS[0]; quantity: number; unitCost: number; totalCost: number }>;
   }, [dryCoolerSelections, config.labor.hourlyLaborCostUsd, DRY_COOLERS]);
 
   const totalDryCoolerCapex = dryCoolerCapexRows.reduce((s, r) => s + r.totalCost, 0);
   const totalDryCoolerKwRated = dryCoolerCapexRows.reduce((s, r) => s + r.quantity * r.model.kw_capacity_35c, 0);
-  const dryCoolerDerating = calcData?.dryCoolerDeratingFactor ?? 1;
+  const dryCoolerDerating = getDryCoolerDeratingFactor(config);
   const totalDryCoolerKw = totalDryCoolerKwRated * dryCoolerDerating;
   const totalDryCoolerNoise = dryCoolerCapexRows.length
     ? Math.max(...dryCoolerCapexRows.map((r) => r.model.sound_dba))
@@ -69,9 +77,8 @@ export default function TemperatureControl() {
     if (exists) return;
     const m = DRY_COOLERS.find((d) => d.model === model);
     if (!m) return;
-    const autoQty = Math.max(1, Math.ceil(totalPowerKw / m.kw_capacity_35c));
     updateTemperature({
-      dryCoolerSelections: [...dryCoolerSelections, { model, quantity: autoQty }],
+      dryCoolerSelections: [...dryCoolerSelections, { model, quantity: dryCoolerQuantity(hydroHeatKw, m, dryCoolerDerating) }],
     });
   }
 
@@ -90,14 +97,12 @@ export default function TemperatureControl() {
   }
 
   // ─── Air fan state & handlers ────────────────────────────────────────────
-  // AIR_FANS is a module-level constant so its identity never changes; it
-  // is included in the deps array purely to satisfy react-hooks/exhaustive-deps.
   const airFanRows = useMemo(() => {
     const hourlyRate = config.labor.hourlyLaborCostUsd;
     return airFanSelections.map((sel) => {
       const model = AIR_FANS.find((m) => m.model === sel.model);
       if (!model) return null;
-      const unitCost = model.cost_usd + model.man_hours_deploy * hourlyRate;
+      const unitCost = airFanUnitCostUsd(model, hourlyRate);
       return { ...sel, model, unitCost, totalCost: sel.quantity * unitCost };
     }).filter(Boolean) as Array<{ model: typeof AIR_FANS[0]; quantity: number; unitCost: number; totalCost: number }>;
   }, [airFanSelections, config.labor.hourlyLaborCostUsd, AIR_FANS]);
@@ -119,8 +124,7 @@ export default function TemperatureControl() {
     if (addedFanModels.has(model)) return;
     const m = AIR_FANS.find((f) => f.model === model);
     if (!m) return;
-    const autoQty = Math.max(1, Math.ceil(ventilation.m3h / m.airflow_m3h));
-    updateTemperature({ airFanSelections: [...airFanSelections, { model, quantity: autoQty }] });
+    updateTemperature({ airFanSelections: [...airFanSelections, { model, quantity: airFanQuantity(ventilation.m3h, m) }] });
   }
 
   function handleFanQtyChange(model: string, qty: number) {
@@ -164,6 +168,15 @@ export default function TemperatureControl() {
         >
           Choose Location
         </button>
+
+        {coolingOverridden && config.miners.length > 0 && (
+          <p className="mb-5 text-sm text-slate-500">
+            Cooling quantities were edited by hand, so they no longer follow the climate.{" "}
+            <button onClick={resetCoolingToAuto} className="font-semibold text-blueprint-deep hover:underline">
+              Re-size automatically
+            </button>
+          </p>
+        )}
 
         {location ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
@@ -291,7 +304,7 @@ export default function TemperatureControl() {
           </div>
 
           <p className="text-xs text-slate-400 mt-3">
-            Based on {formatNumber(totalPowerKw, 1)} kW total heat load (miners + {config.parasiticLoadPercent}% parasitic).
+            Based on {formatNumber(airHeatKw, 1)} kW air-cooled heat load (miners + {config.parasiticLoadPercent}% parasitic).
             Assumes 15 C air temperature rise across the miners. Add 20-30% margin for actual system design.
           </p>
         </Card>
@@ -454,7 +467,7 @@ export default function TemperatureControl() {
             Dry Cooler Sizing
           </h2>
           <p className="text-sm text-slate-500 mb-5">
-            Select dry cooler models for your hydro loop. Quantity auto-suggests based on total heat load ({formatNumber(totalPowerKw, 1)} kW).
+            Select dry cooler models for your hydro loop. Quantity auto-suggests based on the hydro heat load ({formatNumber(hydroHeatKw, 1)} kW) after climate derating.
             Costs include hardware + deployment labor + plumbing/fluid.
           </p>
 
@@ -519,7 +532,7 @@ export default function TemperatureControl() {
                   <div className="flex items-center gap-2">
                     <label className="text-xs text-slate-500 flex items-center gap-1">
                       Qty
-                      <Tooltip content={`Auto-suggested: ceil(${formatNumber(totalPowerKw, 1)} kW / ${row.model.kw_capacity_35c} kW) = ${Math.ceil(totalPowerKw / row.model.kw_capacity_35c)} units. Override as needed.`} />
+                      <Tooltip content={`Auto-suggested: ceil(${formatNumber(hydroHeatKw, 1)} kW / (${row.model.kw_capacity_35c} kW × ${dryCoolerDerating.toFixed(2)} derating)) = ${dryCoolerQuantity(hydroHeatKw, row.model, dryCoolerDerating)} units. Override as needed.`} />
                     </label>
                     <input
                       type="number"
@@ -557,7 +570,7 @@ export default function TemperatureControl() {
                     {formatNumber(totalDryCoolerKw, 1)} kW
                     {dryCoolerDerating < 1 && <span className="text-amber-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
                     {dryCoolerDerating > 1 && <span className="text-emerald-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
-                    {" "}{totalDryCoolerKw < totalPowerKw ? "— undersized" : "OK"}
+                    {" "}{totalDryCoolerKw < hydroHeatKw ? "— undersized" : "OK"}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-500">

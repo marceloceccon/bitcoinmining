@@ -7,7 +7,6 @@ import Card from "./ui/Card";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { useCalculation, useNetworkData } from "@/lib/apiClient";
-import { useDryCoolers, useAirFans } from "@/lib/apiClient";
 import { autoSelectTransformer, NO_TRANSFORMER_THRESHOLD_KVA } from "@/lib/transformerData";
 import {
   formatHashRate,
@@ -25,8 +24,8 @@ export default function MetricsDashboard() {
   const config = useFarmStore((state) => state.config);
   const { data: networkData } = useNetworkData();
   const { data: calcData, loading: calcLoading } = useCalculation(config);
-  const { dryCoolers } = useDryCoolers();
-  const { airFans } = useAirFans();
+  const dryCoolers = useFarmStore((s) => s.dryCoolerCatalog);
+  const airFans = useFarmStore((s) => s.airFanCatalog);
 
   const networkHashrateEh = networkData?.networkHashrateEh ?? CURRENT_NETWORK_HASHRATE_EH;
   const blockReward = networkData?.blockReward ?? CURRENT_BLOCK_REWARD;
