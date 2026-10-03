@@ -15,6 +15,7 @@ const { hash, date } = getGitInfo();
 
 const nextConfig = {
   output: 'standalone', // Required for Docker deployment
+  outputFileTracingRoot: __dirname, // single-package repo; don't let a stray parent lockfile move the root
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
