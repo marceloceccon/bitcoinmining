@@ -39,6 +39,8 @@ type NetworkDataResponse = {
   isLive: boolean;
   /** Where each value came from */
   sources: string[];
+  /** Trailing 12-month network hashrate growth (% per year, from 7-day means a year apart); null when unavailable. Clamped to 0–60 it makes a sensible default for the forecast's networkHashrateGrowthPercent */
+  hashrateGrowth12mPercent: number | null;
 };
 
 export async function OPTIONS(request: Request) {

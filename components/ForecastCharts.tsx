@@ -12,7 +12,7 @@ import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { generateForecast, scenarioBtcPrice } from "@/lib/forecasting";
-import { toMarketSnapshot } from "@/lib/networkData";
+import { DEFAULT_NETWORK_GROWTH_PERCENT, defaultNetworkGrowthPercent, toMarketSnapshot } from "@/lib/networkData";
 import { useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { FarmConfig, ForecastParams, ForecastPeriod } from "@/types";
@@ -128,7 +128,7 @@ export default function ForecastCharts() {
     btcPriceModel: "flat",
     annualGrowthPercent: 30,
     finalBtcPrice: null,
-    networkHashrateGrowthPercent: 10,
+    networkHashrateGrowthPercent: DEFAULT_NETWORK_GROWTH_PERCENT, // replaced by effectiveParams below
     asicDegradationPercent: 4,
     discountRatePercent: 10,
   });
@@ -141,7 +141,13 @@ export default function ForecastCharts() {
   // fees follow it unless the user overrides them.
   const market = useMarket();
   const startPrice = params.startingBtcPrice ?? Math.round(market.btcPriceUsd);
-  const effectiveParams = params;
+  // Network growth defaults to the trailing 12-month rate (clamped 0–60 %) until the user moves the slider.
+  const [growthOverride, setGrowthOverride] = useState<number | null>(null);
+  const trailingGrowth = market.hashrateGrowth12mPercent;
+  const effectiveParams = useMemo(
+    () => ({ ...params, networkHashrateGrowthPercent: growthOverride ?? defaultNetworkGrowthPercent(trailingGrowth) }),
+    [params, growthOverride, trailingGrowth],
+  );
   const effectiveFinalPrice = scenarioBtcPrice(params, startPrice, params.months);
 
   const { data: forecast } = useForecast(config, effectiveParams);
@@ -405,18 +411,29 @@ export default function ForecastCharts() {
           </div>
 
           {/* Network Growth */}
-          <Slider
-            label="Annual Network Hashrate Growth"
-            unit="%"
-            min={10}
-            max={60}
-            step={5}
-            value={params.networkHashrateGrowthPercent}
-            onChange={(e) =>
-              setParams({ ...params, networkHashrateGrowthPercent: parseFloat(e.target.value) })
-            }
-            tooltip="The expected year-over-year growth rate of Bitcoin's total network hashrate. Higher growth means more competition, harder difficulty, and lower per-unit mining yields over time."
-          />
+          <div>
+            <Slider
+              label="Annual Network Hashrate Growth"
+              unit="%"
+              min={0}
+              max={60}
+              step={1}
+              value={effectiveParams.networkHashrateGrowthPercent}
+              onChange={(e) => setGrowthOverride(parseFloat(e.target.value))}
+              tooltip="The expected year-over-year growth rate of Bitcoin's total network hashrate. Higher growth means more competition, harder difficulty, and lower per-unit mining yields over time. Defaults to the trailing 12-month rate, clamped to 0–60%."
+            />
+            <div className="text-xs text-slate-400 mt-1">
+              {trailingGrowth === null ? "trailing 12m: unavailable (default 10%)" : `trailing 12m: ${trailingGrowth > 0 ? "+" : ""}${trailingGrowth.toFixed(1)}%`}
+              {growthOverride !== null && (
+                <>
+                  {" · "}
+                  <button className="text-blueprint-deep hover:underline" onClick={() => setGrowthOverride(null)}>
+                    use trailing rate
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* ASIC Degradation */}
           <Slider

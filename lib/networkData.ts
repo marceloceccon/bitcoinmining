@@ -15,6 +15,8 @@ export interface NetworkData extends MarketSnapshot {
   /** Same instant as `asOf`; kept for API backward compatibility */
   lastUpdated: Date;
   nextHalving: { height: number; estimatedDate: string };
+  /** Trailing 12-month network hashrate growth, % per year (unclamped); null when unavailable */
+  hashrateGrowth12mPercent: number | null;
 }
 
 /**
@@ -57,7 +59,11 @@ async function getJson<T>(url: string): Promise<T | null> {
 }
 
 /** Display values derived from a snapshot (hashprice incl. fees, next halving, difficulty). */
-export function withDerived(market: MarketSnapshot, difficulty?: number): NetworkData {
+export function withDerived(
+  market: MarketSnapshot,
+  difficulty?: number,
+  hashrateGrowth12mPercent: number | null = null,
+): NetworkData {
   const asOf = new Date(market.asOf);
   return {
     ...market,
@@ -65,7 +71,37 @@ export function withDerived(market: MarketSnapshot, difficulty?: number): Networ
     hashpriceUsdPhDay: hashpriceUsdPerPhDay(market),
     lastUpdated: asOf,
     nextHalving: nextHalving(market.blockHeight, asOf),
+    hashrateGrowth12mPercent,
   };
+}
+
+const GROWTH_SMOOTHING_DAYS = 7;
+/** Used when no trailing growth is available. */
+export const DEFAULT_NETWORK_GROWTH_PERCENT = 10;
+
+/**
+ * Default for the forecast's network hashrate growth: the trailing 12-month
+ * rate clamped to 0–60 %, so one odd year can't produce an absurd default.
+ */
+export function defaultNetworkGrowthPercent(trailingPercent: number | null): number {
+  if (trailingPercent === null) return DEFAULT_NETWORK_GROWTH_PERCENT;
+  return Math.round(Math.min(60, Math.max(0, trailingPercent)));
+}
+
+/**
+ * Annualized network hashrate growth over a daily series (e.g. mempool.space
+ * /v1/mining/hashrate/1y), comparing 7-day means at each end to damp daily noise.
+ */
+export function trailingHashrateGrowthPercent(series: { timestamp: number; avgHashrate: number }[]): number | null {
+  const points = series.filter((p) => Number.isFinite(p.timestamp) && p.avgHashrate > 0);
+  if (points.length < GROWTH_SMOOTHING_DAYS * 2) return null;
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const head = points.slice(0, GROWTH_SMOOTHING_DAYS);
+  const tail = points.slice(-GROWTH_SMOOTHING_DAYS);
+  const years = (mean(tail.map((p) => p.timestamp)) - mean(head.map((p) => p.timestamp))) / (365.25 * 86400);
+  if (years <= 0) return null;
+  const ratio = mean(tail.map((p) => p.avgHashrate)) / mean(head.map((p) => p.avgHashrate));
+  return Math.round((Math.pow(ratio, 1 / years) - 1) * 1000) / 10;
 }
 
 /**
@@ -73,13 +109,14 @@ export function withDerived(market: MarketSnapshot, difficulty?: number): Networ
  * true only when price, hashrate and tip height all came from a live source.
  */
 export async function fetchNetworkData(now: Date = new Date()): Promise<NetworkData> {
-  const [prices, hashrate, tipHeight, rewards] = await Promise.all([
+  const [prices, hashrate, tipHeight, rewards, hashrate1y] = await Promise.all([
     getJson<{ USD?: number }>(`${MEMPOOL}/v1/prices`),
     getJson<{ currentHashrate?: number; currentDifficulty?: number }>(`${MEMPOOL}/v1/mining/hashrate/1m`),
     getJson<number>(`${MEMPOOL}/blocks/tip/height`),
     getJson<{ startBlock?: number; endBlock?: number; totalFee?: string | number }>(
       `${MEMPOOL}/v1/mining/reward-stats/144`,
     ),
+    getJson<{ hashrates?: { timestamp: number; avgHashrate: number }[] }>(`${MEMPOOL}/v1/mining/hashrate/1y`),
   ]);
 
   const sources: string[] = [];
@@ -127,6 +164,7 @@ export async function fetchNetworkData(now: Date = new Date()): Promise<NetworkD
       sources,
     },
     difficulty,
+    hashrate1y?.hashrates ? trailingHashrateGrowthPercent(hashrate1y.hashrates) : null,
   );
 }
 

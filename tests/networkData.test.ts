@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { FALLBACK_MARKET, fetchNetworkData, toMarketSnapshot } from '@/lib/networkData';
+import {
+  FALLBACK_MARKET,
+  defaultNetworkGrowthPercent,
+  fetchNetworkData,
+  toMarketSnapshot,
+  trailingHashrateGrowthPercent,
+} from '@/lib/networkData';
 
 const NOW = new Date('2026-10-03T12:00:00Z');
 
@@ -63,5 +69,35 @@ describe('fetchNetworkData', () => {
     const data = await fetchNetworkData(NOW);
     expect(data.isLive).toBe(false);
     expect(data.blockHeight).toBe(FALLBACK_MARKET.blockHeight);
+  });
+});
+
+describe('trailing 12-month hashrate growth', () => {
+  const DAY = 86400;
+  const series = (from: number, to: number) =>
+    Array.from({ length: 365 }, (_, i) => ({ timestamp: 1_759_536_000 + i * DAY, avgHashrate: (from + ((to - from) * i) / 364) * 1e18 }));
+
+  it('annualizes the change between 7-day means a year apart', () => {
+    const growth = trailingHashrateGrowthPercent(series(800, 1000))!;
+    expect(growth).toBeGreaterThan(20);
+    expect(growth).toBeLessThan(27);
+  });
+
+  it('can be negative, and returns null for too-short series', () => {
+    expect(trailingHashrateGrowthPercent(series(1000, 980))!).toBeLessThan(0);
+    expect(trailingHashrateGrowthPercent(series(800, 1000).slice(0, 10))).toBeNull();
+  });
+
+  it('the forecast default clamps it to 0–60 % (10 % when unavailable)', () => {
+    expect(defaultNetworkGrowthPercent(-1.3)).toBe(0);
+    expect(defaultNetworkGrowthPercent(24.4)).toBe(24);
+    expect(defaultNetworkGrowthPercent(140)).toBe(60);
+    expect(defaultNetworkGrowthPercent(null)).toBe(10);
+  });
+
+  it('is part of the live snapshot', async () => {
+    mockFetch({ ...LIVE, '/v1/mining/hashrate/1y': { hashrates: series(800, 1000) } });
+    const data = await fetchNetworkData(NOW);
+    expect(data.hashrateGrowth12mPercent).toBeGreaterThan(20);
   });
 });

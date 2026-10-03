@@ -2054,7 +2054,12 @@
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "* Trailing 12-month network hashrate growth (% per year, from 7-day means a year apart); null when unavailable. Clamped to 0–60 it makes a sensible default for the forecast's networkHashrateGrowthPercent"
+          },
+          "hashrateGrowth12mPercent": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -2069,7 +2074,8 @@
           "asOf",
           "lastUpdated",
           "isLive",
-          "sources"
+          "sources",
+          "hashrateGrowth12mPercent"
         ]
       },
       "CatalogUpdate": {
