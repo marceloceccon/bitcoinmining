@@ -99,6 +99,7 @@ Present all of these together at G0. The recommendation comes first in each row.
 - D6: follow recomendation
 - D7: follow recomendation
 - D8: follow recommendation
+- G0 (2026-10-03): D1–D8 confirmed as recommended (see above). Execution started with no further pause.
 - G1 direction: 
 - G2 data approval: Do it automatically, this data can be reviewed
 - G3 registry:
@@ -136,30 +137,33 @@ Rough effort: P0 ½ day · P1 1½ days · P2 1 day plus review · P3 ½ day · P
 
 ### P0 — Baseline and hygiene (branch `revamp/p0-hygiene`)
 
-- [ ] **P0.1 MUST — Baseline.**
+- [x] **P0.1 MUST — Baseline.**
   - `pnpm install`, then run lint, typecheck, test and build, and record the results in §9.
   - Take screenshots of every tab at 1440 px and 390 px into `docs/case-study/before/`. The before/after story is portfolio material.
   - Run Lighthouse (mobile) on the production URL and record the scores in §9.
-- [ ] **P0.2 MUST — pnpm everywhere.**
+  - Note: PSI API was over quota (429), so Lighthouse ran locally (Lighthouse 13.5, mobile preset, Playwright Chromium). See `docs/case-study/before/README.md`.
+- [x] **P0.2 MUST — pnpm everywhere.**
   - `git rm package-lock.json`.
   - CI (`.github/workflows/ci.yml`): use `pnpm/action-setup` and `pnpm install --frozen-lockfile`, cache pnpm, and **add a `pnpm typecheck` step** (currently missing).
   - Dockerfile: switch to corepack + pnpm.
   - Add `"packageManager": "pnpm@<version>"` to `package.json`.
-- [ ] **P0.3 MUST — Remove Supabase leftovers.** Delete `supabase/` and `.openapi-gen/manifest.json`, and add `.openapi-gen/` to `.gitignore` if it gets regenerated. Clean the Supabase variables out of `.env.example`, the mentions in `CONTRIBUTING.md:14,46`, the copy in `components/FarmPresets.tsx:10`, and the notes in `data/updates.json`.
-- [ ] **P0.4 MUST — Make copy match the code.**
+  - Note: pinned `pnpm@12.5.1` (the local version). pnpm 12 rewrites `pnpm-lock.yaml` as a multi-document file and needs `pnpm-workspace.yaml` (`allowBuilds`). pnpm 10 self-switches to 12.5.1 via `packageManager`; pnpm 9 fails. If the Vercel install step fails, set `ENABLE_EXPERIMENTAL_COREPACK=1` in the Vercel project. Also set `outputFileTracingRoot` so a stray parent lockfile can't move the standalone root. Docker build not run locally (no Docker in the dev container).
+- [x] **P0.3 MUST — Remove Supabase leftovers.** Delete `supabase/` and `.openapi-gen/manifest.json`, and add `.openapi-gen/` to `.gitignore` if it gets regenerated. Clean the Supabase variables out of `.env.example`, the mentions in `CONTRIBUTING.md:14,46`, the copy in `components/FarmPresets.tsx:10`, and the notes in `data/updates.json`.
+  - Note: `.env.example` deleted entirely (no env vars are needed any more).
+- [x] **P0.4 MUST — Make copy match the code.**
   - README: pnpm, Node 22, the real miner count, and drop the "regional presets US/BR/CN/EU" claim (only `CUSTOM` exists, `components/EnergyTab.tsx:58,113`).
   - Change "No tracking" per D3, and "Runs entirely in your browser" per D1 (fix the copy now; P1.10 may make it true again).
   - Remove dead code: `page.tsx:32 showMetrics`, unused `public/bg.jpg`, `public/bg.webp`, and the dead CSS `--primary-glow` and `.glass-card-hover`.
   - Remove the hidden hero `screenshot.png` (Trap 9).
   - Fix JSON-LD `Organization.logo` → `/logo.png`, which doesn't exist (`app/layout.tsx:175`): add the asset or point it at an existing icon.
-- [ ] **P0.5 MUST — Golden fixtures (the most important verification scaffold).**
+- [x] **P0.5 MUST — Golden fixtures (the most important verification scaffold).**
   - Before any engine change, add `tests/golden/` with a script or test that runs `calculateFarmMetrics` and `generateForecast` for all 4 presets.
   - Use a frozen clock (`vi.useFakeTimers({ now: new Date('2026-10-03T00:00:00Z') })`).
   - Capture the engine **as it is now**. Pass `startingBtcPrice: 84700`, which is the only market input the engine accepts today. Hashrate is the hardcoded 750 by construction, so don't try to mock the `const` export.
   - P1.1 re-captures the fixtures with the injected snapshot (964 EH/s), and that PR body explains the delta (about −22% BTC mined in month 1).
   - Commit the outputs as JSON fixtures, and add a test that diffs current output against them.
   - From then on, every engine change that moves a number must update the fixture **and** explain the delta in the PR body (e.g. "month-1 BTC mined −22%: live hashrate replaces 750 constant").
-- [ ] **P0.6 SHOULD — Playwright smoke e2e** (`@playwright/test`, `pnpm test:e2e`), run in CI against `next build && next start`. Flows to cover:
+- [x] **P0.6 SHOULD — Playwright smoke e2e** (`@playwright/test`, `pnpm test:e2e`), run in CI against `next build && next start`. Flows to cover:
   - load the page and see no console errors;
   - pick each preset and check that the metrics render;
   - visit every tab;
@@ -167,23 +171,25 @@ Rough effort: P0 ½ day · P1 1½ days · P2 1 day plus review · P3 ½ day · P
   - run all of the above at a 390 px viewport.
 
   Add `prefers-reduced-motion` and dark-mode projects later (in P4).
-- [ ] **P0.7 MUST — Remove placeholder illustrations.**
+  - Note: each test sends its own `x-real-ip`, since the whole suite sharing one IP exhausts the new 600/min first-party bucket. Writing the suite also surfaced a UI bug: error bodies (429/400) were stored as data. Fixed with `fetchJson` (rejects non-2xx).
+- [x] **P0.7 MUST — Remove placeholder illustrations.**
   - Commit the existing uncommitted `TemperatureControl.tsx` diff, which removes 4 `<CardIllustration>`.
   - Remove the remaining usages: `ForecastCharts.tsx:276`, `MetricsDashboard.tsx:143,166,221`, `LaborCosts.tsx:112,142,225`.
   - Remove the dead imports in MiningPoolParams, ImportTaxes, FarmBuilder, MinerSelector, EnergyTab, FarmPresets and TemperatureControl.
   - Delete `components/ui/CardIllustration.tsx` if nothing uses it any more.
 
   Why now rather than P4: the empty boxes look broken, and P0–P2 must be shippable on their own.
-- [ ] **P0.8 MUST — Fix the rate-limit exemption** (Trap 5). Prerequisite for P5.
+- [x] **P0.8 MUST — Fix the rate-limit exemption** (Trap 5). Prerequisite for P5.
   - Rate-limit **all** `/api/*` requests per IP.
   - Requests with `Sec-Fetch-Site: same-origin` get a higher bucket (e.g. 600/min, since the UI fires debounced bursts). Everything else gets 60/min.
   - Keep the 10k-IP cap. Document that the in-memory limiter is per serverless instance (best-effort).
   - Update `middleware.ts:9`, README and `next.openapi.json`.
   - Update `tests/middleware.test.ts`: a no-Origin request is now limited, and a same-origin GET without Origin is not falsely rejected.
-- [ ] **P0.9 MUST — SEO host fix (D4).**
+- [x] **P0.9 MUST — SEO host fix (D4).**
   - Set `metadataBase` to www, so the canonical and the `app/sitemap.ts` URLs become www.
   - Ask the user to set the apex → www redirect to **permanent (308)** in Vercel Domains, since that's a dashboard action. Then check with `curl -sI https://bitcoinminingfarmcalculator.com`.
-- [ ] **P0.10 SHOULD — OG image.** Remove the "Farm Visualizer" pill (that feature was removed) and the subtitle that repeats the title (`app/opengraph-image.tsx`). It gets fully redesigned in P4.
+  - Note: one `SITE_URL` in `lib/site.ts`. Apex still answers **307** (checked 2026-10-03), so the user needs to switch it to 308 in Vercel → Domains.
+- [x] **P0.10 SHOULD — OG image.** Remove the "Farm Visualizer" pill (that feature was removed) and the subtitle that repeats the title (`app/opengraph-image.tsx`). It gets fully redesigned in P4.
 
 🚦 PR → preview → **G4**.
 
@@ -235,6 +241,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - The API routes stay and are covered by tests.
 - [ ] **P1.11 SHOULD — Trailing hashrate growth default.** Fetch the 1-year hashrate series (`mempool.space/api/v1/mining/hashrate/1y`), compute trailing 12-month growth, clamp it to 0–60%, and use it as the default `networkHashrateGrowthPercent`. Show "trailing 12m: X%" next to the slider. Keep the user override.
 - [ ] **P1.12 MUST — Update `ARCHITECTURE.md`** for P1.1–P1.8: new revenue formula, scenarios, halving estimation, single cooling path, and an updated accuracy table.
+- [ ] **P1.13 MUST (added during P0) — IRR when no root exists.** `calculateIrr` returns −99% whenever the cash flows can't recover CAPEX. When NPV has no sign change in the search range, return `null` ("n/a" in the UI, plus a test). This changes the `ForecastResult.summary.irr` type to `number | null`, which also touches the API docs.
 
 🚦 PR → preview → **G4**. Golden-fixture deltas are explained in the PR body.
 
@@ -650,12 +657,14 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 ## 9. Review (fill in as phases complete)
 
 ### Baseline (P0.1)
-- Tests / typecheck / lint / build:
-- Lighthouse (prod, mobile) Perf / A11y / BP / SEO:
+- Tests / typecheck / lint / build (2026-10-03, `13068ae`): lint ✔ · typecheck ✔ · 352/352 vitest ✔ · build ✔ (`/` 166 kB, first load 269 kB). Before the P0 changes there were no e2e tests.
+- Lighthouse (prod, mobile; local Lighthouse 13.5 because PSI was over quota) Perf / A11y / BP / SEO: **99 / 91 / 100 / 100**. A11y failures: 6 unlabeled range sliders, and the contrast of the active-tab number (4.2:1).
 
 ### Findings
 - P1.9 OPEX investigation:
 - Golden-fixture deltas per phase:
+  - P0: fixtures captured (none moved). Engine-as-is month 1 at $84,700 / 750 EH/s: Small Farm revenue $33,704 vs OPEX $18,024 (from metrics); Industrial revenue $241,254 vs OPEX $128,109.
+- IRR bug (found during P0.1): every preset reports IRR **−99.0%**, even with positive net profit. Undiscounted cash flows never recover CAPEX, so there is no root in the bisection range and it drifts to the lower bound. → P1.13.
 
 ### Verification
 - P5.8 real-client MCP transcript summary:
