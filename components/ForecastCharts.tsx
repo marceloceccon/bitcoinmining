@@ -12,9 +12,9 @@ import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { getStockToFlowTarget } from "@/lib/forecasting";
-import { useForecast, useNetworkData } from "@/lib/apiClient";
+import { fetchJson, useForecast, useNetworkData } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
-import type { ForecastParams, ForecastPeriod } from "@/types";
+import type { FarmConfig, ForecastParams, ForecastPeriod, ForecastResult } from "@/types";
 
 /** Compact USD formatter for chart axis ticks */
 function tickUsd(v: number): string {
@@ -195,15 +195,18 @@ export default function ForecastCharts() {
         const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
         const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
 
-        const [elecRes, bearRes, netRes, noDegRes] = await Promise.all([
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config: configElec, params: effectiveParams }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsBear }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNet }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNoDeg }), signal: controller.signal }),
-        ]);
-
+        const post = (body: { config: FarmConfig; params: ForecastParams }) =>
+          fetchJson<ForecastResult>("/api/forecast", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
         const [elecData, bearData, netData, noDegData] = await Promise.all([
-          elecRes.json(), bearRes.json(), netRes.json(), noDegRes.json(),
+          post({ config: configElec, params: effectiveParams }),
+          post({ config, params: paramsBear }),
+          post({ config, params: paramsNet }),
+          post({ config, params: paramsNoDeg }),
         ]);
 
         const elecNpv = elecData.summary.npv;

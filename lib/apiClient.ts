@@ -11,6 +11,16 @@ import type {
   ForecastResult,
 } from "@/types";
 
+/**
+ * fetch + JSON parse that rejects on non-2xx responses, so error bodies such as a
+ * 429 `{ error }` are never mistaken for data.
+ */
+export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  if (!response.ok) throw new Error(`${url} responded ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
 // ─── Catalog fetchers (static data, fetched once) ─────────────────────────────
 
 /**
@@ -23,9 +33,8 @@ function useCatalog<T>(url: string): { data: T[]; loading: boolean } {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(url, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((result: T[]) => {
+    fetchJson<T[]>(url, { signal: controller.signal })
+      .then((result) => {
         if (!controller.signal.aborted) setData(result);
       })
       .catch((err) => {
@@ -123,14 +132,13 @@ function useDebouncedPost<TBody, TResult>(
       abortRef.current = controller;
       setLoading(true);
 
-      fetch(url, {
+      fetchJson<TResult>(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         signal: controller.signal,
       })
-        .then((r) => r.json())
-        .then((result: TResult) => {
+        .then((result) => {
           if (mountedRef.current && !controller.signal.aborted) {
             setData(result);
           }
@@ -200,9 +208,8 @@ export function useNetworkData() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    fetch("/api/network", { signal: controller.signal })
-      .then((r) => r.json())
-      .then((result: NetworkData) => {
+    fetchJson<NetworkData>("/api/network", { signal: controller.signal })
+      .then((result) => {
         if (!controller.signal.aborted) setData(result);
       })
       .catch(() => {})

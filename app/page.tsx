@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useFarmStore } from "@/lib/store";
+import { fetchJson } from "@/lib/apiClient";
+import type { AirFanModel, DryCoolerModel } from "@/types";
 import MinerSelector from "@/components/MinerSelector";
 import FarmBuilder from "@/components/FarmBuilder";
 import MetricsDashboard from "@/components/MetricsDashboard";
@@ -25,8 +27,8 @@ export default function Home() {
 
   // Load catalog data into the store for auto-configure cooling
   useEffect(() => {
-    fetch("/api/dry-coolers").then((r) => r.json()).then(setDryCoolerCatalog).catch(() => {});
-    fetch("/api/air-fans").then((r) => r.json()).then(setAirFanCatalog).catch(() => {});
+    fetchJson<DryCoolerModel[]>("/api/dry-coolers").then(setDryCoolerCatalog).catch(() => {});
+    fetchJson<AirFanModel[]>("/api/air-fans").then(setAirFanCatalog).catch(() => {});
   }, [setDryCoolerCatalog, setAirFanCatalog]);
 
   return (
