@@ -221,8 +221,8 @@ export default function SeoContent() {
               </h3>
               <p>
                 Yes. No account, no payment, no trial period. All calculations are
-                performed server-side via our free API. Your farm configuration
-                stays in your browser — nothing is stored.
+                performed by this site&apos;s own free API, and your farm
+                configuration is never stored.
               </p>
             </div>
 

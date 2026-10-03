@@ -131,7 +131,7 @@ const jsonLd = {
         name: "Is this Bitcoin mining calculator free?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. No account, no payment, no trial period. The simulator runs entirely in your browser with no server-side processing of your data.",
+          text: "Yes. No account, no payment, no trial period. Calculations run on this site's own free API and your farm configuration is never stored.",
         },
       },
       {
@@ -172,7 +172,7 @@ const jsonLd = {
     "@type": "Organization",
     name: "Bitcoin Mining Farm Calculator",
     url: SITE_URL,
-    logo: `${SITE_URL}/logo.png`,
+    logo: `${SITE_URL}/web-app-manifest-512x512.png`,
   },
   ],
 };

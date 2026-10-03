@@ -29,8 +29,6 @@ export default function Home() {
     fetch("/api/air-fans").then((r) => r.json()).then(setAirFanCatalog).catch(() => {});
   }, [setDryCoolerCatalog, setAirFanCatalog]);
 
-  const showMetrics = activeTab === "build" || activeTab === "labor" || activeTab === "temperature";
-
   return (
     <div className="min-h-screen glass-body-bg">
       {/* Live Network Stats */}
@@ -65,17 +63,9 @@ export default function Home() {
         <p className="mt-2 text-slate-500 max-w-3xl text-sm leading-relaxed">
           Plan your entire Bitcoin mining operation — from a single ASIC to a 10,000-unit industrial farm.
           Model hardware procurement, import duties, deployment labor, electrical infrastructure, cooling
-          systems, solar offset, pool fees, and multi-year revenue forecasts. No account. No tracking.
+          systems, solar offset, pool fees, and multi-year revenue forecasts. No account. No cookies.
           Free API for developers and AI agents.
         </p>
-        <Image
-          src="/screenshot.png"
-          alt="Bitcoin Mining Farm Calculator dashboard showing full CAPEX, OPEX and ROI projections"
-          width={2}
-          height={2}
-          className="w-full max-w-[2px] rounded-lg shadow-md mx-auto mt-5"
-          priority
-        />
       </section>
 
       {/* Navigation */}
@@ -241,7 +231,9 @@ export default function Home() {
             <div className="glass-card p-8">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Open Source</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Once the project reaches a stable state, it will be open-sourced so that anyone can contribute, fork it, maintain the miner database, or host their own instance. The goal is for the community to keep it alive and accurate even if the original maintainer moves on.
+                The calculator is open source under the MIT license on{" "}
+                <a href="https://github.com/marceloceccon/bitcoinmining" className="text-blueprint-deep hover:underline">GitHub</a>.
+                Anyone can contribute, fork it, maintain the miner database, or host their own instance.
               </p>
             </div>
 
@@ -249,7 +241,7 @@ export default function Home() {
             <div className="glass-card p-8">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Privacy</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                No accounts. No tracking. No cookies. Your farm configuration lives entirely in your browser.
+                No accounts. No cookies. Anonymous page analytics only. Calculations run on this site&apos;s own API and your farm configuration is never stored.
               </p>
             </div>
 

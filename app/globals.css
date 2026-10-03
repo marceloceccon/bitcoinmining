@@ -10,7 +10,6 @@
     --card-bg: rgba(255, 255, 255, 0.65);
     --card-border: rgba(210, 218, 230, 0.7);
     --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    --card-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.8);
     --card-radius: 20px;
     --backdrop-blur: 20px;
 
@@ -18,7 +17,6 @@
     --primary: #1E40AF;
     --primary-light: #3B82F6;
     --primary-faint: #EFF6FF;
-    --primary-glow: rgba(30, 64, 175, 0.08);
 
     /* Status tints for glass backgrounds */
     --success-tint: rgba(16, 185, 129, 0.08);
@@ -98,11 +96,6 @@
     .glass-card {
       background: rgba(255, 255, 255, 0.92);
     }
-  }
-
-  .glass-card-hover:hover {
-    box-shadow: var(--card-shadow-hover);
-    transform: translateY(-1px);
   }
 
   /* Glass header bar */

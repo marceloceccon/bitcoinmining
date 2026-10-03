@@ -2,16 +2,16 @@
 
 **Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool**
 
-A free, privacy-first Next.js 15 web application for calculating Bitcoin mining profitability, building virtual farms, and forecasting ROI. Includes a free, rate-limited API for developers and AI agents.
+A free, no-account Next.js 15 web application for calculating Bitcoin mining profitability, building virtual farms, and forecasting ROI. Includes a free, rate-limited API for developers and AI agents.
 
 ## Features
 
 ### Core Functionality
-- **50+ Real ASIC Miners** — Complete database with hash rates, power consumption, prices, and degradation curves
+- **50 ASIC Miner Models** — Catalog with hash rates, power consumption, prices, and degradation curves
 - **Farm Builder** — Add unlimited miners, configure quantities, real-time calculations
 - **Live Metrics Dashboard** — Hash rate, power draw, heat output, electrical requirements
 - **Solar Simulation** — 0-100% solar coverage with cost modeling and grid fallback
-- **Regional Presets** — Pre-configured electricity prices for US, Brazil, China, EU + custom
+- **Electricity Settings** — Custom $/kWh, tax adder, and annual energy inflation
 - **Advanced Electrical Calculations** — Copper cable sizing, transformer tiers, parasitic loads
 - **Cooling Options** — Air cooling vs hydro with dry cooler cost modeling
 
@@ -51,16 +51,23 @@ All calculations are available as a free, rate-limited REST API:
 ## Installation
 
 ### Prerequisites
-- Node.js 18+
-- npm
+- Node.js 22+
+- pnpm (version pinned in `package.json` → `packageManager`; run `corepack enable pnpm`)
 
 ### Setup
 
 ```bash
-cd mineforge
-npm install
-npm run dev
+git clone https://github.com/marceloceccon/bitcoinmining.git
+cd bitcoinmining
+pnpm install
+pnpm dev
 # Open http://localhost:3000
+```
+
+### Checks
+
+```bash
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
 
 No external database or environment variables required. All data is embedded in JSON files under `data/`.
@@ -69,7 +76,7 @@ No external database or environment variables required. All data is embedded in 
 
 Hardware catalogs are stored as JSON in the `data/` directory:
 
-- `data/miners.json` — ASIC miner catalog (50+ models)
+- `data/miners.json` — ASIC miner catalog (50 models)
 - `data/dryCoolers.json` — Dry cooler models (26 models)
 - `data/airFans.json` — Industrial air fan models
 - `data/updates.json` — Last update timestamps
@@ -89,7 +96,7 @@ Works on any platform supporting Next.js 15: Netlify, Railway, AWS Amplify, Dock
 
 ## Privacy
 
-No accounts. No tracking. No cookies. Your farm configuration lives entirely in your browser.
+No accounts. No cookies. Anonymous page analytics only (Vercel Analytics). Calculations run on this site's own API and your farm configuration is never stored.
 
 ## License
 
