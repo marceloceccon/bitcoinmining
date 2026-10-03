@@ -82,30 +82,29 @@ function calculateNpv(monthlyCashFlows: number[], annualDiscountRate: number, in
   return npv;
 }
 
+/** IRR search range, annual %. Below −99.9 % the monthly discount factor stops being meaningful. */
+const IRR_MIN_PERCENT = -99.9;
+const IRR_MAX_PERCENT = 1000;
+
 /**
- * Calculate IRR using bisection method
+ * Annual IRR (percent) by bisection, or null when none exists: if NPV has the
+ * same sign at both ends of the range, no discount rate makes the cash flows
+ * repay the investment (e.g. a farm whose cash flows never recover CAPEX).
  */
-function calculateIrr(monthlyCashFlows: number[], initialInvestment: number): number {
-  let lo = -50; // -50% annual
-  let hi = 500; // 500% annual
+function calculateIrr(monthlyCashFlows: number[], initialInvestment: number): number | null {
+  let lo = IRR_MIN_PERCENT;
+  let hi = IRR_MAX_PERCENT;
+  const npvLo = calculateNpv(monthlyCashFlows, lo, initialInvestment);
+  const npvHi = calculateNpv(monthlyCashFlows, hi, initialInvestment);
+  if (!Number.isFinite(npvLo) || !Number.isFinite(npvHi) || Math.sign(npvLo) === Math.sign(npvHi)) return null;
 
-  // Check if IRR exists (does NPV at 0% start positive?)
-  const npvAtZero = calculateNpv(monthlyCashFlows, 0, initialInvestment);
-  if (npvAtZero < 0) {
-    // Project never pays back even at 0% discount — negative IRR
-    // Try extending range
-    lo = -99;
-  }
-
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 200; i++) {
     const mid = (lo + hi) / 2;
     const npv = calculateNpv(monthlyCashFlows, mid, initialInvestment);
     if (Math.abs(npv) < 0.01) return mid;
-    if (npv > 0) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
+    // NPV falls as the rate rises; keep the half whose ends straddle zero
+    if (Math.sign(npv) === Math.sign(npvLo)) lo = mid;
+    else hi = mid;
   }
   return (lo + hi) / 2;
 }
@@ -253,7 +252,7 @@ export function generateForecast(
   // NPV & IRR
   const discountRate = params.discountRatePercent ?? 10;
   const npv = calculateNpv(monthlyCashFlows, discountRate, totalCapex);
-  const irr = totalCapex > 0 ? calculateIrr(monthlyCashFlows, totalCapex) : 0;
+  const irr = totalCapex > 0 ? calculateIrr(monthlyCashFlows, totalCapex) : null;
 
   // Break-even BTC price: price at which total revenue = total costs
   // Revenue = totalBtcMined × price, so price = totalCosts / totalBtcMined

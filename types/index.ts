@@ -249,7 +249,7 @@ export interface ForecastResult {
     finalBtcBalance: number;
     roiPercent: number;
     paybackMonths: number | null;
-    irr: number;
+    irr: number | null; // annual %, null when no rate repays the CAPEX
     npv: number;
     breakEvenBtcPrice: number;
     breakEvenBtcPriceWithCapex: number;

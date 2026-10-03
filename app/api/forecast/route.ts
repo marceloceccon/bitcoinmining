@@ -100,8 +100,8 @@ type ForecastSummaryResponse = {
   roiPercent: number;
   /** Months until cumulative profit turns positive — null if never reached */
   paybackMonths: number | null;
-  /** Internal rate of return (annualized, as a decimal) */
-  irr: number;
+  /** Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX */
+  irr: number | null;
   /** Net present value of all cash flows (USD) */
   npv: number;
   /** BTC price at which monthly mining revenue equals monthly OPEX (USD) */

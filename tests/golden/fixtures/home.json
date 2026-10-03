@@ -951,7 +951,7 @@
       "finalBtcBalance": 0,
       "roiPercent": -109.49267317064033,
       "paybackMonths": null,
-      "irr": -99,
+      "irr": null,
       "npv": -26379.380462001405,
       "breakEvenBtcPrice": 175331.19311757994,
       "breakEvenBtcPriceWithCapex": 258104.94454141677,

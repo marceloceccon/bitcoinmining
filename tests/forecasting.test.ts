@@ -569,6 +569,28 @@ describe('NPV and IRR', () => {
       expect(result.summary.irr).toBeGreaterThan(0);
     }
   });
+
+  it('IRR solves NPV(irr) = 0 for a farm that repays its CAPEX', () => {
+    const config = makeFarmConfig(10);
+    config.regional.electricityPriceKwh = 0.01;
+    const params = makeParams({ months: 72, networkHashrateGrowthPercent: 0, asicDegradationPercent: 0 });
+    const result = generateForecast(config, params, MARKET, NOW);
+    expect(result.summary.irr).not.toBeNull();
+    const npvAtIrr = generateForecast(config, { ...params, discountRatePercent: result.summary.irr! }, MARKET, NOW).summary.npv;
+    expect(Math.abs(npvAtIrr)).toBeLessThan(1);
+  });
+
+  it('IRR is null (not -99%) when the cash flows never repay the CAPEX', () => {
+    const config = makeFarmConfig(10);
+    config.regional.electricityPriceKwh = 0.5; // every month loses money
+    const result = generateForecast(config, makeParams({ months: 24 }), MARKET, NOW);
+    expect(result.summary.irr).toBeNull();
+  });
+
+  it('IRR is null for a farm with no CAPEX (no miners)', () => {
+    const result = generateForecast(makeFarmConfig(0), makeParams({ months: 12 }), MARKET, NOW);
+    expect(result.summary.irr).toBeNull();
+  });
 });
 
 // ════════════════════════════════════════════════════════════════════════

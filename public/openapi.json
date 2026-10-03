@@ -1232,10 +1232,11 @@
           "paybackMonths": {
             "type": "number",
             "nullable": true,
-            "description": "* Internal rate of return (annualized, as a decimal)"
+            "description": "* Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX"
           },
           "irr": {
             "type": "number",
+            "nullable": true,
             "description": "* Net present value of all cash flows (USD)"
           },
           "npv": {
@@ -1391,10 +1392,11 @@
               "paybackMonths": {
                 "type": "number",
                 "nullable": true,
-                "description": "* Internal rate of return (annualized, as a decimal)"
+                "description": "* Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX"
               },
               "irr": {
                 "type": "number",
+                "nullable": true,
                 "description": "* Net present value of all cash flows (USD)"
               },
               "npv": {

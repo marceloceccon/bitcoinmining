@@ -530,11 +530,11 @@ export default function ForecastCharts() {
               IRR
               <HelpTooltip content="Internal Rate of Return — the annualized discount rate at which the project's NPV equals zero. Higher = better. Comparable across investments of different sizes." />
             </div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.irr >= 0 ? 'text-blueprint-mid' : 'text-red-600'}`}>
-              {forecast.summary.irr.toFixed(1)}%
+            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.irr !== null && forecast.summary.irr >= 0 ? 'text-blueprint-mid' : 'text-red-600'}`}>
+              {forecast.summary.irr === null ? "n/a" : `${forecast.summary.irr.toFixed(1)}%`}
             </div>
             <div className="text-xs text-slate-400 mt-1">
-              annual, at {params.discountRatePercent}% discount
+              {forecast.summary.irr === null ? "cash flows never repay the CAPEX" : "annual"}
             </div>
           </Card>
           <Card>
