@@ -31,6 +31,12 @@ Comprehensive test suite for the MineForge Bitcoin Mining Farm Calculator. Tests
 - **Payback period**: Month when cumulative profit exceeds total CAPEX
 - **Hashprice**: $/TH/day average across the forecast horizon
 
+### `golden/` — Golden Fixtures (engine regression net)
+
+- Runs the 4 UI presets (Home, Garage, Small Farm, Industrial) through `calculateFarmMetrics` and `generateForecast` with a frozen clock (2026-10-03) and the Projections-tab default parameters
+- Compares every number against `golden/fixtures/<preset>.json` (relative tolerance 1e-9) and reports the first differing path
+- Any engine change that moves a number must re-capture with `pnpm test:golden:update` **and** explain the delta in the PR body
+
 ### `utils.test.ts` — Formatting & Utilities
 
 - Currency, BTC, hashrate, power, percentage, and number formatting
