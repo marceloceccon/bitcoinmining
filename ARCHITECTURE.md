@@ -2,7 +2,7 @@
 
 This document describes every formula, assumption, and limitation in the calculation engine. It is intended for developers integrating with the API, auditors verifying the math, and operators who need to understand what the numbers mean before committing capital.
 
-The engine has two layers: **CAPEX/OPEX metrics** (instantaneous farm economics) and **multi-year forecasting** (time-series revenue projection). Both are pure functions — given the same input, they always produce the same output.
+The engine has two layers: **CAPEX/OPEX metrics** (instantaneous farm economics) and **multi-year forecasting** (time-series revenue projection). Both are pure functions. **Market state is an input, never a constant**: the forecast is `generateForecast(config, params, market, now)`, and the same `(config, params, market, now)` always produces the same output. The UI, the REST API and the tests all run this same engine.
 
 ---
 
@@ -17,15 +17,19 @@ The engine has two layers: **CAPEX/OPEX metrics** (instantaneous farm economics)
 7. [Import Taxes](#7-import-taxes)
 8. [Total CAPEX](#8-total-capex)
 9. [Monthly OPEX](#9-monthly-opex)
-10. [Bitcoin Mining Revenue](#10-bitcoin-mining-revenue)
-11. [BTC Price Modeling (Stock-to-Flow)](#11-btc-price-modeling-stock-to-flow)
-12. [Multi-Year Forecast Engine](#12-multi-year-forecast-engine)
-13. [Financial Metrics (NPV, IRR, Break-even)](#13-financial-metrics-npv-irr-break-even)
-14. [Sensitivity Analysis](#14-sensitivity-analysis)
-15. [Noise Modeling](#15-noise-modeling)
-16. [Assumptions Summary](#16-assumptions-summary)
-17. [Known Limitations](#17-known-limitations)
-18. [Accuracy Assessment](#18-accuracy-assessment)
+10. [Market Snapshot (Live Inputs)](#10-market-snapshot-live-inputs)
+11. [Bitcoin Mining Revenue](#11-bitcoin-mining-revenue)
+12. [BTC Price Scenarios (Choices, Not Predictions)](#12-btc-price-scenarios-choices-not-predictions)
+13. [Multi-Year Forecast Engine](#13-multi-year-forecast-engine)
+14. [Financial Metrics (NPV, IRR, Break-even)](#14-financial-metrics-npv-irr-break-even)
+15. [Sensitivity Analysis](#15-sensitivity-analysis)
+16. [Noise Modeling](#16-noise-modeling)
+17. [Where Computation Happens & REST API](#17-where-computation-happens--rest-api)
+18. [Rate Limiting](#18-rate-limiting)
+19. [Assumptions Summary](#19-assumptions-summary)
+20. [Known Limitations](#20-known-limitations)
+21. [Accuracy Assessment](#21-accuracy-assessment)
+22. [Verification](#22-verification)
 
 ---
 
@@ -37,16 +41,17 @@ The engine has two layers: **CAPEX/OPEX metrics** (instantaneous farm economics)
 P_total (kW) = [ SUM(miner_watts_i * quantity_i) * (1 + parasitic_load_% / 100) ] / 1000
 ```
 
-- **Parasitic load** (default 5%) accounts for networking equipment, control systems, lighting, and miscellaneous facility loads that are not the miners themselves.
-- The parasitic load percentage is user-adjustable (0–20%).
+- **Parasitic load** (default 5%) accounts for cooling fans, networking equipment, control systems, lighting, and miscellaneous facility loads that are not the miners themselves.
+- The parasitic load is a `FarmConfig` field (`parasiticLoadPercent`). The UI currently has no control for it (it stays at the 5% default); REST callers can set any value.
+- **Cooling fan draw is not added twice.** The power of the selected air fans (`airFanPowerKw`) and of dry cooler fans is *reported*, but it is considered covered by the parasitic load percentage and is not added to `P_total`.
 
 ### Monthly Energy
 
 ```
-monthly_kWh = P_total (kW) * 730
+monthly_kWh = P_total (kW) * 730.5
 ```
 
-- **730 hours/month** is the standard engineering average (365.25 days/year * 24 hours / 12 months = 730.5).
+- **730.5 hours/month** = `DAYS_PER_MONTH` (30.4375 = 365.25 / 12) × 24. Revenue uses the same 30.4375-day month (section 11), so energy cost and mining revenue always cover the same period.
 - Uptime is NOT factored into energy consumption. The assumption is that miners draw power whether productive or not (fans run, PSUs idle). This is a conservative assumption — actual energy may be slightly lower during downtime.
 
 ### Heat Output
@@ -72,7 +77,7 @@ heat_BTU_per_hour = P_total (W) * 3.412
 amps = P_total (W) / 220V
 ```
 
-- **220V** is assumed as the standard industrial single-phase voltage. Three-phase installations would use 380–480V, reducing current. This is a simplification — the calculator does not model three-phase distribution, though it recommends it above 75 kVA.
+- **220V** is assumed as the standard industrial single-phase voltage. Three-phase installations would use 380–480V, reducing current. This is a simplification — the calculator does not model three-phase distribution, though the transformer table switches to three-phase models from 75 kVA.
 
 ### Transformer Sizing
 
@@ -82,7 +87,7 @@ kVA_required = P_total (kW) * 1.2
 
 - The **20% overhead** accounts for power factor correction, inrush current during startup, and future expansion headroom. Industry practice ranges from 15–25%.
 - Farms under **15 kVA** (roughly 4 miners) do not need a dedicated transformer — standard residential/commercial service suffices.
-- Transformer selection uses a lookup table of 15 real models from 15 kVA to 2,500 kVA. For loads exceeding 2,500 kVA, multiple units of the largest transformer are used.
+- Transformer selection (`lib/transformerData.ts`) picks the smallest of 15 models (15 kVA to 2,500 kVA; single-phase up to 50 kVA, three-phase from 75 kVA) that covers the load. For loads exceeding 2,500 kVA, multiple units of the largest transformer are used.
 
 ### Cable Cost
 
@@ -102,10 +107,14 @@ cable_cost = (cable_weight_kg * copper_price_per_kg) + (length_m * $15)
 
 ### Breaker Panel Sizing
 
+Computed in the dashboard's Electrical Panel card (`components/MetricsDashboard.tsx`), not in `lib/`:
+
 ```
-main_breaker = total_amps / 0.8      (NEC 80% continuous load rule)
+main_breaker = total_amps / 0.8      (NEC 80% continuous load rule), rounded up to
+               20/30/40/50/60/100/200 A, or to the next 100 A above that
 branch_circuits = ceil(total_amps / 24)  (30A breakers at 80% = 24A usable)
 panel_slots = ceil(circuits / 2) * 2     (panels have even slot counts)
+panels = ceil(panel_slots / 42)          (20-, 30- or 42-slot panel)
 ```
 
 - Based on the US National Electrical Code (NEC) Article 210.20 for continuous loads.
@@ -140,9 +149,11 @@ container_cost = containers * $6,000
 
 ## 4. Cooling & Climate
 
+All cooling sizing lives in one pure module, **`lib/cooling.ts`**, used by the engine, the store's auto-sizing, the Thermal tab and the REST API. It does no I/O; callers pass in the catalog rows to size from. The hardware catalogs (miners, dry coolers, air fans) come from `data/*.json` through `lib/catalog.ts`, the single source for the engine, the API and the UI.
+
 ### Climate Model
 
-When a location is selected (via map pick with ERA5 climate data), the engine uses the site's `maxTempC` and `avgHumidityPercent` to adjust cooling calculations. When no location is set, a **temperate fallback** is used:
+When a location is selected (via map pick with ERA5 climate data), the engine uses the site's `maxTempC` and `avgHumidityPercent` to adjust cooling calculations. When no location is set, a **temperate fallback** (`DEFAULT_CLIMATE`) is used:
 
 | Parameter | Default Value | Rationale |
 |---|---|---|
@@ -151,11 +162,20 @@ When a location is selected (via map pick with ERA5 climate data), the engine us
 | Minimum temp | 5°C | Not used in calculations currently |
 | Average humidity | 60% | Below the 70% penalty threshold |
 
-At these defaults, all cooling formulas produce identical results to a non-climate-aware model.
+At these defaults, all cooling formulas produce identical results to a non-climate-aware model (dry cooler derating is exactly 1.0).
+
+### Heat Load per Cooling Type
+
+```
+heat_kW(kind) = SUM(miner_watts_i * quantity_i  for miners of that cooling type)
+              * (1 + parasitic_load_% / 100) / 1000
+```
+
+`coolingHeatLoadKw(config, 'air' | 'hydro')` splits a mixed farm: air-cooled miners are sized for ventilation fans and water-cooled miners for dry coolers, each carrying its share of the parasitic load. For a single-type farm this equals `P_total`. A hydro-only farm needs no ventilation airflow; an air-only farm needs no dry coolers.
 
 ### Air Cooling — Ventilation Requirement
 
-Base thermodynamic formula:
+Base thermodynamic formula (`requiredAirflowM3h`), applied to the air-cooled heat load:
 
 ```
 Q (m^3/h) = P (W) / (rho * Cp * delta_T) * 3600
@@ -207,7 +227,7 @@ airflow_cfm = airflow_m3h * 0.5886
 
 ### Hydro Cooling — Dry Cooler Derating
 
-Dry coolers are rated at 35°C ambient. Performance changes with actual site temperature:
+Dry coolers are rated at 35°C ambient. Performance changes with actual site temperature (`dryCoolerDeratingFactor`):
 
 ```
 if maxTempC > 35:
@@ -235,7 +255,22 @@ The **2% per degree** improvement below 35°C is intentionally less aggressive b
 effective_kW = SUM(model_kW_rated * quantity * derating_factor)
 ```
 
-This derated capacity is used for sizing warnings ("undersized" / "oversized") and auto-configuration.
+This derated capacity is used for sizing warnings ("undersized" / "oversized").
+
+### Auto-Sizing
+
+`recommendCoolingSelections` sizes both systems at the site climate:
+
+```
+Hydro (sizeHydroCooling): model  = dry cooler whose 35°C rating is closest to heat_kW(hydro)
+                          units  = max(1, ceil(heat_kW(hydro) / (rating_kW * derating_factor)))
+Air   (sizeAirCooling):   model  = highest-airflow fan in the catalog
+                          units  = max(1, ceil(airflow_m3h(heat_kW(air)) / fan_airflow_m3h))
+```
+
+Unit cost is hardware + deployment man-hours × hourly labor rate (+ plumbing and fluid for dry coolers); see `dryCoolerUnitCostUsd` / `airFanUnitCostUsd`.
+
+**When the store re-sizes.** The UI store re-runs auto-sizing whenever the miners, the parasitic load or the site location change. A manual edit of the dry cooler or fan selections sets `coolingOverridden`: from then on, location and parasitic-load changes keep the user's quantities. Changing the miners or clicking **"Re-size automatically"** clears the override and re-sizes from scratch (loading a saved config or resetting also clears it).
 
 ---
 
@@ -255,7 +290,7 @@ The **2x multiplier** accounts for the day/night cycle: solar panels only genera
 effective_coverage% = coverage% * (injection_rate% / 100)
 ```
 
-The **injection rate** models net metering policies. At 100%, all surplus solar energy exported to the grid is credited 1:1. Lower values represent "injection taxes" where the utility credits only a fraction of exported energy.
+The **injection rate** models net metering policies. At 100% (default), all surplus solar energy exported to the grid is credited 1:1. Lower values represent "injection taxes" where the utility credits only a fraction of exported energy.
 
 ### Solar CAPEX
 
@@ -264,6 +299,8 @@ solar_capex = solar_kW_installed * cost_per_kW
 ```
 
 Default: $1,200/kW. Commercial-scale solar installations typically range $800–$1,500/kW depending on location, ground conditions, and grid interconnection costs.
+
+By default (`includeCommissioningInCapex: false`) solar is treated as a separate project: `solar_capex` is reported but **not** rolled into the farm's total CAPEX (section 8). Only its maintenance enters OPEX.
 
 ### Solar OPEX
 
@@ -297,16 +334,16 @@ cables_and_breakers = miners * per_miner_cable_cost
 deployment_capex = labor_cost + cables_and_breakers
 ```
 
-**Defaults:**
+**Defaults** (the UI's default farm config; REST callers send every field explicitly):
 
-| Parameter | Default | Range |
+| Parameter | Default | Typical range |
 |---|---|---|
-| Hours per miner | 2.5 | 1.5–4 |
+| Hours per miner | 1 | Higher for first-time crews |
 | Hours per transformer | 8 | 6–16 |
 | Hours per rack | 4 | 2–6 |
-| Hours per container | 40 | 24–60 |
-| Hourly labor rate | $35 | $25–$60 |
-| Cables & breaker per miner | $85 | Materials only |
+| Hours per container | 80 | 24–60 |
+| Hourly labor rate | $20 | Region-dependent |
+| Cables & breaker per miner | $40 | Materials only |
 
 ### Maintenance Labor (OPEX)
 
@@ -316,7 +353,7 @@ if miners <= 20:
 else:
   monthly_hours = 30 + (miners * 0.2) + (air_fan_units * 1)
 
-monthly_cost = monthly_hours * hourly_maintenance_rate
+monthly_cost = monthly_hours * hourly_maintenance_rate     (default $35/h)
 ```
 
 The step function at 20 miners models the transition from part-time oversight (hobby scale) to requiring a dedicated maintenance schedule (commercial scale).
@@ -348,7 +385,7 @@ total_capex = miner_hardware_cost
             + rack_cost
             + container_cost
             + cooling_cost            (legacy, currently $0)
-            + solar_capex
+            + solar_capex             (only when includeCommissioningInCapex)
             + deployment_labor
             + cables_and_breakers
             + dry_cooler_capex
@@ -362,9 +399,11 @@ Twelve line items. All are deterministic given the input configuration.
 
 ## 9. Monthly OPEX
 
+`calculateMonthlyOpexBreakdown(config, totalCapex)` itemizes OPEX. The dashboard and the forecast both use it, so month 1 of a forecast (before energy inflation) equals the dashboard's `monthlyOpex`.
+
 ```
-electricity_cost = grid_kWh * price_per_kWh * (1 + tax_adder% / 100)
-maintenance_cost = (total_capex * maintenance_opex% / 100) / 12
+electricity_cost  = grid_kWh * price_per_kWh * (1 + tax_adder% / 100)
+maintenance_cost  = (total_capex * maintenance_opex% / 100) / 12
 solar_maintenance = (solar_capex * solar_maintenance% / 100) / 12
 labor_maintenance = monthly_maintenance_hours * hourly_rate
 
@@ -373,28 +412,84 @@ monthly_opex = electricity_cost + maintenance_cost + solar_maintenance + labor_m
 
 Where:
 ```
-grid_kWh = monthly_kWh * (1 - effective_solar_coverage / 100)
+grid_kWh = monthly_kWh * (1 - effective_solar_coverage / 100)      (monthly_kWh at 730.5 h)
 ```
+
+In the forecast, **only electricity inflates** (section 13); maintenance, solar maintenance and maintenance labor stay flat.
 
 **Note:** The `maintenance_cost` (default 5% of CAPEX/year) is a catch-all for equipment repairs, replacement parts, insurance, and facility overhead. It does NOT include electricity or labor, which are calculated separately.
 
+### Worked example: Industrial preset (P1.9)
+
+500 × S21 Hydro (5,360 W) at the defaults ($0.05/kWh, 5% parasitic, 5% maintenance, $35/h maintenance labor), checked in `tests/opex.test.ts`:
+
+| Line item | Calculation | Monthly |
+|---|---|---|
+| Electricity | 500 × 5,360 W × 1.05 = 2,814 kW × 730.5 h × $0.05 | $102,781 |
+| Maintenance | 5%/yr × $5,003,487 CAPEX / 12 | $20,848 |
+| Maintenance labor | (30 + 0.2 × 500 + 0 fans) = 130 h × $35 | $4,550 |
+| Solar maintenance | no solar | $0 |
+| **Total** | | **$128,179** |
+
+Every dollar is itemized; the "~$100k unexplained OPEX" reported against an older build does not exist in the current engine.
+
 ---
 
-## 10. Bitcoin Mining Revenue
+## 10. Market Snapshot (Live Inputs)
+
+All market state enters the engine as one `MarketSnapshot` (`types/index.ts`), produced by `lib/networkData.ts` and passed to the UI, the REST API and the tests:
+
+| Field | Live source (mempool.space unless noted) | Offline estimate (`FALLBACK_MARKET`) |
+|---|---|---|
+| `btcPriceUsd` | `/api/v1/prices` (USD); CoinGecko `simple/price` as backup | $84,714 |
+| `networkHashrateEh` | `/api/v1/mining/hashrate/1m` → `currentHashrate` / 10¹⁸ | 964 EH/s |
+| `blockHeight` | `/api/blocks/tip/height` | 969,763 |
+| `blockReward` | Derived: `subsidyAtHeight(blockHeight)` = 50 / 2^floor(height / 210,000) | 3.125 BTC |
+| `avgFeesPerBlockBtc` | `/api/v1/mining/reward-stats/144` → `totalFee` / block count / 10⁸ | 0.027 BTC |
+| `asOf`, `isLive`, `sources` | Snapshot time, liveness flag, where each value came from | 2026-10-03, `false`, "offline estimate (2026-10-03 snapshot)" |
+
+`/api/network` additionally serves derived display values: `difficulty` (from the hashrate endpoint, else implied as H/s × 600 / 2³²), `hashpriceUsdPhDay` (including fees, section 11), `nextHalving` (section 13) and `hashrateGrowth12mPercent` (section 13).
+
+- **One dated fallback.** `FALLBACK_MARKET` (the 2026-10-03 snapshot) is the only hardcoded market data in the app. Each value falls back independently (5 s timeout per request), and fallback values are labelled **"offline estimate"** in the UI.
+- **`isLive`** is `true` only when price, hashrate and tip height all came from a live source (live fees are not required). A snapshot with any REST `market` override is `isLive: false`, and its `sources` say "request override" for the pinned values.
+- **Caching.** The server caches the snapshot for **60 s** and de-duplicates concurrent loads. The browser polls `GET /api/network` every 5 minutes through one shared poller; until the first response arrives it computes with `FALLBACK_MARKET`.
+
+---
+
+## 11. Bitcoin Mining Revenue
 
 ### Core Formula
 
+One formula, in `lib/unitEconomics.ts`, is shared by the forecast engine, the dashboard, the farm warnings and `POST /api/calculate`:
+
 ```
-effective_hashrate_TH = farm_hashrate_TH * degradation_factor * (uptime% / 100)
-pool_share = effective_hashrate_EH / network_hashrate_EH
-monthly_blocks = 144 * 30 * pool_share
-btc_mined = monthly_blocks * block_reward * (1 - pool_fee% / 100)
-revenue_usd = btc_mined * btc_price
+share       = farm_hashrate_TH / 10^6 / network_hashrate_EH
+daily_BTC   = share * 144 * (block_subsidy + fees_per_block)
+            * (uptime% / 100) * (1 - pool_fee% / 100)
+monthly_BTC = daily_BTC * 30.4375
+revenue_usd = monthly_BTC * btc_price
 ```
+
+In the forecast, `farm_hashrate_TH` is multiplied by the degradation factor, `block_subsidy` is the month's mean subsidy and `network_hashrate_EH` grows (section 13).
 
 **Constants:**
 - **144 blocks/day** — Bitcoin targets one block every 600 seconds (10 minutes). This is a protocol constant.
-- **30 days/month** — Used for monthly calculations. Real months vary (28–31 days), introducing up to 10% variance in any single month, but averaging out over a year.
+- **30.4375 days/month** (`DAYS_PER_MONTH` = 365.25 / 12) — the same average month used for electricity (730.5 h). Calendar months vary (28–31 days), so any single month is off by up to ~8%, averaging out over a year.
+- **Transaction fees** are included. `ForecastParams.feesPerBlockBtc` defaults to the snapshot's `avgFeesPerBlockBtc` (mean of the last ~144 blocks) and is held constant over the forecast; the user can override it.
+
+### Spot Economics
+
+`calculateSpotEconomics` (dashboard and `POST /api/calculate` → `revenue`) evaluates the formula at today's snapshot with no growth, degradation or halvings: daily and monthly BTC, monthly revenue, OPEX, profit, and cost per BTC mined (`monthly_opex / monthly_BTC`, `null` when nothing is mined).
+
+### Hashprice
+
+```
+hashprice ($/PH/day) = 144 * (block_subsidy + avg_fees_per_block) * btc_price / (network_EH * 1000)
+```
+
+Hashprice **includes fees**. At the golden market (964 EH/s, 3.125 + 0.027 BTC, $84,700) it is ≈ $39.88/PH/day.
+
+**Invariant (tested):** forecast month-1 revenue ≈ hashprice (incl. fees) × farm PH × 30.4375 × uptime × (1 − pool fee), within 0.5% (`tests/forecasting.test.ts`, with zero network growth and degradation).
 
 ### ASIC Degradation
 
@@ -402,7 +497,7 @@ revenue_usd = btc_mined * btc_price
 degradation_factor = (1 - degradation% / 100) ^ (months / 12)
 ```
 
-This models exponential decay of hashrate over time due to chip aging, thermal cycling, and electromigration. The user-configurable annual rate (default 4%) is applied compoundly.
+This models exponential decay of hashrate over time due to chip aging, thermal cycling, and electromigration. The user-configurable annual rate (UI default 4%) is applied compoundly to the whole fleet.
 
 **Accuracy note:** Real degradation is not smooth — it happens in steps as individual hash boards fail. The exponential model is a useful average over a fleet but may not match a single miner's experience.
 
@@ -412,92 +507,76 @@ The calculation assumes the farm's hashrate is infinitesimally small relative to
 
 ---
 
-## 11. BTC Price Modeling (Stock-to-Flow)
+## 12. BTC Price Scenarios (Choices, Not Predictions)
 
-### Formula
-
-```
-stock = 19,800,000 BTC     (approximate circulating supply, 2026)
-flow  = 144 * 365 * block_reward   (annual new supply)
-SF    = stock / flow
-price = 0.4 * SF^3
-```
-
-The **Stock-to-Flow (S2F)** model was popularized by PlanB. It treats Bitcoin like a scarce commodity (gold, silver) where price correlates with the scarcity ratio.
-
-### Price Interpolation
-
-The forecast uses **linear interpolation** from the starting BTC price to the target price:
+The BTC price path is a **scenario the user chooses**, not a forecast. No price model is built in. `scenarioBtcPrice(params, startPrice, month)`:
 
 ```
-btc_price(month) = start_price + (final_price - start_price) * (month / total_months)
+flat:    price(m) = start
+growth:  price(m) = start * (1 + annualGrowthPercent / 100) ^ (m / 12)
+target:  price(m) = start + (finalBtcPrice - start) * (m / months)
 ```
 
-This means the price changes at a constant rate each month. It does NOT model volatility, corrections, or the typically rapid post-halving appreciation that S2F proponents expect.
+- **Start price** = the market snapshot price, unless the user sets `startingBtcPrice`.
+- **growth** compounds annually; it requires `annualGrowthPercent` > −100.
+- **target** is a straight line that reaches `finalBtcPrice` in the last month; it requires `finalBtcPrice` > 0.
+- **UI chips:** **Bear −30%/yr** and **Bull +30%/yr** (growth at −30 / +30), **Flat** (the default) and **Target**. A custom growth rate is a slider (−60% to +100%).
+- The forecast echoes the scenario in plain words (`assumptions.priceScenario`, e.g. "flat at $84,700").
+- The old Stock-to-Flow model has been **removed**. The API rejects the old `btcPriceModel` values (`fixed`, `custom`, `stock_to_flow`, `stock_to_flow_pessimistic`) with a 400 that lists `validValues`.
 
-### Price Modes
-
-| Mode | Final Price |
-|---|---|
-| Fixed | Same as starting price (flat) |
-| Stock-to-Flow | S2F model output for the end date |
-| S2F Pessimistic | S2F output discounted by pessimism% (e.g., -30%) |
-| Custom | User-specified target |
-
-### Floor Price
-
-The S2F model has a floor of **$10,000** — if the formula produces a value below this, $10,000 is used instead. This prevents unrealistic sub-$10K projections for very high block rewards.
-
-**Critical limitations of S2F:**
-- S2F is a **contested model**. Many economists and analysts reject it as unfalsifiable or statistically flawed.
-- It does not account for demand-side dynamics, regulatory events, or macroeconomic conditions.
-- Historical correlation does not imply causation or future predictive power.
-- The simplified `0.4 * SF^3` formula is an approximation of PlanB's original regression. Different coefficient choices produce very different prices.
-- **This model should NOT be used as investment advice.** It is provided as one of several scenario-planning tools.
+None of the scenarios model volatility, corrections, or drawdowns. Price is the single largest uncertainty in the forecast: compare Bear / Flat / Bull rather than trusting any one path.
 
 ---
 
-## 12. Multi-Year Forecast Engine
+## 13. Multi-Year Forecast Engine
 
-The forecast runs a month-by-month simulation from month 1 to the chosen horizon (12–72 months).
+The forecast runs a month-by-month simulation from month 1 to the chosen horizon (12, 24, 36, 48 or 72 months), starting from the injected snapshot and clock.
 
 ### Per-Month Calculation
 
-For each month `m`:
+For each month `m` (period date = `now` + `m` months):
 
-1. **Network hashrate**: `network_EH = 750 * (1 + growth% / 100) ^ (m / 12)` — exponential growth from the 2026 baseline.
-2. **Block reward**: Checked against the halving schedule (2028, 2032, 2036, 2040). Reward steps down at each halving.
-3. **BTC price**: Linear interpolation from start to final target.
+1. **Network hashrate**: `network_EH = snapshot_EH * (1 + growth% / 100) ^ (m / 12)` — exponential growth from the live snapshot. Difficulty is derived from it (`H/s × 600 / 2³²`) for display.
+2. **Block reward**: mean subsidy over the month's block heights (see Halvings below).
+3. **BTC price**: the chosen scenario (section 12).
 4. **Degradation**: `(1 - degradation%)^(m/12)` applied to farm hashrate.
-5. **Revenue**: Pool share * blocks * reward * (1 - pool fee) * BTC price.
-6. **Electricity**: Grid kWh * base rate * inflation factor. Inflation is compounded: `(1 + inflation% / 100) ^ (m / 12)`.
-7. **Maintenance**: `total_capex * maintenance% / 100 / 12` (flat monthly).
+5. **Revenue**: section 11 formula with this month's network hashrate, subsidy, the fees per block and price.
+6. **Electricity**: month-0 electricity cost × `(1 + inflation% / 100) ^ (m / 12)` (energy inflation, default 3%/yr).
+7. **Other OPEX**: maintenance + solar maintenance + maintenance labor, flat (section 9).
+
+Month 1 already includes 1/12 of a year of network growth, degradation and inflation.
+
+### Network Hashrate Growth Default
+
+The Projections tab defaults `networkHashrateGrowthPercent` to the **trailing 12-month growth** of network hashrate: the annualized change between the 7-day means at each end of mempool.space `/v1/mining/hashrate/1y` (`hashrateGrowth12mPercent` on `/api/network`). The default is that rate **clamped to 0–60%**, or **10%** when the series is unavailable. Moving the slider overrides it; "use trailing rate" restores it. REST callers must send `networkHashrateGrowthPercent` explicitly and can read `hashrateGrowth12mPercent` to choose it.
 
 ### Revenue Strategies
 
-| Strategy | BTC sold | Cash flow | BTC accumulated |
+| Strategy | BTC sold | Monthly profit (`profitUsd`) | BTC accumulated |
 |---|---|---|---|
-| Sell All | All mined BTC | Revenue - OPEX | 0 |
-| Hold All | None | -OPEX (negative) | All mined BTC |
-| Sell OPEX | Enough to cover OPEX | ~0 (break-even) | Remainder |
+| Sell All | All mined BTC | Revenue − OPEX | 0 |
+| Hold All | None | −OPEX (negative) | All mined BTC |
+| Sell OPEX | Enough to cover OPEX | 0 when mined BTC covers OPEX, else Revenue − OPEX | Remainder |
 
-NPV/IRR calculations always use `revenue - OPEX` regardless of strategy (they measure the economic value of the mining operation, not the treasury strategy).
+NPV, IRR, total profit and `summary.roiPercent` always use `revenue - OPEX` regardless of strategy (they measure the economic value of the mining operation, not the treasury strategy). **Payback month and per-period ROI use the strategy's `profitUsd`**, so under Hold All and Sell OPEX they never reach the CAPEX.
 
-### Halving Schedule
+### Halvings (from Block Height)
 
-| Date | Block Reward |
-|---|---|
-| Now–April 2028 | 3.125 BTC |
-| April 2028 | 1.5625 BTC |
-| April 2032 | 0.78125 BTC |
-| April 2036 | 0.390625 BTC |
-| April 2040 | 0.1953125 BTC |
+Halvings come from block height, not calendar dates:
 
-Halving dates are approximations (±6 months). The actual halving depends on block height, not calendar date.
+```
+B = 144 blocks/day * 30.4375 days = 4,383 blocks per month
+month m covers heights [tip + (m-1)*B, tip + m*B)
+block_reward(m) = mean subsidy over that range   (averageSubsidy)
+```
+
+The month that contains a halving gets a **block-weighted** reward. From the 2026-10-03 tip (969,763), block **1,050,000** (subsidy 3.125 → 1.5625 BTC) falls in month 19: months 1–18 are 3.125 BTC, month 19 is 2.0413 BTC, month 20 onward 1.5625 BTC.
+
+The **next halving date** shown in the UI and echoed as `assumptions.nextHalving` is `estimateHalvingDate`: tip time + (halving height − tip) × 10 min. From tip 969,763 on 2026-10-03 that is **2028-04-12** (80,237 blocks ≈ 557 days).
 
 ---
 
-## 13. Financial Metrics (NPV, IRR, Break-even)
+## 14. Financial Metrics (NPV, IRR, Break-even)
 
 ### Net Present Value (NPV)
 
@@ -505,15 +584,18 @@ Halving dates are approximations (±6 months). The actual halving depends on blo
 NPV = -CAPEX + SUM[ cash_flow_m / (1 + monthly_rate)^m ]
 
 where monthly_rate = (1 + annual_discount_rate / 100)^(1/12) - 1
+      cash_flow_m  = revenue_m - opex_m
 ```
 
 Default discount rate: **10%** annual. This represents the opportunity cost of capital — what the investor could earn elsewhere. Higher rates make the project look worse; lower rates make it look better.
 
 ### Internal Rate of Return (IRR)
 
-Calculated via **bisection method** (100 iterations, search range -99% to +500% annual). The IRR is the discount rate at which NPV = 0.
+The annual discount rate at which NPV = 0, found by **bisection over [−99.9%, +1000%]** annual (up to 200 iterations; stops when |NPV| < $0.01).
 
-**Convergence:** 100 iterations of bisection gives precision to ~0.01%. The algorithm converges when |NPV| < $0.01.
+- IRR is **`null`** when NPV has the same sign at both ends of the range — no discount rate makes the cash flows repay the CAPEX — or when there is no CAPEX (no miners). The UI shows "n/a" with the caption "cash flows never repay the CAPEX".
+- IRR does not depend on the discount rate setting.
+- When monthly cash flows change sign more than once (e.g. profitable before a halving, loss-making after), the bracket check can return `null` even though monthly profit was positive for a while.
 
 ### Break-even BTC Price
 
@@ -528,24 +610,34 @@ These answer: "What average BTC price do I need over the forecast period to cove
 
 **Limitation:** These are flat averages. The actual break-even is path-dependent — if BTC price is low early and high late, the average may be met but cash flow is negative in early months.
 
+### Average Hashprice
+
+```
+avg_hashprice ($/TH/day) = total_revenue / (farm_TH * months * 30.4375)
+```
+
+This is the farm's realized revenue per TH/s per day over the horizon (after uptime, pool fee, degradation, growth and halvings), in **$/TH/day** — unlike the network hashprice in section 11, which is $/PH/day.
+
 ---
 
-## 14. Sensitivity Analysis
+## 15. Sensitivity Analysis
 
-Four what-if scenarios are computed against the base case:
+Four what-if scenarios are computed in the browser (Projections tab) against the base case:
 
 | Scenario | Change | Metric |
 |---|---|---|
 | Electricity +20% | Increase electricity price by 20% | NPV delta |
-| BTC price -10% | Reduce final BTC price by 10% | NPV delta |
+| BTC price −10% | Every price in the scenario 10% lower (start and target) | NPV delta |
 | Network growth +10% | Add 10pp to annual hashrate growth | Final month revenue delta % |
 | Zero degradation | Set ASIC degradation to 0% | Total BTC mined delta % |
 
-Each scenario runs a full forecast independently. They are not combined (no compound scenarios).
+Each scenario runs a full forecast independently on the same snapshot. They are not combined (no compound scenarios).
 
 ---
 
-## 15. Noise Modeling
+## 16. Noise Modeling
+
+Computed in the dashboard's noise card (`components/MetricsDashboard.tsx`):
 
 ```
 miner_noise = 75 + 10 * log10(miner_count)      dB
@@ -566,31 +658,69 @@ combined = 10 * log10( 10^(miner/10) + 10^(fan/10) + 10^(cooler/10) )
 
 ---
 
-## 16. Assumptions Summary
+## 17. Where Computation Happens & REST API
+
+### In the browser
+
+The UI computes everything locally on the shared engine: `useCalculation` calls `computeFarmReport(config, market)` (`lib/farmReport.ts`) and `useForecast` calls `generateForecast`, each inside `useMemo`. The only API request the UI makes is **`GET /api/network`** (one shared poller, section 10); the catalogs are bundled. A 72-month forecast takes well under a millisecond.
+
+### REST API
+
+The routes wrap the same functions, so UI and API results agree for the same inputs:
+
+| Endpoint | Body | Response |
+|---|---|---|
+| `GET /api/network` | — | Market snapshot + `difficulty`, `hashpriceUsdPhDay` (incl. fees), `nextHalving`, `hashrateGrowth12mPercent` (60 s cache) |
+| `POST /api/calculate` | `FarmConfig` + optional `market` | `computeFarmReport`: `metrics`, ventilation, climate, derating, `revenue` (spot economics) and `assumptions.market` |
+| `POST /api/forecast` | `{ config, params, market? }` | `periods`, `totalCapex`, `summary` and `assumptions` |
+
+- **Market inputs are auto-filled** from the cached live snapshot. The optional `market` object pins any of `btcPriceUsd` (> 0), `networkHashrateEh` (> 0), `blockHeight` (integer ≥ 0) and `avgFeesPerBlockBtc` (≥ 0). The subsidy is always derived from `blockHeight` and cannot be set on its own. When all four are pinned, no upstream request is made.
+- **Assumptions are echoed.** Forecast: `assumptions { market, startingBtcPrice, feesPerBlockBtc, priceScenario, daysPerMonth (30.4375), avgBlockMinutes (10), nextHalving }`. Calculate: `revenue` plus `assumptions.market`.
+- **Validation.** Malformed bodies return 400 naming the field; bodies over 256 KB return 413. Removed `btcPriceModel` values return 400 with `validValues: ["flat", "growth", "target"]`.
+
+---
+
+## 18. Rate Limiting
+
+`middleware.ts` rate-limits **every** `/api/*` request per client IP (`x-real-ip`, else the last `x-forwarded-for` hop) over a sliding 60-second window:
+
+| Caller | Detected by | Limit |
+|---|---|---|
+| First-party (this app's UI) | `Sec-Fetch-Site: same-origin`, or an `Origin` whose host matches `Host` | 600 requests/min |
+| Everyone else (scripts, curl, agents, other sites) | Anything else | 60 requests/min |
+
+First-party and external traffic use separate buckets. Over the limit the response is 429 with `Retry-After`. The headers can be forged, which only buys the higher bucket. The limiter is **best-effort and per instance** (in-memory buckets, capped at 10,000 tracked keys); a global quota would need a shared store such as Redis.
+
+---
+
+## 19. Assumptions Summary
 
 | Assumption | Value | Impact if wrong |
 |---|---|---|
-| Hours per month | 730 | <1% error on energy cost |
+| Days per month | 30.4375 (365.25 / 12), for revenue and electricity | Up to ~8% variance in any single calendar month; exact over a year |
+| Hours per month | 730.5 | <1% error on energy cost |
+| Market inputs | Live snapshot (mempool.space, 60 s cache); dated offline estimate when unreachable | Offline estimate goes stale; it is always labelled |
+| Transaction fees | Average of the last ~144 blocks, held flat | Fees are volatile; a single day's average can be unrepresentative |
+| Halving timing | From block height at 10 min/block | Blocks run slightly faster while hashrate grows; real halving may come weeks earlier |
 | Voltage | 220V | Current calculation only; affects breaker sizing |
-| Months = 30 days | 30 | Up to 10% variance in any single month |
 | Power factor | ~1.0 | 5% underestimate of transformer sizing if PF is 0.85 |
 | Miner power = nameplate | Varies | +/-10% real-world variance |
-| ASIC degradation is smooth | Exponential | Real degradation is stepwise (board failures) |
-| Network growth is exponential | User-set | 10-60% typical; highly uncertain beyond 2 years |
-| S2F price model is valid | Contested | Could be off by 50%+ in either direction |
+| ASIC degradation is smooth | Exponential, one rate for the fleet | Real degradation is stepwise (board failures) |
+| Network growth is exponential | Default: trailing 12 months, clamped 0–60% (10% if unavailable) | Highly uncertain beyond 2 years |
+| BTC price | User-chosen scenario (flat / growth / target) | Dominant uncertainty; compare scenarios |
 | Air density at sea level | 1.2 kg/m^3 | 15% error at 1,500m altitude |
 | Solar: 2x capacity for 24/7 offset | Global average | Latitude-dependent; could be 1.5x–3x |
 | Pool revenue = expected value | PPS equivalent | PPLNS farms see higher variance |
-| Block reward timing | Fixed schedule | ±6 months on halving dates |
 | Copper cable weight at AWG 6 | 4 kg/100m | Simplified; depends on insulation type |
 
 ---
 
-## 17. Known Limitations
+## 20. Known Limitations
 
 ### Not Modeled
-- **Difficulty adjustment mechanics** — Real Bitcoin difficulty adjusts every 2,016 blocks based on actual block times. The forecast uses smooth exponential hashrate growth instead.
-- **Transaction fee revenue** — Only block subsidy is modeled. Transaction fees (currently 10–30% of miner revenue) are excluded. This makes revenue estimates **conservative**.
+- **Difficulty adjustment mechanics** — Real Bitcoin difficulty adjusts every 2,016 blocks based on actual block times. The forecast uses smooth exponential hashrate growth instead, and blocks per month stay at 4,383.
+- **Fee dynamics** — Fees per block are held at today's average (or the user's value) for the whole forecast.
+- **Per-model degradation curves** — The catalog lists year-1/2/3+ degradation per miner, but the forecast applies one annual rate to the whole fleet.
 - **Battery storage** — Solar + battery could shift more consumption off-grid.
 - **Seasonal temperature variation** — The climate model uses annual max temperature. A monthly temperature profile would more accurately size cooling.
 - **Three-phase power distribution** — All current calculations assume single-phase 220V.
@@ -602,40 +732,48 @@ combined = 10 * log10( 10^(miner/10) + 10^(fan/10) + 10^(cooler/10) )
 - **Hardware resale value** — Miners have residual value at end of life (not captured).
 
 ### Simplifications
-- Linear BTC price interpolation (no volatility modeling).
-- Flat monthly maintenance as % of CAPEX (no escalation).
+- BTC price follows a deterministic user-chosen scenario (no volatility modeling).
+- Flat monthly maintenance as % of CAPEX (no escalation); only electricity inflates.
 - Electricity uptime is 100% (uptime% only affects hashrate, not power consumption).
 - No working capital or financing costs.
 
 ---
 
-## 18. Accuracy Assessment
+## 21. Accuracy Assessment
 
 ### Where the Model is Strong (within 10%)
 - **Power consumption and energy costs** — Based on manufacturer specs and straightforward multiplication. Verified against real utility bills from operating farms.
+- **Revenue at today's market** — Network hashrate, tip height (subsidy) and fees per block are live, fees are included, and month-1 revenue is tested against the network hashprice within 0.5%.
 - **Infrastructure costs (racks, containers, transformers)** — Based on real procurement data. Prices are hardcoded in lookup tables from 2024 quotes.
 - **Heat output** — Thermodynamically exact (all electrical energy becomes heat).
 - **Breaker and panel sizing** — Based on NEC code, which is the actual standard electricians use.
+- **Halving timing** — Derived from block height; at 10 min/block the date error is typically weeks, not months.
 
 ### Where the Model is Moderate (within 20–30%)
-- **Deployment labor** — Highly variable by region, crew experience, and site conditions. The defaults represent US industrial rates.
+- **Deployment labor** — Highly variable by region, crew experience, and site conditions.
 - **Cooling sizing** — The thermodynamic formulas are correct, but real installations have duct losses, recirculation, and non-ideal airflow paths that increase the requirement by 20–30%. Users should add margin.
-- **Monthly OPEX** — Electricity dominates and is well-modeled. The 5% maintenance catch-all is a rough industry average.
+- **Monthly OPEX** — Electricity dominates and is well-modeled; every line item is itemized (section 9). The 5% maintenance catch-all is a rough industry average.
 
 ### Where the Model is Weak (50%+ uncertainty)
-- **BTC price projections** — The Stock-to-Flow model is fundamentally speculative. Historical correlation is not predictive. Use multiple price scenarios.
-- **Network hashrate growth** — Depends on global chip manufacturing, energy markets, and regulatory environment. Impossible to predict beyond 12 months with confidence.
-- **Multi-year ROI** — Compounds the uncertainties of BTC price, network growth, and ASIC degradation. The further out the forecast, the wider the confidence interval. Treat 36+ month projections as scenario analysis, not predictions.
+- **BTC price** — The dominant uncertainty. The calculator does not predict price; it runs the scenario you choose. Compare Bear, Flat and Bull (and your own target) before drawing conclusions.
+- **Network hashrate growth** — Depends on global chip manufacturing, energy markets, and regulatory environment. The trailing-12-month default is a starting point, not a forecast; it is hard to predict beyond 12 months with confidence.
+- **Multi-year ROI** — Compounds the uncertainties of BTC price, network growth, fees, and ASIC degradation. The further out the forecast, the wider the confidence interval. Treat 36+ month projections as scenario analysis, not predictions.
 - **Import taxes** — Tariff schedules change with trade policy. Verify current rates with a customs broker.
 
 ### Recommended Approach
 
-1. Run the **base case** with conservative parameters (fixed BTC price, 25% network growth, 8% degradation).
-2. Run **pessimistic** and **optimistic** scenarios using the sensitivity analysis.
+1. Run the **base case** with conservative parameters (Flat price scenario, network growth at or above the trailing-12-month default, 5–8% degradation).
+2. Compare the **Bear / Flat / Bull** price scenarios and check the **sensitivity analysis**.
 3. Focus on **break-even BTC price** — this is the most actionable metric because it tells you the minimum BTC price needed to recover your investment, independent of price predictions.
 4. Add **20–30% margin** to all cooling and electrical figures before placing orders.
 5. Get **real quotes** from suppliers and licensed electricians before committing capital.
 
 ---
 
-*This document reflects the calculation engine as of April 2026. All formulas are implemented in `lib/calculations.ts` and `lib/forecasting.ts`.*
+## 22. Verification
+
+`tests/golden/` runs the 4 UI presets (Home, Garage, Small Farm, Industrial) through `calculateFarmMetrics` and `generateForecast` against a **frozen market** (964 EH/s, tip 969,763, fees 0.027 BTC/block, BTC $84,700, clock 2026-10-03) and the Projections-tab defaults, and compares every number with `tests/golden/fixtures/*.json` (relative tolerance 1e-9). Any engine change that moves a number must re-capture the fixtures with `pnpm test:golden:update` and explain the delta in the PR. The unit tests never touch the network (`tests/setup.ts`); see `tests/README.md` for the full suite.
+
+---
+
+*This document reflects the calculation engine as of October 2026. Formulas are implemented in `lib/calculations.ts`, `lib/cooling.ts`, `lib/bitcoin.ts`, `lib/unitEconomics.ts`, `lib/networkData.ts` and `lib/forecasting.ts`.*
