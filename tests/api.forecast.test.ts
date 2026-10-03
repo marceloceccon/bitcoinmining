@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { serverCache } from '@/lib/serverCache';
 
-// Never hit the network from unit tests: the route gets the offline snapshot.
-vi.mock('@/lib/networkData', async (importOriginal) => {
-  const mod = await importOriginal<typeof import('@/lib/networkData')>();
-  return { ...mod, getCachedNetworkData: async () => mod.withDerived(mod.FALLBACK_MARKET) };
+// Never hit the network from unit tests: every upstream fails, so the route
+// computes with the dated offline snapshot (FALLBACK_MARKET).
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response('offline', { status: 503 })));
+  serverCache.clear();
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 import { POST, OPTIONS } from '@/app/api/forecast/route';
 import { MAX_REQUEST_BYTES } from '@/lib/validateFarmConfig';
@@ -219,5 +224,40 @@ describe('POST /api/forecast — adversarial inputs', () => {
       ),
     );
     expect(response.status).toBe(413);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Market snapshot: filled by the server, overridable, echoed back
+// ════════════════════════════════════════════════════════════════════════
+
+describe('POST /api/forecast — assumptions', () => {
+  it('starts from the server snapshot price when startingBtcPrice is omitted, and echoes the assumptions', async () => {
+    const { startingBtcPrice: _omit, ...params } = VALID_PARAMS;
+    const response = await POST(postRequest({ config: farmConfig(), params }));
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.assumptions.market.isLive).toBe(false);
+    expect(json.assumptions.startingBtcPrice).toBe(json.assumptions.market.btcPriceUsd);
+    expect(json.assumptions.feesPerBlockBtc).toBe(json.assumptions.market.avgFeesPerBlockBtc);
+    expect(json.assumptions.priceScenario).toMatch(/^flat at \$/);
+    expect(json.assumptions.nextHalving.height).toBe(1_050_000);
+    expect(json.periods[0].btcPrice).toBe(json.assumptions.startingBtcPrice);
+  });
+
+  it('honours pinned market values', async () => {
+    const market = { btcPriceUsd: 120000, networkHashrateEh: 900, blockHeight: 970_000, avgFeesPerBlockBtc: 0.05 };
+    const { startingBtcPrice: _omit, ...params } = VALID_PARAMS;
+    const response = await POST(postRequest({ config: farmConfig(), params, market }));
+    const json = await response.json();
+    expect(json.assumptions.market).toMatchObject(market);
+    expect(json.periods[0].btcPrice).toBe(120000);
+    expect(json.periods[0].networkHashrateThs / 1e6).toBeCloseTo(900 * Math.pow(1.25, 1 / 12), 6);
+  });
+
+  it('rejects an invalid market override', async () => {
+    const response = await POST(postRequest({ config: farmConfig(), params: VALID_PARAMS, market: { networkHashrateEh: 0 } }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).field).toBe('market.networkHashrateEh');
   });
 });

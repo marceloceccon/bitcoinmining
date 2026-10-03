@@ -3,6 +3,7 @@
  * price backup), with one clearly-labelled offline fallback.
  */
 import type { MarketSnapshot } from '@/types';
+import type { MarketOverride } from '@/lib/validateFarmConfig';
 import { hashpriceUsdPerPhDay, nextHalving, subsidyAtHeight } from '@/lib/bitcoin';
 import { serverCache, CACHE_KEYS, CACHE_TTL } from '@/lib/serverCache';
 
@@ -133,3 +134,41 @@ export async function fetchNetworkData(now: Date = new Date()): Promise<NetworkD
 export function getCachedNetworkData(): Promise<NetworkData> {
   return serverCache.getOrLoad(CACHE_KEYS.networkData, CACHE_TTL.network, () => fetchNetworkData());
 }
+
+/**
+ * Server-side: the snapshot a calculation should use. Values the caller pinned
+ * in `override` win; everything else comes from the cached live snapshot. When
+ * the caller pins all four inputs, no network request is made.
+ */
+export async function resolveMarket(override: MarketOverride = {}, now: Date = new Date()): Promise<MarketSnapshot> {
+  const pinned = Object.keys(override) as (keyof MarketOverride)[];
+  const complete =
+    override.btcPriceUsd !== undefined &&
+    override.networkHashrateEh !== undefined &&
+    override.blockHeight !== undefined &&
+    override.avgFeesPerBlockBtc !== undefined;
+  const base: MarketSnapshot = complete
+    ? { ...FALLBACK_MARKET, asOf: now.toISOString(), sources: [] }
+    : toMarketSnapshot(await getCachedNetworkData());
+  if (pinned.length === 0) return base;
+
+  const blockHeight = override.blockHeight ?? base.blockHeight;
+  return {
+    ...base,
+    ...override,
+    blockHeight,
+    blockReward: subsidyAtHeight(blockHeight),
+    isLive: false,
+    sources: [
+      ...base.sources.filter((src) => !pinned.some((key) => src.startsWith(SOURCE_LABEL[key]))),
+      ...pinned.map((key) => `${SOURCE_LABEL[key]}: request override`),
+    ],
+  };
+}
+
+const SOURCE_LABEL: Record<keyof MarketOverride, string> = {
+  btcPriceUsd: 'price',
+  networkHashrateEh: 'hashrate',
+  blockHeight: 'tip height',
+  avgFeesPerBlockBtc: 'fees',
+};

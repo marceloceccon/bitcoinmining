@@ -5,7 +5,7 @@ import {
   calculateFarmMetrics,
   calculateMonthlyOpexBreakdown,
 } from './calculations';
-import { BLOCKS_PER_DAY, averageSubsidy } from './bitcoin';
+import { BLOCKS_PER_DAY, TARGET_BLOCK_MINUTES, averageSubsidy, nextHalving } from './bitcoin';
 import { monthlyBtcMined } from './unitEconomics';
 
 const SECONDS_PER_BLOCK = 600;
@@ -28,6 +28,21 @@ export function scenarioBtcPrice(params: ForecastParams, startPrice: number, mon
     }
     default:
       return startPrice;
+  }
+}
+
+/** One-line description of the price scenario, for the assumptions echo. */
+export function describePriceScenario(params: ForecastParams, startPrice: number): string {
+  const usd = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
+  switch (params.btcPriceModel) {
+    case 'growth': {
+      const g = params.annualGrowthPercent ?? 0;
+      return `growth: ${g >= 0 ? '+' : ''}${g}%/yr from ${usd(startPrice)}`;
+    }
+    case 'target':
+      return `target: ${usd(startPrice)} → ${usd(params.finalBtcPrice ?? startPrice)} over ${params.months} months`;
+    default:
+      return `flat at ${usd(startPrice)}`;
   }
 }
 
@@ -266,6 +281,15 @@ export function generateForecast(
   return {
     periods,
     totalCapex,
+    assumptions: {
+      market,
+      startingBtcPrice: startPrice,
+      feesPerBlockBtc,
+      priceScenario: describePriceScenario(params, startPrice),
+      daysPerMonth: DAYS_PER_MONTH,
+      avgBlockMinutes: TARGET_BLOCK_MINUTES,
+      nextHalving: nextHalving(market.blockHeight, now),
+    },
     summary: {
       totalRevenue,
       totalCosts,

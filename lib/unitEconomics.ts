@@ -3,7 +3,7 @@
  * the forecast engine, the dashboard, the warnings and (later) MCP.
  */
 import type { MarketSnapshot } from '@/types';
-import { BLOCKS_PER_DAY } from '@/lib/bitcoin';
+import { BLOCKS_PER_DAY, hashpriceUsdPerPhDay } from '@/lib/bitcoin';
 import { DAYS_PER_MONTH } from '@/lib/calculations';
 
 export interface MiningAssumptions {
@@ -40,4 +40,37 @@ export function monthlyBtcMined(
   feesPerBlockBtc?: number,
 ): number {
   return dailyBtcMined(hashrateThs, market, farm, feesPerBlockBtc) * DAYS_PER_MONTH;
+}
+
+export interface SpotEconomics {
+  dailyBtc: number;
+  monthlyBtc: number;
+  monthlyRevenueUsd: number;
+  monthlyOpexUsd: number;
+  monthlyProfitUsd: number;
+  /** All-in monthly OPEX per BTC mined; null when nothing is mined */
+  costPerBtcUsd: number | null;
+  /** Network hashprice including fees, $/PH/day */
+  hashpriceUsdPhDay: number;
+}
+
+/** A farm's revenue, OPEX and profit per month at today's market (no growth, degradation or halvings). */
+export function calculateSpotEconomics(
+  hashrateThs: number,
+  monthlyOpexUsd: number,
+  market: Pick<MarketSnapshot, 'btcPriceUsd' | 'networkHashrateEh' | 'blockReward' | 'avgFeesPerBlockBtc'>,
+  farm: MiningAssumptions,
+): SpotEconomics {
+  const dailyBtc = dailyBtcMined(hashrateThs, market, farm);
+  const monthlyBtc = dailyBtc * DAYS_PER_MONTH;
+  const monthlyRevenueUsd = monthlyBtc * market.btcPriceUsd;
+  return {
+    dailyBtc,
+    monthlyBtc,
+    monthlyRevenueUsd,
+    monthlyOpexUsd,
+    monthlyProfitUsd: monthlyRevenueUsd - monthlyOpexUsd,
+    costPerBtcUsd: monthlyBtc > 0 ? monthlyOpexUsd / monthlyBtc : null,
+    hashpriceUsdPhDay: hashpriceUsdPerPhDay(market),
+  };
 }

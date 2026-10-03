@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { FarmConfig } from '@/types';
 import { generateForecast } from '@/lib/forecasting';
-import { getCachedNetworkData, toMarketSnapshot } from '@/lib/networkData';
+import { resolveMarket } from '@/lib/networkData';
 import { corsHeaders, handleOptions } from '@/lib/cors';
 import {
   validateFarmConfig,
   validateForecastParams,
+  validateMarketOverride,
   isWithinSizeLimit,
   MAX_REQUEST_BYTES,
 } from '@/lib/validateFarmConfig';
@@ -48,9 +49,43 @@ type ForecastBody = {
   config: FarmConfig;
   /** Forecast simulation parameters */
   params: ForecastParamsBody;
+  /** Optional market inputs to pin. Omitted values come from the live snapshot (GET /api/network) */
+  market?: MarketOverrideBody;
+};
+
+/** Market inputs a caller may pin (the block subsidy is always derived from blockHeight). */
+type MarketOverrideBody = {
+  /** BTC price in USD */
+  btcPriceUsd?: number;
+  /** Network hashrate in EH/s */
+  networkHashrateEh?: number;
+  /** Chain tip height */
+  blockHeight?: number;
+  /** Average transaction fees per block in BTC */
+  avgFeesPerBlockBtc?: number;
 };
 
 // ── Response types ───────────────────────────────────────────────────
+
+/** A market snapshot as used by a calculation. */
+type MarketSnapshotResponse = {
+  /** BTC price in USD */
+  btcPriceUsd: number;
+  /** Network hashrate in EH/s */
+  networkHashrateEh: number;
+  /** Chain tip height */
+  blockHeight: number;
+  /** Block subsidy at blockHeight (BTC) */
+  blockReward: number;
+  /** Average transaction fees per block (BTC) */
+  avgFeesPerBlockBtc: number;
+  /** ISO 8601 time of the snapshot */
+  asOf: string;
+  /** false = offline estimate or request overrides */
+  isLive: boolean;
+  /** Where each value came from */
+  sources: string[];
+};
 
 /** A single month in the forecast timeline. */
 type ForecastPeriodResponse = {
@@ -114,6 +149,24 @@ type ForecastSummaryResponse = {
   totalBtcMined: number;
 };
 
+/** What the forecast assumed — echoed so consumers can see exactly which inputs were used. */
+type ForecastAssumptionsResponse = {
+  /** The market snapshot used (live unless overridden; isLive false = offline estimate or overrides) */
+  market: MarketSnapshotResponse;
+  /** BTC price the scenario starts from (USD) */
+  startingBtcPrice: number;
+  /** Transaction fees per block used for revenue (BTC) */
+  feesPerBlockBtc: number;
+  /** Human-readable price scenario, e.g. "flat at $84,700" */
+  priceScenario: string;
+  /** Days per month used for revenue and electricity (30.4375) */
+  daysPerMonth: number;
+  /** Minutes per block used to place halvings (10) */
+  avgBlockMinutes: number;
+  /** Next halving height and estimated date */
+  nextHalving: { height: number; estimatedDate: string };
+};
+
 /**
  * Full response from the forecast endpoint.
  *
@@ -127,6 +180,8 @@ type ForecastResponse = {
   totalCapex: number;
   /** Aggregated forecast summary metrics */
   summary: ForecastSummaryResponse;
+  /** Inputs the forecast assumed (market snapshot, start price, fees, scenario) */
+  assumptions: ForecastAssumptionsResponse;
 };
 
 export async function OPTIONS(request: Request) {
@@ -135,7 +190,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * Generate multi-year revenue forecast
- * @description Generates a month-by-month Bitcoin mining revenue forecast from the live market snapshot (network hashrate, block height, subsidy and fees per block), with a user-chosen BTC price scenario (flat, annual growth or target), network hashrate growth, ASIC degradation, energy inflation, and halvings computed from block height. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.
+ * @description Generates a month-by-month Bitcoin mining revenue forecast. Market inputs (BTC price, network hashrate, block height, fees per block) come from the live snapshot unless you pin them in `market`. Models a user-chosen BTC price scenario (flat, annual growth or target), network hashrate growth, ASIC degradation, energy inflation, and halvings computed from block height. Returns NPV, IRR, break-even BTC price, payback period, cumulative profit/loss per period, and the assumptions used. Revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.
  * @body ForecastBody
  * @response ForecastResponse
  * @openapi
@@ -167,9 +222,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const { config: rawConfig, params: rawParams } = parsed as {
+  const { config: rawConfig, params: rawParams, market: rawMarket } = parsed as {
     config?: unknown;
     params?: unknown;
+    market?: unknown;
   };
 
   const configResult = validateFarmConfig(rawConfig);
@@ -195,8 +251,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const marketResult = validateMarketOverride(rawMarket);
+  if (!marketResult.ok) {
+    return NextResponse.json({ error: marketResult.error, field: marketResult.field }, { status: 400, headers });
+  }
+
   try {
-    const market = toMarketSnapshot(await getCachedNetworkData());
+    const market = await resolveMarket(marketResult.value);
     const result = generateForecast(configResult.value, paramsResult.value, market);
 
     // Serialize Date objects to ISO strings for clean JSON output

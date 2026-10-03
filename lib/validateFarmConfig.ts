@@ -1,4 +1,4 @@
-import type { FarmConfig, ForecastParams } from '@/types';
+import type { FarmConfig, ForecastParams, MarketSnapshot } from '@/types';
 
 /**
  * Runtime validators for the public API request bodies.
@@ -204,6 +204,37 @@ export function validateForecastParams(
     return fail('params.feesPerBlockBtc must be a non-negative number when provided', 'params.feesPerBlockBtc');
   }
   return { ok: true, value: body as unknown as ForecastParams };
+}
+
+/** Market inputs a caller may pin; anything omitted comes from the live snapshot. */
+export type MarketOverride = Partial<
+  Pick<MarketSnapshot, 'btcPriceUsd' | 'networkHashrateEh' | 'blockHeight' | 'avgFeesPerBlockBtc'>
+>;
+
+const MARKET_OVERRIDE_RULES: Record<keyof MarketOverride, (v: number) => boolean> = {
+  btcPriceUsd: (v) => v > 0,
+  networkHashrateEh: (v) => v > 0,
+  blockHeight: (v) => Number.isInteger(v) && v >= 0,
+  avgFeesPerBlockBtc: (v) => v >= 0,
+};
+
+/**
+ * Validates an optional `market` override. The block subsidy is always derived
+ * from `blockHeight`, so it can't be overridden on its own.
+ */
+export function validateMarketOverride(raw: unknown): ValidationResult<MarketOverride | undefined> {
+  if (raw === undefined || raw === null) return { ok: true, value: undefined };
+  if (!isPlainObject(raw)) return fail('market must be an object when provided', 'market');
+  const value: MarketOverride = {};
+  for (const key of Object.keys(MARKET_OVERRIDE_RULES) as (keyof MarketOverride)[]) {
+    const v = raw[key];
+    if (v === undefined) continue;
+    if (!isFiniteNumber(v) || !MARKET_OVERRIDE_RULES[key](v)) {
+      return fail(`market.${key} is out of range`, `market.${key}`);
+    }
+    value[key] = v;
+  }
+  return { ok: true, value };
 }
 
 /**

@@ -239,9 +239,21 @@ export interface ForecastPeriod {
   roi: number;
 }
 
+/** Exactly what a forecast assumed, echoed so API/MCP consumers can see it. */
+export interface ForecastAssumptions {
+  market: MarketSnapshot;
+  startingBtcPrice: number;
+  feesPerBlockBtc: number;
+  priceScenario: string;
+  daysPerMonth: number;
+  avgBlockMinutes: number;
+  nextHalving: { height: number; estimatedDate: string };
+}
+
 export interface ForecastResult {
   periods: ForecastPeriod[];
   totalCapex: number;
+  assumptions: ForecastAssumptions;
   summary: {
     totalRevenue: number;
     totalCosts: number;

@@ -944,6 +944,29 @@
       }
     ],
     "totalCapex": 5003487,
+    "assumptions": {
+      "market": {
+        "btcPriceUsd": 84700,
+        "networkHashrateEh": 964,
+        "blockHeight": 969763,
+        "blockReward": 3.125,
+        "avgFeesPerBlockBtc": 0.027,
+        "asOf": "2026-10-03T00:00:00.000Z",
+        "isLive": false,
+        "sources": [
+          "golden fixture"
+        ]
+      },
+      "startingBtcPrice": 84700,
+      "feesPerBlockBtc": 0.027,
+      "priceScenario": "flat at $84,700",
+      "daysPerMonth": 30.4375,
+      "avgBlockMinutes": 10,
+      "nextHalving": {
+        "height": 1050000,
+        "estimatedDate": "2028-04-12T04:50:00.000Z"
+      }
+    },
     "summary": {
       "totalRevenue": 5188376.611579989,
       "totalCosts": 6462554.489522728,
