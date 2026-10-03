@@ -48,7 +48,7 @@ describe('forecast OPEX matches the dashboard OPEX', () => {
     expect(forecast.periods[0].opexUsd).toBeCloseTo(calculateFarmMetrics(config).monthlyOpex, 6);
   });
 
-  it('only electricity inflates: month-13 OPEX grows by the inflation rate on electricity alone', () => {
+  it('only electricity inflates: month-12 OPEX grows by the inflation rate on electricity alone', () => {
     const config = industrial();
     const metrics = calculateFarmMetrics(config);
     const opex = calculateMonthlyOpexBreakdown(config, metrics.totalCapex);

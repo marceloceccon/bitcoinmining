@@ -115,7 +115,7 @@ type ForecastPeriodResponse = {
   btcSold: number;
   /** Cumulative BTC balance held */
   btcBalance: number;
-  /** Running total profit/loss in USD (includes CAPEX) */
+  /** Running total of this strategy's realized profit in USD (CAPEX not subtracted) */
   cumulativeProfitUsd: number;
   /** Return on investment to date (percent) */
   roi: number;
@@ -125,7 +125,7 @@ type ForecastPeriodResponse = {
 type ForecastSummaryResponse = {
   /** Total mining revenue over the forecast (USD) */
   totalRevenue: number;
-  /** Total costs including CAPEX and OPEX (USD) */
+  /** Total OPEX over the forecast (USD; CAPEX excluded) */
   totalCosts: number;
   /** Net profit over the full forecast horizon (USD) */
   totalProfit: number;
@@ -133,17 +133,17 @@ type ForecastSummaryResponse = {
   finalBtcBalance: number;
   /** Overall return on investment (percent) */
   roiPercent: number;
-  /** Months until cumulative profit turns positive — null if never reached */
+  /** First month in which cumulative operating cash flow (revenue − OPEX) covers CAPEX, independent of revenueMode — null if not reached */
   paybackMonths: number | null;
   /** Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX */
   irr: number | null;
   /** Net present value of all cash flows (USD) */
   npv: number;
-  /** BTC price at which monthly mining revenue equals monthly OPEX (USD) */
+  /** BTC price at which total revenue over the horizon equals total OPEX (USD) */
   breakEvenBtcPrice: number;
   /** BTC price at which total revenue covers CAPEX + all OPEX (USD) */
   breakEvenBtcPriceWithCapex: number;
-  /** Average hashprice over the forecast ($/PH/day) */
+  /** Average farm revenue per TH/s per day over the forecast ($/TH/day) */
   avgHashpriceUsd: number;
   /** Total BTC mined over the full forecast */
   totalBtcMined: number;

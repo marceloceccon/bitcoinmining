@@ -93,7 +93,7 @@ type CalculateBody = {
   parasiticLoadPercent: number;
   /** Expected uptime percentage — default 98 */
   uptimePercent: number;
-  /** Mining pool fee percentage — default 1-2 */
+  /** Mining pool fee percentage — default 2.5 */
   poolFeePercent: number;
   /** Monthly maintenance OPEX as a percentage of total CAPEX — default 5 */
   maintenanceOpexPercent: number;
@@ -101,17 +101,17 @@ type CalculateBody = {
   payoutScheme: "pps" | "pplns" | "fpps" | "ppsplus";
   /** Labor cost parameters for deployment */
   labor: {
-    /** Man-hours to deploy each miner — default 2.5 */
+    /** Man-hours to deploy each miner — default 1 */
     manHoursPerMiner: number;
-    /** Hourly labor rate in USD — default 35 */
+    /** Hourly labor rate in USD — default 20 */
     hourlyLaborCostUsd: number;
-    /** Cable + dedicated fuse breaker cost per miner in USD — default 85 */
+    /** Cable + dedicated fuse breaker cost per miner in USD — default 40 */
     cablesPerMinerUsd: number;
     /** Man-hours to install each transformer — default 8 */
     manHoursPerTransformer: number;
     /** Man-hours to assemble each rack — default 4 */
     manHoursPerRack: number;
-    /** Man-hours to set up each container — default 40 */
+    /** Man-hours to set up each container — default 80 */
     manHoursPerContainer: number;
   };
   /** Temperature management and cooling hardware selections (optional) */

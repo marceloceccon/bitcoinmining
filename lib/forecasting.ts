@@ -148,6 +148,7 @@ export function generateForecast(
   let networkHashrateEh = market.networkHashrateEh;
   let btcBalance = 0;
   let cumulativeProfitUsd = 0;
+  let cumulativeCashFlowUsd = 0;
   let paybackMonths: number | null = null;
 
   const totalCapex = calculateFarmMetrics(config).totalCapex;
@@ -228,9 +229,11 @@ export function generateForecast(
     monthlyCashFlows.push(revenueUsd - opexUsd);
 
     cumulativeProfitUsd += profitUsd;
+    cumulativeCashFlowUsd += revenueUsd - opexUsd;
 
-    // Check for payback
-    if (paybackMonths === null && cumulativeProfitUsd >= totalCapex) {
+    // Payback: operating cash flow (revenue − OPEX) has recovered CAPEX. Independent
+    // of revenueMode, like NPV/IRR (held BTC still counts at that month's price).
+    if (paybackMonths === null && cumulativeCashFlowUsd >= totalCapex) {
       paybackMonths = month;
     }
 

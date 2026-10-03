@@ -330,7 +330,7 @@
           },
           "uptimePercent": {
             "type": "number",
-            "description": "* Mining pool fee percentage — default 1-2",
+            "description": "* Mining pool fee percentage — default 2.5",
             "nullable": false
           },
           "poolFeePercent": {
@@ -359,12 +359,12 @@
             "properties": {
               "manHoursPerMiner": {
                 "type": "number",
-                "description": "* Hourly labor rate in USD — default 35",
+                "description": "* Hourly labor rate in USD — default 20",
                 "nullable": false
               },
               "hourlyLaborCostUsd": {
                 "type": "number",
-                "description": "* Cable + dedicated fuse breaker cost per miner in USD — default 85",
+                "description": "* Cable + dedicated fuse breaker cost per miner in USD — default 40",
                 "nullable": false
               },
               "cablesPerMinerUsd": {
@@ -379,7 +379,7 @@
               },
               "manHoursPerRack": {
                 "type": "number",
-                "description": "* Man-hours to set up each container — default 40",
+                "description": "* Man-hours to set up each container — default 80",
                 "nullable": false
               },
               "manHoursPerContainer": {
@@ -1390,7 +1390,7 @@
           },
           "btcBalance": {
             "type": "number",
-            "description": "* Running total profit/loss in USD (includes CAPEX)"
+            "description": "* Running total of this strategy's realized profit in USD (CAPEX not subtracted)"
           },
           "cumulativeProfitUsd": {
             "type": "number",
@@ -1423,7 +1423,7 @@
         "properties": {
           "totalRevenue": {
             "type": "number",
-            "description": "* Total costs including CAPEX and OPEX (USD)"
+            "description": "* Total OPEX over the forecast (USD; CAPEX excluded)"
           },
           "totalCosts": {
             "type": "number",
@@ -1439,7 +1439,7 @@
           },
           "roiPercent": {
             "type": "number",
-            "description": "* Months until cumulative profit turns positive — null if never reached"
+            "description": "* First month in which cumulative operating cash flow (revenue − OPEX) covers CAPEX, independent of revenueMode — null if not reached"
           },
           "paybackMonths": {
             "type": "number",
@@ -1453,7 +1453,7 @@
           },
           "npv": {
             "type": "number",
-            "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+            "description": "* BTC price at which total revenue over the horizon equals total OPEX (USD)"
           },
           "breakEvenBtcPrice": {
             "type": "number",
@@ -1461,7 +1461,7 @@
           },
           "breakEvenBtcPriceWithCapex": {
             "type": "number",
-            "description": "* Average hashprice over the forecast ($/PH/day)"
+            "description": "* Average farm revenue per TH/s per day over the forecast ($/TH/day)"
           },
           "avgHashpriceUsd": {
             "type": "number",
@@ -1692,7 +1692,7 @@
                 },
                 "btcBalance": {
                   "type": "number",
-                  "description": "* Running total profit/loss in USD (includes CAPEX)"
+                  "description": "* Running total of this strategy's realized profit in USD (CAPEX not subtracted)"
                 },
                 "cumulativeProfitUsd": {
                   "type": "number",
@@ -1731,7 +1731,7 @@
             "properties": {
               "totalRevenue": {
                 "type": "number",
-                "description": "* Total costs including CAPEX and OPEX (USD)"
+                "description": "* Total OPEX over the forecast (USD; CAPEX excluded)"
               },
               "totalCosts": {
                 "type": "number",
@@ -1747,7 +1747,7 @@
               },
               "roiPercent": {
                 "type": "number",
-                "description": "* Months until cumulative profit turns positive — null if never reached"
+                "description": "* First month in which cumulative operating cash flow (revenue − OPEX) covers CAPEX, independent of revenueMode — null if not reached"
               },
               "paybackMonths": {
                 "type": "number",
@@ -1761,7 +1761,7 @@
               },
               "npv": {
                 "type": "number",
-                "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+                "description": "* BTC price at which total revenue over the horizon equals total OPEX (USD)"
               },
               "breakEvenBtcPrice": {
                 "type": "number",
@@ -1769,7 +1769,7 @@
               },
               "breakEvenBtcPriceWithCapex": {
                 "type": "number",
-                "description": "* Average hashprice over the forecast ($/PH/day)"
+                "description": "* Average farm revenue per TH/s per day over the forecast ($/TH/day)"
               },
               "avgHashpriceUsd": {
                 "type": "number",
