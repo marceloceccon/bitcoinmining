@@ -219,9 +219,9 @@ export default function SeoContent() {
                 Is this Bitcoin mining calculator free?
               </h3>
               <p>
-                Yes. No account, no payment, no trial period. All calculations are
-                performed by this site&apos;s own free API, and your farm
-                configuration is never stored.
+                Yes. No account, no payment, no trial period. Calculations run in
+                your browser; the only request is for live market data, and your
+                farm configuration is never sent or stored.
               </p>
             </div>
 

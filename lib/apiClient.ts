@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import type {
-  Miner,
-  FarmConfig,
-  FarmMetrics,
-  ForecastParams,
-  ForecastResult,
-} from "@/types";
-import { FALLBACK_MARKET, withDerived, type NetworkData as ServerNetworkData } from "@/lib/networkData";
+import { useEffect, useMemo } from "react";
+import { create } from "zustand";
+import type { FarmConfig, ForecastParams, ForecastResult } from "@/types";
+import { MINERS } from "@/lib/catalog";
+import { computeFarmReport, type FarmReport } from "@/lib/farmReport";
+import { generateForecast } from "@/lib/forecasting";
+import {
+  FALLBACK_MARKET,
+  toMarketSnapshot,
+  withDerived,
+  type NetworkData as ServerNetworkData,
+} from "@/lib/networkData";
+
+/**
+ * Client data layer. Calculations run in the browser on the same pure engine
+ * the REST API and MCP use (D1); the only request the UI makes is for the live
+ * market snapshot (/api/network).
+ */
 
 /**
  * fetch + JSON parse that rejects on non-2xx responses, so error bodies such as a
@@ -20,196 +29,53 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
-// ─── Catalog fetchers (static data, fetched once) ─────────────────────────────
+// ─── Catalog ───────────────────────────────────────────────────────────────────
 
-/**
- * Generic one-shot catalog fetcher. Aborts the in-flight request when the
- * component unmounts so React never sees a setState on a dead component.
- */
-function useCatalog<T>(url: string): { data: T[]; loading: boolean } {
-  const [data, setData] = useState<T[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchJson<T[]>(url, { signal: controller.signal })
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch((err) => {
-        if (err?.name !== "AbortError") {
-          // Catalogs are best-effort — empty array is the safe fallback.
-          setData([]);
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [url]);
-
-  return { data, loading };
-}
-
+/** The miner catalog is bundled (data/miners.json), so there is nothing to load. */
 export function useMiners() {
-  const { data, loading } = useCatalog<Miner>("/api/miners");
-  return { miners: data, loading };
+  return { miners: MINERS, loading: false };
 }
 
-// ─── Calculation response type ─────────────────────────────────────────────────
-
-export interface CalculateResponse {
-  metrics: FarmMetrics;
-  ventilation: { m3h: number; cfm: number };
-  totalHashRateThs: number;
-  totalPowerKw: number;
-  airFanPowerKw: number;
-  climate: {
-    lat: number;
-    lng: number;
-    city: string;
-    avgYearlyTempC: number;
-    maxTempC: number;
-    minTempC: number;
-    avgHumidityPercent: number;
-  };
-  dryCoolerDeratingFactor: number;
-  effectiveDryCoolerCapacityKw: number;
-}
-
-/**
- * Generic debounced POST hook used by both useCalculation and useForecast.
- *
- * Lifecycle guarantees:
- * - If `inputs` change before the debounce fires, the pending timer is reset.
- * - If a new fetch is started while one is in flight, the previous request is aborted.
- * - On unmount, both the timer and any in-flight request are cancelled — no
- *   setState ever fires on a dead component.
- */
-function useDebouncedPost<TBody, TResult>(
-  url: string,
-  body: TBody | null,
-  delayMs: number,
-  inputs: ReadonlyArray<unknown>,
-): { data: TResult | null; loading: boolean } {
-  const [data, setData] = useState<TResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (abortRef.current) abortRef.current.abort();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (body === null) {
-      setData(null);
-      return;
-    }
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      if (abortRef.current) abortRef.current.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setLoading(true);
-
-      fetchJson<TResult>(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      })
-        .then((result) => {
-          if (mountedRef.current && !controller.signal.aborted) {
-            setData(result);
-          }
-        })
-        .catch((err) => {
-          // AbortError just means a newer request superseded us — not a real failure.
-          if (err?.name === "AbortError") return;
-          // Swallow other errors silently; the UI shows the last good data.
-        })
-        .finally(() => {
-          if (mountedRef.current && !controller.signal.aborted) {
-            setLoading(false);
-          }
-        });
-    }, delayMs);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, inputs);
-
-  return { data, loading };
-}
-
-// ─── Debounced calculation hook ────────────────────────────────────────────────
-
-export function useCalculation(config: FarmConfig) {
-  return useDebouncedPost<FarmConfig, CalculateResponse>(
-    "/api/calculate",
-    config.miners.length === 0 ? null : config,
-    200,
-    [config],
-  );
-}
-
-// ─── Debounced forecast hook ───────────────────────────────────────────────────
-
-export function useForecast(config: FarmConfig, params: ForecastParams) {
-  return useDebouncedPost<{ config: FarmConfig; params: ForecastParams }, ForecastResult>(
-    "/api/forecast",
-    config.miners.length === 0 ? null : { config, params },
-    400,
-    [config, params],
-  );
-}
-
-// ─── Network data hook ─────────────────────────────────────────────────────────
+// ─── Market snapshot (one shared poller for every component) ───────────────────
 
 /** /api/network as JSON (Dates arrive as ISO strings). */
-export type NetworkData = Omit<ServerNetworkData, 'lastUpdated'> & { lastUpdated: string };
+export type NetworkData = Omit<ServerNetworkData, "lastUpdated"> & { lastUpdated: string };
+
+const NETWORK_POLL_MS = 5 * 60 * 1000;
+const useNetworkStore = create<{ data: NetworkData | null }>(() => ({ data: null }));
+let networkSubscribers = 0;
+let networkTimer: ReturnType<typeof setInterval> | null = null;
+let networkController: AbortController | null = null;
+
+function refreshNetworkData() {
+  networkController?.abort();
+  const controller = new AbortController();
+  networkController = controller;
+  fetchJson<NetworkData>("/api/network", { signal: controller.signal })
+    .then((data) => {
+      if (!controller.signal.aborted) useNetworkStore.setState({ data });
+    })
+    .catch(() => {
+      // Keep the last good snapshot (or the offline estimate).
+    });
+}
 
 export function useNetworkData() {
-  const [data, setData] = useState<NetworkData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchData = useCallback(() => {
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    fetchJson<NetworkData>("/api/network", { signal: controller.signal })
-      .then((result) => {
-        if (!controller.signal.aborted) setData(result);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-  }, []);
-
+  const data = useNetworkStore((s) => s.data);
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    if (networkSubscribers++ === 0) {
+      refreshNetworkData();
+      networkTimer = setInterval(refreshNetworkData, NETWORK_POLL_MS);
+    }
     return () => {
-      clearInterval(interval);
-      if (abortRef.current) abortRef.current.abort();
+      if (--networkSubscribers === 0) {
+        if (networkTimer) clearInterval(networkTimer);
+        networkTimer = null;
+        networkController?.abort();
+      }
     };
-  }, [fetchData]);
-
-  return { data, loading };
+  }, []);
+  return { data, loading: data === null };
 }
 
 const FALLBACK_NETWORK_DATA: NetworkData = (() => {
@@ -224,4 +90,26 @@ const FALLBACK_NETWORK_DATA: NetworkData = (() => {
 export function useMarket(): NetworkData {
   const { data } = useNetworkData();
   return data ?? FALLBACK_NETWORK_DATA;
+}
+
+// ─── Calculations (in the browser, synchronous) ────────────────────────────────
+
+export type CalculateResponse = FarmReport;
+
+export function useCalculation(config: FarmConfig): { data: FarmReport | null; loading: false } {
+  const market = useMarket();
+  const data = useMemo(
+    () => (config.miners.length === 0 ? null : computeFarmReport(config, toMarketSnapshot(market))),
+    [config, market],
+  );
+  return { data, loading: false };
+}
+
+export function useForecast(config: FarmConfig, params: ForecastParams): { data: ForecastResult | null; loading: false } {
+  const market = useMarket();
+  const data = useMemo(
+    () => (config.miners.length === 0 ? null : generateForecast(config, params, toMarketSnapshot(market), new Date())),
+    [config, params, market],
+  );
+  return { data, loading: false };
 }

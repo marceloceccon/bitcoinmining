@@ -1,15 +1,5 @@
 import { NextResponse } from 'next/server';
-import {
-  calculateFarmMetrics,
-  calculateVentilation,
-  calculateTotalPower,
-  calculateTotalHashRate,
-  calculateAirFanPowerKw,
-  getEffectiveClimate,
-  getDryCoolerDeratingFactor,
-  calculateEffectiveDryCoolerCapacityKw,
-} from '@/lib/calculations';
-import { calculateSpotEconomics } from '@/lib/unitEconomics';
+import { computeFarmReport } from '@/lib/farmReport';
 import { resolveMarket } from '@/lib/networkData';
 import { corsHeaders, handleOptions } from '@/lib/cors';
 import {
@@ -361,32 +351,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const metrics = calculateFarmMetrics(config);
-    const ventilation = calculateVentilation(config);
-    const totalHashRateThs = calculateTotalHashRate(config);
-    const totalPowerKw = calculateTotalPower(config);
-    const airFanPowerKw = calculateAirFanPowerKw(config);
-    const climate = getEffectiveClimate(config);
-    const dryCoolerDeratingFactor = getDryCoolerDeratingFactor(config);
-    const effectiveDryCoolerCapacityKw = calculateEffectiveDryCoolerCapacityKw(config);
     const market = await resolveMarket(marketResult.value);
-    const revenue = calculateSpotEconomics(totalHashRateThs, metrics.monthlyOpex, market, config);
-
-    return NextResponse.json(
-      {
-        metrics,
-        ventilation,
-        totalHashRateThs,
-        totalPowerKw,
-        airFanPowerKw,
-        climate,
-        dryCoolerDeratingFactor,
-        effectiveDryCoolerCapacityKw,
-        revenue,
-        assumptions: { market },
-      },
-      { headers }
-    );
+    return NextResponse.json(computeFarmReport(config, market), { headers });
   } catch (err) {
     return NextResponse.json(
       { error: 'Calculation failed', detail: String(err) },

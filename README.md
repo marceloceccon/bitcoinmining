@@ -97,7 +97,7 @@ Works on any platform supporting Next.js 15: Netlify, Railway, AWS Amplify, Dock
 
 ## Privacy
 
-No accounts. No cookies. Anonymous page analytics only (Vercel Analytics). Calculations run on this site's own API and your farm configuration is never stored.
+No accounts. No cookies. Anonymous page analytics only (Vercel Analytics). Calculations run in your browser on the same engine the API uses; the UI only fetches the live market snapshot, and your farm configuration is never sent or stored.
 
 ## License
 

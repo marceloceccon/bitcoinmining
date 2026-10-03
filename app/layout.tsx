@@ -130,7 +130,7 @@ const jsonLd = {
         name: "Is this Bitcoin mining calculator free?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. No account, no payment, no trial period. Calculations run on this site's own free API and your farm configuration is never stored.",
+          text: "Yes. No account, no payment, no trial period. Calculations run in your browser; the only request is for live market data, and your farm configuration is never sent or stored.",
         },
       },
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   ComposedChart, LineChart, Line, Bar, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -11,10 +11,11 @@ import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { scenarioBtcPrice } from "@/lib/forecasting";
-import { fetchJson, useForecast, useMarket } from "@/lib/apiClient";
+import { generateForecast, scenarioBtcPrice } from "@/lib/forecasting";
+import { toMarketSnapshot } from "@/lib/networkData";
+import { useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
-import type { FarmConfig, ForecastParams, ForecastPeriod, ForecastResult } from "@/types";
+import type { FarmConfig, ForecastParams, ForecastPeriod } from "@/types";
 
 /** Compact USD formatter for chart axis ticks */
 function tickUsd(v: number): string {
@@ -145,74 +146,47 @@ export default function ForecastCharts() {
 
   const { data: forecast } = useForecast(config, effectiveParams);
 
-  // Sensitivity analysis — fetch 4 what-if scenarios from API
-  const [sensitivity, setSensitivity] = useState<{ label: string; value: string; delta: number }[] | null>(null);
-
-  useEffect(() => {
-    if (!forecast || config.miners.length === 0) {
-      setSensitivity(null);
-      return;
-    }
+  // Sensitivity analysis — 4 what-if scenarios, computed in the browser
+  const sensitivity = useMemo(() => {
+    if (!forecast || config.miners.length === 0) return null;
+    const snapshot = toMarketSnapshot(market);
+    const now = new Date();
+    const run = (c: FarmConfig, p: ForecastParams) => generateForecast(c, p, snapshot, now);
 
     const base = forecast.summary.npv;
-    const controller = new AbortController();
+    const configElec = {
+      ...config,
+      regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
+    };
+    // Every price in the scenario 10% lower
+    const paramsBear = {
+      ...effectiveParams,
+      startingBtcPrice: startPrice * 0.9,
+      finalBtcPrice: effectiveParams.finalBtcPrice != null ? effectiveParams.finalBtcPrice * 0.9 : null,
+    };
+    const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
+    const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
 
-    async function runSensitivity() {
-      try {
-        const configElec = {
-          ...config,
-          regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
-        };
-        // Every price in the scenario 10% lower
-        const paramsBear = {
-          ...effectiveParams,
-          startingBtcPrice: startPrice * 0.9,
-          finalBtcPrice: effectiveParams.finalBtcPrice != null ? effectiveParams.finalBtcPrice * 0.9 : null,
-        };
-        const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
-        const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
+    const elecNpv = run(configElec, effectiveParams).summary.npv;
+    const bearNpv = run(config, paramsBear).summary.npv;
+    const netData = run(config, paramsNet);
+    const noDegData = run(config, paramsNoDeg);
 
-        const post = (body: { config: FarmConfig; params: ForecastParams }) =>
-          fetchJson<ForecastResult>("/api/forecast", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          });
-        const [elecData, bearData, netData, noDegData] = await Promise.all([
-          post({ config: configElec, params: effectiveParams }),
-          post({ config, params: paramsBear }),
-          post({ config, params: paramsNet }),
-          post({ config, params: paramsNoDeg }),
-        ]);
+    const netLastRevenue = netData.periods[netData.periods.length - 1]?.miningRevenueUsd ?? 0;
+    const baseLastRevenue = forecast.periods[forecast.periods.length - 1]?.miningRevenueUsd ?? 0;
+    const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
 
-        const elecNpv = elecData.summary.npv;
-        const bearNpv = bearData.summary.npv;
+    const baseBtc = forecast.summary.totalBtcMined;
+    const noDegBtc = noDegData.summary.totalBtcMined;
+    const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
 
-        const netLastRevenue = netData.periods[netData.periods.length - 1]?.miningRevenueUsd ?? 0;
-        const baseLastRevenue = forecast!.periods[forecast!.periods.length - 1]?.miningRevenueUsd ?? 0;
-        const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
-
-        const baseBtc = forecast!.summary.totalBtcMined;
-        const noDegBtc = noDegData.summary.totalBtcMined;
-        const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
-
-        if (!controller.signal.aborted) {
-          setSensitivity([
-            { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
-            { label: "BTC price −10%", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
-            { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
-            { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
-          ]);
-        }
-      } catch {
-        // Aborted or failed — ignore
-      }
-    }
-
-    runSensitivity();
-    return () => controller.abort();
-  }, [forecast, config, effectiveParams, startPrice]);
+    return [
+      { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
+      { label: "BTC price −10%", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
+      { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
+      { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
+    ];
+  }, [forecast, config, effectiveParams, startPrice, market]);
 
   if (config.miners.length === 0) {
     return (

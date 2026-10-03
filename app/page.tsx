@@ -231,7 +231,7 @@ export default function Home() {
             <div className="glass-card p-8">
               <h3 className="text-lg font-semibold text-slate-900 mb-3">Privacy</h3>
               <p className="text-sm text-slate-600 leading-relaxed">
-                No accounts. No cookies. Anonymous page analytics only. Calculations run on this site&apos;s own API and your farm configuration is never stored.
+                No accounts. No cookies. Anonymous page analytics only. Calculations run in your browser; the only request is for live market data, and your farm configuration is never sent or stored.
               </p>
             </div>
 

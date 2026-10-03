@@ -75,3 +75,18 @@ test('map modal opens and closes with Escape', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
+
+test('calculations run in the browser: the UI only fetches the market snapshot', async ({ page }) => {
+  const apiCalls: string[] = [];
+  page.on('request', (req) => {
+    const url = new URL(req.url());
+    if (url.pathname.startsWith('/api/')) apiCalls.push(`${req.method()} ${url.pathname}`);
+  });
+  await page.goto('/');
+  await page.getByRole('button', { name: /Industrial/ }).click();
+  await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
+  await tab(page, 'Projections').click();
+  await expect(page.getByRole('heading', { name: 'Forecast Parameters' })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect([...new Set(apiCalls)]).toEqual(['GET /api/network']);
+});
