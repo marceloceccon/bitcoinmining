@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import SeoContent from "@/components/SeoContent";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
-
-const SITE_URL = "https://bitcoinminingfarmcalculator.com";
 
 const inter = Inter({
   variable: "--font-inter",
