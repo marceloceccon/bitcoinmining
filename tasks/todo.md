@@ -197,52 +197,61 @@ Rough effort: P0 ½ day · P1 1½ days · P2 1 day plus review · P3 ½ day · P
 
 Principle: **market state is an input, never a constant.** One `MarketSnapshot` type flows from `lib/networkData.ts` into the UI, the REST API, MCP and the tests.
 
-- [ ] **P1.1 MUST — Introduce `MarketSnapshot` and inject it.**
+- [x] **P1.1 MUST — Introduce `MarketSnapshot` and inject it.**
   - Add `types/index.ts: MarketSnapshot { btcPriceUsd, networkHashrateEh, blockHeight, blockReward, avgFeesPerBlockBtc, asOf, isLive, sources }`.
   - `generateForecast(config, params, market, now = new Date())`.
   - Delete `CURRENT_NETWORK_HASHRATE_EH`, `CURRENT_DIFFICULTY` (if unused) and `CURRENT_BLOCK_REWARD` from `lib/forecasting.ts:7-9`, and their duplicates in `FarmWarnings.tsx:10-11` and `MetricsDashboard.tsx:22-23`.
   - Keep exactly **one** `FALLBACK_MARKET` in `lib/networkData.ts`, refreshed to Appendix C values, and label it in the UI as "offline estimate" whenever `isLive === false`.
   - Acceptance: grep finds no hardcoded 750, 964, 3.125 or 90000 outside `FALLBACK_MARKET` and the tests.
-- [ ] **P1.2 MUST — Live chain data.** Extend `fetchNetworkData()`, which already uses mempool.space:
+  - Note: committed together with P1.2 and P1.3 (they share `lib/networkData.ts` and `lib/bitcoin.ts`). The acceptance grep is clean: 750/964/3.125/90000 appear only in `FALLBACK_MARKET`, docs and tests.
+- [x] **P1.2 MUST — Live chain data.** Extend `fetchNetworkData()`, which already uses mempool.space:
   - tip height: `GET https://mempool.space/api/blocks/tip/height`;
   - block reward derived from height (`50 / 2^floor(h/210000)`) instead of the fallback (`lib/networkData.ts:95`);
   - average fees per block: `GET https://mempool.space/api/v1/mining/reward-stats/144` (⚠ re-verify the response shape).
 
   Keep the 60 s server cache. **Fix `calcHashprice` in `lib/networkData.ts` to include `avgFeesPerBlock`.** Today it reports about $39.48/PH/day excluding fees, against Hashrate Index's $40.58 including fees. Otherwise P7.3's tolerance silently absorbs the gap.
-- [ ] **P1.3 MUST — Halvings from block height.** Replace the hardcoded halving dates (`lib/forecasting.ts:12-17`) with `estimateHalvingDate(targetHeight, tipHeight, now, avgBlockMinutes = 10)`. The next halving is block 1,050,000, about 2028-04-13 (Appendix C). Drop the circulating-supply constant if S2F is gone (D8).
-- [ ] **P1.4 MUST — Revenue accuracy.**
+- [x] **P1.3 MUST — Halvings from block height.** Replace the hardcoded halving dates (`lib/forecasting.ts:12-17`) with `estimateHalvingDate(targetHeight, tipHeight, now, avgBlockMinutes = 10)`. The next halving is block 1,050,000, about 2028-04-13 (Appendix C). Drop the circulating-supply constant if S2F is gone (D8).
+  - Note: each forecast month gets the mean subsidy over its block heights (`averageSubsidy`), so the halving month is block-weighted rather than a date step.
+- [x] **P1.4 MUST — Revenue accuracy.**
   - (a) Add transaction fees: revenue = (subsidy + avgFeesPerBlock) × share. Add a new `ForecastParams.feesPerBlockBtc` that defaults from the snapshot, and is editable in the UI ("Tx fees per block").
   - (b) Days per month = 30.4375, not 30 (`BLOCKS_PER_DAY * 30` in `calculateMonthlyRevenue`).
   - (c) Add an invariant test: month-1 gross USD revenue ≈ hashprice($/PH/day, *including fees*) × farm PH × 30.4375 × uptime × (1 − pool fee), within 0.5%.
-- [ ] **P1.5 MUST — Price scenarios replace S2F (D8).**
+  - Note: electricity also uses the 30.4375-day month (730.5 h, was 730), so revenue and cost months match. `lib/unitEconomics.ts` is the one revenue formula, shared by the engine, the dashboard and the warnings.
+- [x] **P1.5 MUST — Price scenarios replace S2F (D8).**
   - `btcPriceModel: "flat" | "growth" | "target"`.
   - Params: `annualGrowthPercent` (growth) and `finalBtcPrice` (target). The start price is always `market.btcPriceUsd`, unless the user overrides it.
   - Remove `calculateStockToFlowPrice`, `getStockToFlowTarget`, `pessimisticAdjustPercent` and every S2F mention: UI (`ForecastCharts.tsx` ~:150-167, :361-368), `components/SeoContent.tsx`, the `ARCHITECTURE.md` S2F section, README and the JSON-LD/FAQ.
   - Optional UI chips: "Bear −30%/yr · Flat · Bull +30%/yr". Label them as **scenarios you choose, not predictions**.
-- [ ] **P1.6 MUST — Update the API contract.**
+- [x] **P1.6 MUST — Update the API contract.**
   - `validateForecastParams` whitelist (Trap 4): add the new fields and remove the S2F ones. Old enum values return 400 `{ error, validValues }`.
   - `/api/forecast` and `/api/calculate`: if the client doesn't send market inputs, the **server fills them from the cached live snapshot**, and every response includes `assumptions: { market: MarketSnapshot, ... }` so consumers can see exactly what was used.
   - Update the route JSDoc → regenerate `public/openapi.json`, and update the `tests/api.*.test.ts`.
-- [ ] **P1.7 MUST — Single cooling-sizing path** (Trap 3).
+  - Note: `/api/calculate` also gained a `revenue` block (spot monthly BTC, revenue, OPEX, profit), so its market snapshot is actually used. A fully pinned `market` makes no upstream request. Unit tests can no longer reach the network (`tests/setup.ts`).
+- [x] **P1.7 MUST — Single cooling-sizing path** (Trap 3).
   - Extract `lib/cooling.ts` (pure): `sizeAirCooling(heatKw, climate, fans)` and `sizeHydroCooling(heatKw, climate, coolers)`, with derating applied. These return the recommended model, quantity, effective capacity, power and CAPEX.
   - `store.autoConfigureCooling` and `TemperatureControl.tsx` must both call it, with the private copies deleted.
   - `updateTemperature` must re-run auto-sizing, unless the user manually overrode the quantity (track a `quantityOverridden` flag).
   - Tests: the same inputs give the same quantity through every path, and a hot climate gives more coolers than a cold one.
-- [ ] **P1.8 MUST — Single catalog source** (Trap 1). Make `data/*.json` canonical. The engine receives catalogs as arguments (or imports the JSON through one typed module, `lib/catalog.ts`). Delete `lib/dryCoolerData.ts` and `lib/airFanData.ts`, or generate them from the JSON. Add a test asserting that the engine and the API read the same objects.
-- [ ] **P1.9 MUST — Investigate the OPEX in the default "loses money" case.** The old screenshot showed the Industrial preset (500 × S21 Hyd, 2.81 MW) at OPEX $231k/month vs revenue $157k.
+  - Note: the override flag lives in the store (`coolingOverridden`), not in `FarmConfig`. Changing miners clears it (re-sizes from scratch), and the Thermal tab has a "Re-size automatically" link. Mixed farms size air and hydro cooling against their own heat loads. Catalogs are bundled, so the UI no longer fetches them.
+- [x] **P1.8 MUST — Single catalog source** (Trap 1). Make `data/*.json` canonical. The engine receives catalogs as arguments (or imports the JSON through one typed module, `lib/catalog.ts`). Delete `lib/dryCoolerData.ts` and `lib/airFanData.ts`, or generate them from the JSON. Add a test asserting that the engine and the API read the same objects.
+- [x] **P1.9 MUST — Investigate the OPEX in the default "loses money" case.** The old screenshot showed the Industrial preset (500 × S21 Hyd, 2.81 MW) at OPEX $231k/month vs revenue $157k.
   - Electricity at $0.05 is about $103k, maintenance 5%/yr of CAPEX is about $20k, and maintenance labor is about $4.5k. **That leaves ~$100k unexplained.**
   - Reproduce it with the current build, itemize it with a test that prints the `calculateMonthlyOpex` components, and either find the bug or document why it's correct.
   - Hypotheses to check: CAPEX inflated by hydro, dry-cooler, container or import-tax lines; tax adder; parasitic or cooling power counted twice. Record the finding in §9.
-- [ ] **P1.10 SHOULD — Client-side compute (only if D1 = client).**
+  - Finding: there is no unexplained OPEX (see §9). The real bug was that forecast OPEX omitted maintenance labor and solar maintenance. Fixed: shared `calculateMonthlyOpexBreakdown`.
+- [x] **P1.10 SHOULD — Client-side compute (only if D1 = client).**
   - `useCalculation` and `useForecast` (`lib/apiClient.ts`) call the engine directly, synchronously, inside `useMemo`.
   - Key Drivers sensitivity: compute the 4 scenarios locally.
   - Network data still comes from `/api/network` (CORS on mempool.space plus caching).
   - Remove the debounce for calculations. If the forecast's 48-month loop ever exceeds about 8 ms, move it to `useDeferredValue` (measure first).
   - The API routes stay and are covered by tests.
-- [ ] **P1.11 SHOULD — Trailing hashrate growth default.** Fetch the 1-year hashrate series (`mempool.space/api/v1/mining/hashrate/1y`), compute trailing 12-month growth, clamp it to 0–60%, and use it as the default `networkHashrateGrowthPercent`. Show "trailing 12m: X%" next to the slider. Keep the user override.
+  - Measured: a 72-month forecast takes ≈0.03 ms, and ≈0.16 ms with the 4 sensitivity runs, so there's no `useDeferredValue`. A shared `/api/network` poller replaces one poller per component. An e2e test asserts the UI calls only `GET /api/network`.
+- [x] **P1.11 SHOULD — Trailing hashrate growth default.** Fetch the 1-year hashrate series (`mempool.space/api/v1/mining/hashrate/1y`), compute trailing 12-month growth, clamp it to 0–60%, and use it as the default `networkHashrateGrowthPercent`. Show "trailing 12m: X%" next to the slider. Keep the user override.
+  - Note: the API field `hashrateGrowth12mPercent` is unclamped (−1.3% on 2026-10-03); only the forecast default is clamped to 0–60%, so it's 0% today.
 - [ ] **P1.12 MUST — Update `ARCHITECTURE.md`** for P1.1–P1.8: new revenue formula, scenarios, halving estimation, single cooling path, and an updated accuracy table.
-- [ ] **P1.13 MUST (added during P0) — IRR when no root exists.** `calculateIrr` returns −99% whenever the cash flows can't recover CAPEX. When NPV has no sign change in the search range, return `null` ("n/a" in the UI, plus a test). This changes the `ForecastResult.summary.irr` type to `number | null`, which also touches the API docs.
+- [x] **P1.13 MUST (added during P0) — IRR when no root exists.** `calculateIrr` returns −99% whenever the cash flows can't recover CAPEX. When NPV has no sign change in the search range, return `null` ("n/a" in the UI, plus a test). This changes the `ForecastResult.summary.irr` type to `number | null`, which also touches the API docs.
 
+  - Also removed the "at X% discount" caption under IRR, since IRR doesn't use the discount rate.
 🚦 PR → preview → **G4**. Golden-fixture deltas are explained in the PR body.
 
 ### P2 — Data refresh (branch `revamp/p2-data`)
@@ -661,12 +670,14 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 - Lighthouse (prod, mobile; local Lighthouse 13.5 because PSI was over quota) Perf / A11y / BP / SEO: **99 / 91 / 100 / 100**. A11y failures: 6 unlabeled range sliders, and the contrast of the active-tab number (4.2:1).
 
 ### Findings
-- P1.9 OPEX investigation:
+- P1.9 OPEX investigation: the "~$100k unexplained" does not exist at `13068ae`. Industrial (500 × S21 Hyd, 2,814 kW) itemized: electricity $102,781 (2,814 kW × 730.5 h × $0.05) + maintenance $20,848 (5%/yr of $5.0M CAPEX) + maintenance labor $4,550 (130 h × $35) = **$128,179/month** (`tests/opex.test.ts`). The old $231k screenshot came from different defaults. Real bug found and fixed: forecast OPEX left out maintenance labor and solar maintenance, so Projections and the dashboard disagreed. Also: air-fan power is reported but covered by the parasitic %, and isn't added twice.
 - Golden-fixture deltas per phase:
-  - P0: fixtures captured (none moved). Engine-as-is month 1 at $84,700 / 750 EH/s: Small Farm revenue $33,704 vs OPEX $18,024 (from metrics); Industrial revenue $241,254 vs OPEX $128,109.
+  - P0: fixtures captured (none moved).
+  - P1 (cumulative vs P0, frozen market: $84,700, 964 EH/s, tip 969,763, fees 0.027): month-1 BTC and revenue **−20.38%** (−22.20% from the hashrate injection, then +2.33% from fees and 30.4375-day months). 48-month BTC −18.50%. Forecast month-1 OPEX: Home +85%, Garage +17%, Small Farm +11%, Industrial +3.7% (now includes maintenance labor; electricity +0.07% for 730.5 h). The halving step moved from month 18 (date table) to block 1,050,000 inside month 19 (block-weighted reward 2.04). IRR −99 → null. CAPEX and dashboard OPEX are unchanged (±0.05%). Details per commit are in `tasks/pr/p1-engine.md`. Engine-as-is month 1 at $84,700 / 750 EH/s: Small Farm revenue $33,704 vs OPEX $18,024 (from metrics); Industrial revenue $241,254 vs OPEX $128,109.
 - IRR bug (found during P0.1): every preset reports IRR **−99.0%**, even with positive net profit. Undiscounted cash flows never recover CAPEX, so there is no root in the bisection range and it drifts to the lower bound. → P1.13.
 
 ### Verification
+- Build hygiene (found in P1): a footer commit hash that differed between Next build workers caused intermittent React #418 hydration errors. Fixed in `next.config.js`.
 - P5.8 real-client MCP transcript summary:
 - P7.3 revenue cross-check vs Hashrate Index:
 - P7.4 Lighthouse (final):
