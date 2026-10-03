@@ -17,8 +17,9 @@ A free, no-account Next.js 15 web application for calculating Bitcoin mining pro
 
 ### Forecasting Engine
 - **Multi-Period Forecasts** — 12/24/36/48/72 month projections
-- **Stock-to-Flow BTC Price Model** — With pessimistic adjustment slider
-- **Network Difficulty Modeling** — Auto-calculates next 4 halvings
+- **Live Market Inputs** — Network hashrate, tip height, subsidy and average fees per block from mempool.space (dated offline estimate when unreachable)
+- **BTC Price Scenarios** — Flat, annual growth (Bear −30% / Bull +30%) or a target price: scenarios you choose, not predictions
+- **Halvings by Block Height** — Subsidy drops estimated from the chain tip at 10 min/block
 - **Three Revenue Modes**: Sell all, Hold all, Sell OPEX only
 - **ASIC Degradation** — Annual efficiency loss modeling
 - **NPV, IRR, Break-even** — Professional financial metrics

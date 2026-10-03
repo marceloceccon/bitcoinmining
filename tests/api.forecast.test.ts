@@ -70,8 +70,7 @@ function farmConfig(overrides: Record<string, unknown> = {}) {
 const VALID_PARAMS = {
   months: 24 as const,
   revenueMode: 'sell_all' as const,
-  btcPriceModel: 'fixed' as const,
-  pessimisticAdjustPercent: 0,
+  btcPriceModel: 'flat' as const,
   networkHashrateGrowthPercent: 25,
   asicDegradationPercent: 5,
   discountRatePercent: 10,
@@ -194,6 +193,17 @@ describe('POST /api/forecast — input validation', () => {
     );
     expect(response.status).toBe(400);
   });
+
+  it.each(['stock_to_flow', 'stock_to_flow_pessimistic', 'fixed', 'custom'])(
+    'rejects the removed price model %s with a 400 that lists the valid values',
+    async (btcPriceModel) => {
+      const response = await POST(postRequest({ config: farmConfig(), params: { ...VALID_PARAMS, btcPriceModel } }));
+      expect(response.status).toBe(400);
+      const json = await response.json();
+      expect(json.field).toBe('params.btcPriceModel');
+      expect(json.validValues).toEqual(['flat', 'growth', 'target']);
+    },
+  );
 });
 
 // ════════════════════════════════════════════════════════════════════════

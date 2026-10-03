@@ -975,24 +975,33 @@
               "hold_all",
               "sell_opex"
             ],
-            "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+            "description": "* BTC price scenario (a choice, not a prediction): \"flat\" holds the starting price, \"growth\" compounds annualGrowthPercent per year, \"target\" is a straight line to finalBtcPrice at the last month. Removed values (stock_to_flow, stock_to_flow_pessimistic, fixed, custom) return 400 with validValues",
             "nullable": false
           },
           "btcPriceModel": {
             "type": "string",
             "enum": [
-              "fixed",
-              "stock_to_flow",
-              "stock_to_flow_pessimistic",
-              "custom"
+              "flat",
+              "growth",
+              "target"
             ],
-            "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+            "description": "* Annual BTC price change in percent for the growth scenario (e.g. 30 or -30). Required when btcPriceModel is \"growth\"",
             "nullable": false
           },
-          "pessimisticAdjustPercent": {
+          "annualGrowthPercent": {
+            "type": "number",
+            "description": "* BTC price in USD at the final month for the target scenario. Required when btcPriceModel is \"target\"",
+            "nullable": true
+          },
+          "finalBtcPrice": {
+            "type": "number",
+            "nullable": true,
+            "description": "* Starting BTC price override in USD. Defaults to the live market price"
+          },
+          "startingBtcPrice": {
             "type": "number",
             "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
-            "nullable": false
+            "nullable": true
           },
           "networkHashrateGrowthPercent": {
             "type": "number",
@@ -1006,29 +1015,21 @@
           },
           "discountRatePercent": {
             "type": "number",
-            "description": "* Starting BTC price in USD (current market price)",
+            "description": "* Transaction fees per block in BTC. Defaults to the live average of the last 144 blocks",
             "nullable": false
           },
-          "startingBtcPrice": {
+          "feesPerBlockBtc": {
             "type": "number",
-            "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
-            "nullable": false
-          },
-          "finalBtcPrice": {
-            "type": "number",
-            "nullable": false
+            "nullable": true
           }
         },
         "required": [
           "months",
           "revenueMode",
           "btcPriceModel",
-          "pessimisticAdjustPercent",
           "networkHashrateGrowthPercent",
           "asicDegradationPercent",
-          "discountRatePercent",
-          "startingBtcPrice",
-          "finalBtcPrice"
+          "discountRatePercent"
         ]
       },
       "ForecastBody": {
@@ -1060,24 +1061,33 @@
                   "hold_all",
                   "sell_opex"
                 ],
-                "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+                "description": "* BTC price scenario (a choice, not a prediction): \"flat\" holds the starting price, \"growth\" compounds annualGrowthPercent per year, \"target\" is a straight line to finalBtcPrice at the last month. Removed values (stock_to_flow, stock_to_flow_pessimistic, fixed, custom) return 400 with validValues",
                 "nullable": false
               },
               "btcPriceModel": {
                 "type": "string",
                 "enum": [
-                  "fixed",
-                  "stock_to_flow",
-                  "stock_to_flow_pessimistic",
-                  "custom"
+                  "flat",
+                  "growth",
+                  "target"
                 ],
-                "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+                "description": "* Annual BTC price change in percent for the growth scenario (e.g. 30 or -30). Required when btcPriceModel is \"growth\"",
                 "nullable": false
               },
-              "pessimisticAdjustPercent": {
+              "annualGrowthPercent": {
+                "type": "number",
+                "description": "* BTC price in USD at the final month for the target scenario. Required when btcPriceModel is \"target\"",
+                "nullable": true
+              },
+              "finalBtcPrice": {
+                "type": "number",
+                "nullable": true,
+                "description": "* Starting BTC price override in USD. Defaults to the live market price"
+              },
+              "startingBtcPrice": {
                 "type": "number",
                 "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
-                "nullable": false
+                "nullable": true
               },
               "networkHashrateGrowthPercent": {
                 "type": "number",
@@ -1091,29 +1101,21 @@
               },
               "discountRatePercent": {
                 "type": "number",
-                "description": "* Starting BTC price in USD (current market price)",
+                "description": "* Transaction fees per block in BTC. Defaults to the live average of the last 144 blocks",
                 "nullable": false
               },
-              "startingBtcPrice": {
+              "feesPerBlockBtc": {
                 "type": "number",
-                "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
-                "nullable": false
-              },
-              "finalBtcPrice": {
-                "type": "number",
-                "nullable": false
+                "nullable": true
               }
             },
             "required": [
               "months",
               "revenueMode",
               "btcPriceModel",
-              "pessimisticAdjustPercent",
               "networkHashrateGrowthPercent",
               "asicDegradationPercent",
-              "discountRatePercent",
-              "startingBtcPrice",
-              "finalBtcPrice"
+              "discountRatePercent"
             ],
             "nullable": false
           }
@@ -1144,7 +1146,7 @@
           },
           "difficulty": {
             "type": "number",
-            "description": "* Block reward at this point (accounts for halvings)"
+            "description": "* Mean block subsidy over this month's block heights, BTC (block-weighted in the month a halving happens)"
           },
           "blockReward": {
             "type": "number",
@@ -1297,7 +1299,7 @@
                 },
                 "difficulty": {
                   "type": "number",
-                  "description": "* Block reward at this point (accounts for halvings)"
+                  "description": "* Mean block subsidy over this month's block heights, BTC (block-weighted in the month a halving happens)"
                 },
                 "blockReward": {
                   "type": "number",
@@ -1851,7 +1853,7 @@
       "post": {
         "operationId": "post-forecast",
         "summary": "Generate multi-year revenue forecast",
-        "description": "Generates a month-by-month Bitcoin mining revenue forecast with BTC price modeling (Stock-to-Flow), network difficulty growth, ASIC degradation, energy inflation, and halving events. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.",
+        "description": "Generates a month-by-month Bitcoin mining revenue forecast from the live market snapshot (network hashrate, block height, subsidy and fees per block), with a user-chosen BTC price scenario (flat, annual growth or target), network hashrate growth, ASIC degradation, energy inflation, and halvings computed from block height. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.",
         "tags": [
           "Forecast"
         ],

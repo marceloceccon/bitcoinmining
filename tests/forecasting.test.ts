@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  calculateStockToFlowPrice,
-  getStockToFlowTarget,
-  generateForecast,
-} from '@/lib/forecasting';
+import { generateForecast, scenarioBtcPrice } from '@/lib/forecasting';
 import { hashpriceUsdPerPhDay } from '@/lib/bitcoin';
 import type { FarmConfig, ForecastParams, MarketSnapshot } from '@/types';
 
@@ -79,8 +75,7 @@ function makeParams(overrides: Partial<ForecastParams> = {}): ForecastParams {
   return {
     months: 24,
     revenueMode: 'sell_all',
-    btcPriceModel: 'fixed',
-    pessimisticAdjustPercent: 0,
+    btcPriceModel: 'flat',
     networkHashrateGrowthPercent: 20,
     asicDegradationPercent: 5,
     discountRatePercent: 10,
@@ -89,70 +84,6 @@ function makeParams(overrides: Partial<ForecastParams> = {}): ForecastParams {
     ...overrides,
   };
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// STOCK-TO-FLOW PRICE MODEL
-// ════════════════════════════════════════════════════════════════════════
-
-describe('calculateStockToFlowPrice', () => {
-  it('returns a price based on the S2F power-law: 0.4 × SF³', () => {
-    // With block reward 3.125 BTC
-    // Annual supply = 144 × 365 × 3.125 = 164,250 BTC
-    // SF = 19,800,000 / 164,250 ≈ 120.55
-    // Base price = 0.4 × 120.55³ ≈ 700,645
-    const annualSupply = 144 * 365 * 3.125;
-    const sf = 19.8e6 / annualSupply;
-    const expectedBase = 0.4 * Math.pow(sf, 3);
-    const result = calculateStockToFlowPrice(3.125, 0);
-    expect(result).toBeCloseTo(expectedBase, -2);
-  });
-
-  it('pessimistic adjustment of -30% reduces the price', () => {
-    const base = calculateStockToFlowPrice(3.125, 0);
-    const pessimistic = calculateStockToFlowPrice(3.125, -30);
-    expect(pessimistic).toBeLessThan(base);
-    expect(pessimistic).toBeCloseTo(base * 0.7, -2);
-  });
-
-  it('positive adjustment increases the price', () => {
-    const base = calculateStockToFlowPrice(3.125, 0);
-    const optimistic = calculateStockToFlowPrice(3.125, 20);
-    expect(optimistic).toBeGreaterThan(base);
-  });
-
-  it('never returns below $10,000 floor', () => {
-    // With a tiny block reward and massive pessimistic adjust
-    const result = calculateStockToFlowPrice(3.125, -99);
-    expect(result).toBeGreaterThanOrEqual(10000);
-  });
-
-  it('halved block reward (1.5625) produces higher S2F price', () => {
-    const currentReward = calculateStockToFlowPrice(3.125, 0);
-    const halvedReward = calculateStockToFlowPrice(1.5625, 0);
-    expect(halvedReward).toBeGreaterThan(currentReward);
-  });
-
-  it('S2F ratio doubles when block reward halves → price 8× (cube relationship)', () => {
-    // If reward halves: SF doubles → price = 0.4 × (2×SF)³ = 8 × original
-    const price1 = calculateStockToFlowPrice(6.25, 0);
-    const price2 = calculateStockToFlowPrice(3.125, 0);
-    // SF ratio roughly doubles → price ~8× (not exact due to fixed existing supply)
-    expect(price2 / price1).toBeCloseTo(8, -1);
-  });
-});
-
-describe('getStockToFlowTarget', () => {
-  it('returns a positive price for any month count', () => {
-    expect(getStockToFlowTarget(12, 0, MARKET.blockHeight)).toBeGreaterThan(0);
-    expect(getStockToFlowTarget(36, 0, MARKET.blockHeight)).toBeGreaterThan(0);
-  });
-
-  it('pessimistic adjustment reduces price vs neutral', () => {
-    const neutral = getStockToFlowTarget(24, 0, MARKET.blockHeight);
-    const pessimistic = getStockToFlowTarget(24, -20, MARKET.blockHeight);
-    expect(pessimistic).toBeLessThan(neutral);
-  });
-});
 
 // ════════════════════════════════════════════════════════════════════════
 // REVENUE INVARIANT: engine month 1 ≡ market hashprice (including fees)
@@ -508,37 +439,46 @@ describe('Revenue modes', () => {
 // BTC PRICE INTERPOLATION
 // ════════════════════════════════════════════════════════════════════════
 
-describe('BTC price interpolation', () => {
-  it('linearly interpolates from start to final price', () => {
+describe('BTC price scenarios (choices, not predictions)', () => {
+  it('target: straight line from the starting price to finalBtcPrice at the last month', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({
       months: 12,
+      btcPriceModel: 'target',
       startingBtcPrice: 50000,
       finalBtcPrice: 110000,
       networkHashrateGrowthPercent: 0,
       asicDegradationPercent: 0,
     });
     const result = generateForecast(config, params, MARKET, NOW);
-
-    // At month 6 (t=6/12=0.5): price = 50000 + (110000-50000)*0.5 = 80000
-    expect(result.periods[5].btcPrice).toBeCloseTo(80000, -2);
-
-    // At month 12 (t=1): price = 110000
-    expect(result.periods[11].btcPrice).toBeCloseTo(110000, -2);
+    expect(result.periods[5].btcPrice).toBeCloseTo(80000, 6);
+    expect(result.periods[11].btcPrice).toBeCloseTo(110000, 6);
   });
 
-  it('fixed price model keeps price constant', () => {
+  it('flat: keeps the starting price constant (and ignores finalBtcPrice)', () => {
     const config = makeFarmConfig(10);
-    const params = makeParams({
-      months: 12,
-      startingBtcPrice: 100000,
-      finalBtcPrice: 100000,
-    });
+    const params = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 300000 });
     const result = generateForecast(config, params, MARKET, NOW);
-
     for (const p of result.periods) {
-      expect(p.btcPrice).toBeCloseTo(100000, 0);
+      expect(p.btcPrice).toBe(100000);
     }
+  });
+
+  it('growth: compounds annualGrowthPercent per year (bear −30%, bull +30%)', () => {
+    const config = makeFarmConfig(10);
+    const bull = generateForecast(config, makeParams({ months: 24, btcPriceModel: 'growth', annualGrowthPercent: 30 }), MARKET, NOW);
+    const bear = generateForecast(config, makeParams({ months: 24, btcPriceModel: 'growth', annualGrowthPercent: -30 }), MARKET, NOW);
+    expect(bull.periods[11].btcPrice).toBeCloseTo(100000 * 1.3, 6);
+    expect(bull.periods[23].btcPrice).toBeCloseTo(100000 * 1.3 ** 2, 6);
+    expect(bear.periods[23].btcPrice).toBeCloseTo(100000 * 0.7 ** 2, 6);
+  });
+
+  it('starts at the market price when startingBtcPrice is not overridden', () => {
+    const config = makeFarmConfig(10);
+    const { startingBtcPrice: _omit, ...params } = makeParams({ months: 12 });
+    const result = generateForecast(config, params, { ...MARKET, btcPriceUsd: 77777 }, NOW);
+    expect(result.periods[0].btcPrice).toBe(77777);
+    expect(scenarioBtcPrice({ ...params, btcPriceModel: 'growth', annualGrowthPercent: 10 }, 1000, 12)).toBeCloseTo(1100, 9);
   });
 });
 

@@ -18,20 +18,22 @@ type ForecastParamsBody = {
   months: 12 | 24 | 36 | 48 | 72;
   /** Revenue strategy: sell all BTC immediately, hold all BTC, or sell only enough to cover OPEX */
   revenueMode: "sell_all" | "hold_all" | "sell_opex";
-  /** BTC price projection model — "fixed" holds price constant, "stock_to_flow" uses S2F curve, "stock_to_flow_pessimistic" applies a haircut, "custom" uses startingBtcPrice→finalBtcPrice linear interpolation */
-  btcPriceModel: "fixed" | "stock_to_flow" | "stock_to_flow_pessimistic" | "custom";
-  /** Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F) */
-  pessimisticAdjustPercent: number;
+  /** BTC price scenario (a choice, not a prediction): "flat" holds the starting price, "growth" compounds annualGrowthPercent per year, "target" is a straight line to finalBtcPrice at the last month. Removed values (stock_to_flow, stock_to_flow_pessimistic, fixed, custom) return 400 with validValues */
+  btcPriceModel: "flat" | "growth" | "target";
+  /** Annual BTC price change in percent for the growth scenario (e.g. 30 or -30). Required when btcPriceModel is "growth" */
+  annualGrowthPercent?: number;
+  /** BTC price in USD at the final month for the target scenario. Required when btcPriceModel is "target" */
+  finalBtcPrice?: number | null;
+  /** Starting BTC price override in USD. Defaults to the live market price */
+  startingBtcPrice?: number;
   /** Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY) */
   networkHashrateGrowthPercent: number;
   /** Annual ASIC performance degradation (percent, e.g. 5 for 5% YoY hashrate loss) */
   asicDegradationPercent: number;
   /** Annual discount rate for NPV / IRR calculations (percent, default 10) */
   discountRatePercent: number;
-  /** Starting BTC price in USD (current market price) */
-  startingBtcPrice: number;
-  /** Final BTC price override in USD — null lets the model calculate it automatically */
-  finalBtcPrice: number | null;
+  /** Transaction fees per block in BTC. Defaults to the live average of the last 144 blocks */
+  feesPerBlockBtc?: number;
 };
 
 /**
@@ -62,7 +64,7 @@ type ForecastPeriodResponse = {
   networkHashrateThs: number;
   /** Projected mining difficulty */
   difficulty: number;
-  /** Block reward at this point (accounts for halvings) */
+  /** Mean block subsidy over this month's block heights, BTC (block-weighted in the month a halving happens) */
   blockReward: number;
   /** Gross mining revenue in USD for this month */
   miningRevenueUsd: number;
@@ -133,7 +135,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * Generate multi-year revenue forecast
- * @description Generates a month-by-month Bitcoin mining revenue forecast with BTC price modeling (Stock-to-Flow), network difficulty growth, ASIC degradation, energy inflation, and halving events. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.
+ * @description Generates a month-by-month Bitcoin mining revenue forecast from the live market snapshot (network hashrate, block height, subsidy and fees per block), with a user-chosen BTC price scenario (flat, annual growth or target), network hashrate growth, ASIC degradation, energy inflation, and halvings computed from block height. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.
  * @body ForecastBody
  * @response ForecastResponse
  * @openapi
@@ -184,7 +186,11 @@ export async function POST(request: Request) {
   const paramsResult = validateForecastParams(rawParams);
   if (!paramsResult.ok) {
     return NextResponse.json(
-      { error: paramsResult.error, field: paramsResult.field },
+      {
+        error: paramsResult.error,
+        field: paramsResult.field,
+        ...(paramsResult.validValues ? { validValues: paramsResult.validValues } : {}),
+      },
       { status: 400, headers }
     );
   }

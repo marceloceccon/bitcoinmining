@@ -151,7 +151,7 @@ export default function Home() {
             <div className="glass-card p-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">About Bitcoin Mining Farm Calculator</h2>
               <p className="text-slate-600 leading-relaxed">
-                Bitcoin Mining Farm Calculator is a free, browser-based tool to help you build rough estimates for a Bitcoin mining operation — from a single ASIC to an industrial farm. It models hardware costs, deployment labor, electrical infrastructure, solar offset, cooling, and multi-year revenue forecasts based on the Stock-to-Flow model.
+                Bitcoin Mining Farm Calculator is a free, browser-based tool to help you build rough estimates for a Bitcoin mining operation — from a single ASIC to an industrial farm. It models hardware costs, deployment labor, electrical infrastructure, solar offset, cooling, and multi-year revenue forecasts from live network data and BTC price scenarios you choose.
               </p>
               <p className="text-slate-600 leading-relaxed mt-3">
                 Built by Marcelo Ceccon. Independent tool for miners &amp; investors.
@@ -174,7 +174,7 @@ export default function Home() {
                   </div>
                   <div className="p-3 glass-inner rounded-xl">
                     <code className="text-xs text-blueprint-deep font-semibold">POST /api/forecast</code>
-                    <p className="text-xs text-slate-500 mt-1">Multi-year revenue forecast with S2F model</p>
+                    <p className="text-xs text-slate-500 mt-1">Multi-year revenue forecast with price scenarios</p>
                   </div>
                   <div className="p-3 glass-inner rounded-xl">
                     <code className="text-xs text-blueprint-deep font-semibold">GET /api/miners</code>

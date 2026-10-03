@@ -44,17 +44,14 @@ export const GOLDEN_PRESETS: GoldenPreset[] = [
   { slug: 'industrial', miners: [{ id: 's21-hyd', quantity: 500 }], infrastructure: 'containers' },
 ];
 
-/** The Projections tab defaults ("fixed" price model → final price = starting price). */
+/** The Projections tab defaults (flat price scenario, starting at the market price). */
 export const GOLDEN_FORECAST_PARAMS: ForecastParams = {
   months: 48,
   revenueMode: 'sell_opex',
-  btcPriceModel: 'fixed',
-  pessimisticAdjustPercent: -20,
+  btcPriceModel: 'flat',
   networkHashrateGrowthPercent: 10,
   asicDegradationPercent: 4,
   discountRatePercent: 10,
-  startingBtcPrice: GOLDEN_BTC_PRICE,
-  finalBtcPrice: GOLDEN_BTC_PRICE,
 };
 
 export function buildPresetConfig(preset: GoldenPreset): FarmConfig {

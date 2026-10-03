@@ -81,9 +81,9 @@ export default function SeoContent() {
             <li>
               <strong className="text-slate-900">Multi-year ROI forecasting</strong>
               &mdash; Project revenue, expenses, and cumulative profit over 12&ndash;60
-              months. The forecast engine uses the Bitcoin Stock-to-Flow model for price
-              projection, applies difficulty adjustment estimates, and compounds energy
-              inflation &mdash; giving you a realistic payback timeline.
+              months. The forecast starts from live network hashrate, subsidy and fees,
+              applies your hashrate-growth estimate and halvings by block height, and
+              compounds energy inflation &mdash; giving you a realistic payback timeline.
             </li>
           </ul>
         </div>
@@ -164,32 +164,31 @@ export default function SeoContent() {
           </p>
 
           <p className="mt-3">
-            Revenue is calculated from total farm hashrate against current network
-            difficulty, with difficulty adjustments modeled across the forecast
-            period. Bitcoin price uses the Stock-to-Flow model &mdash; a quantitative
-            framework based on BTC&apos;s fixed supply schedule and halving cycles.
+            Revenue is your farm&apos;s share of the live network hashrate times the
+            block subsidy plus transaction fees, with network growth and halvings
+            modeled across the forecast period. The BTC price follows a scenario you
+            choose &mdash; flat, a yearly percentage change, or a target price.
           </p>
         </div>
 
-        {/* S2F model */}
+        {/* Price scenarios */}
         <div>
           <h3 className="text-xl font-semibold text-slate-900 mb-3">
-            Stock-to-Flow Forecasting Model
+            BTC Price Scenarios, Not Predictions
           </h3>
 
           <p>
-            The Stock-to-Flow (S2F) model values Bitcoin based on its scarcity
-            ratio: existing supply (stock) divided by annual production rate (flow).
-            After each halving, the flow drops 50%, doubling the S2F ratio and
-            historically correlating with significant price appreciation.
+            Nobody can forecast the Bitcoin price, so the calculator doesn&apos;t
+            pretend to. You pick a scenario: hold today&apos;s price flat, apply a
+            yearly change (the Bear and Bull presets are &minus;30% and +30% per
+            year), or draw a straight line to a target price of your own.
           </p>
 
           <p className="mt-3">
-            This calculator integrates the S2F model into its multi-year projections
-            so you can evaluate farm ROI under a scarcity-driven price thesis rather
-            than assuming a flat BTC price. This is particularly relevant for miners
-            evaluating 3&ndash;5 year investment horizons that span one or more halving
-            events.
+            Comparing scenarios shows how sensitive a farm is to price. The
+            break-even BTC price tells you how far the market can fall before the
+            farm stops covering its operating costs &mdash; the number that matters
+            for 3&ndash;5 year horizons that span a halving.
           </p>
         </div>
 
@@ -231,11 +230,11 @@ export default function SeoContent() {
                 How accurate are the profitability projections?
               </h3>
               <p>
-                The projections are estimates based on current network difficulty,
-                the Stock-to-Flow price model, and your input parameters. Real
-                results depend on actual BTC price movement, difficulty changes,
-                hardware reliability, and electricity rate changes. Use this as a
-                planning tool, not a guarantee.
+                The projections are estimates based on the live network hashrate,
+                block subsidy and transaction fees, the BTC price scenario you
+                choose, and your input parameters. Real results depend on actual BTC
+                price movement, difficulty changes, hardware reliability, and
+                electricity rate changes. Use this as a planning tool, not a guarantee.
               </p>
             </div>
 
@@ -256,10 +255,9 @@ export default function SeoContent() {
                 Does this calculator account for Bitcoin halving events?
               </h3>
               <p>
-                Yes. The Stock-to-Flow model inherently accounts for halving events
-                in its price projection. The forecast engine also adjusts block reward
-                in revenue calculations when a halving occurs within your projection
-                window.
+                Yes. Halvings are computed from block height: the forecast estimates
+                when block 1,050,000 (and later halvings) will be mined at 10 minutes
+                per block and halves the subsidy from then on.
               </p>
             </div>
 

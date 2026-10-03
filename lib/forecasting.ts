@@ -6,32 +6,30 @@ import {
   calculateEffectiveSolarCoverage,
   calculateFarmMetrics,
 } from './calculations';
-import { BLOCKS_PER_DAY, averageSubsidy, subsidyAtHeight } from './bitcoin';
+import { BLOCKS_PER_DAY, averageSubsidy } from './bitcoin';
 import { monthlyBtcMined } from './unitEconomics';
 
 const SECONDS_PER_BLOCK = 600;
 const BLOCKS_PER_MONTH = BLOCKS_PER_DAY * DAYS_PER_MONTH; // 4,383
 
 /**
- * Stock-to-Flow Bitcoin price model
- * Formula: Price = 0.4 * SF^3 (simplified power law)
- * Exported so the UI can compute default final price.
+ * BTC price in month `month` for the chosen scenario. Scenarios are choices the
+ * user makes, not predictions:
+ * - flat:   the starting price throughout
+ * - growth: compounds `annualGrowthPercent` per year
+ * - target: straight line from the starting price to `finalBtcPrice` at the last month
  */
-export function calculateStockToFlowPrice(blockReward: number, pessimisticAdjust: number): number {
-  const blocksPerYear = BLOCKS_PER_DAY * 365;
-  const annualSupply = blocksPerYear * blockReward;
-  const existingSupply = 19.8e6; // Approximate circulating supply 2026
-  const sf = existingSupply / annualSupply;
-  const basePrice = 0.4 * Math.pow(sf, 3);
-  const adjustedPrice = basePrice * (1 + pessimisticAdjust / 100);
-  return Math.max(adjustedPrice, 10000);
-}
-
-/**
- * Compute the S2F target price N months after the snapshot's chain tip.
- */
-export function getStockToFlowTarget(months: number, pessimisticAdjust: number, tipHeight: number): number {
-  return calculateStockToFlowPrice(subsidyAtHeight(tipHeight + months * BLOCKS_PER_MONTH), pessimisticAdjust);
+export function scenarioBtcPrice(params: ForecastParams, startPrice: number, month: number): number {
+  switch (params.btcPriceModel) {
+    case 'growth':
+      return startPrice * Math.pow(1 + (params.annualGrowthPercent ?? 0) / 100, month / 12);
+    case 'target': {
+      const finalPrice = params.finalBtcPrice ?? startPrice;
+      return startPrice + (finalPrice - startPrice) * (month / params.months);
+    }
+    default:
+      return startPrice;
+  }
 }
 
 /**
@@ -150,10 +148,8 @@ export function generateForecast(
   const feesPerBlockBtc = params.feesPerBlockBtc ?? market.avgFeesPerBlockBtc;
   const monthlyCashFlows: number[] = [];
 
-  // BTC price progression: interpolate from starting price to final S2F target
-  const startPrice = params.startingBtcPrice;
-  const finalPrice =
-    params.finalBtcPrice ?? getStockToFlowTarget(params.months, params.pessimisticAdjustPercent, market.blockHeight);
+  // BTC price scenario starts at the market price unless the user overrides it
+  const startPrice = params.startingBtcPrice ?? market.btcPriceUsd;
 
   for (let month = 1; month <= params.months; month++) {
     const currentDate = new Date(startDate);
@@ -172,9 +168,7 @@ export function generateForecast(
     // Calculate difficulty
     const difficulty = calculateDifficulty(networkHashrateEh);
 
-    // BTC price: linear interpolation from starting to final price over the forecast
-    const t = month / params.months; // 0→1
-    const btcPrice = startPrice + (finalPrice - startPrice) * t;
+    const btcPrice = scenarioBtcPrice(params, startPrice, month);
 
     // Degradation factor
     const degradationFactor = getDegradationFactor(month, params.asicDegradationPercent);

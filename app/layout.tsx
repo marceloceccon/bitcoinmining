@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s | Bitcoin Mining Farm Calculator",
   },
   description:
-    "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year Stock-to-Flow forecasts. No signup.",
+    "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year forecasts from live network data. No signup.",
   keywords: [
     "bitcoin mining calculator",
     "bitcoin mining profitability calculator",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     "whatsminer profitability",
     "bitcoin mining solar power",
     "bitcoin mining cooling cost calculator",
-    "stock to flow bitcoin price model",
+    "bitcoin hashprice calculator",
     "mining farm OPEX",
     "bitcoin mining payback period calculator",
     "bitcoin mining farm cost estimator free",
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     siteName: "Bitcoin Mining Farm Calculator",
     title: "Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool",
     description:
-      "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year Stock-to-Flow forecasts. No signup.",
+      "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year forecasts from live network data. No signup.",
     images: [
       {
         url: "/opengraph-image",
@@ -99,7 +99,7 @@ const jsonLd = {
     name: "Bitcoin Mining Farm Calculator",
     url: SITE_URL,
     description:
-      "A free, browser-based Bitcoin mining farm calculator. Model ASIC hardware costs, deployment labor, electrical infrastructure, solar offset, cooling sizing, and multi-year profitability forecasts using the Stock-to-Flow model.",
+      "A free, browser-based Bitcoin mining farm calculator. Model ASIC hardware costs, deployment labor, electrical infrastructure, solar offset, cooling sizing, and multi-year profitability forecasts from live network data with user-chosen BTC price scenarios.",
     applicationCategory: "FinanceApplication",
     operatingSystem: "Web Browser",
     browserRequirements: "Requires JavaScript",
@@ -114,7 +114,7 @@ const jsonLd = {
       "50+ real ASIC miner database with market pricing",
       "10-component CAPEX breakdown calculator",
       "Multi-year ROI and profitability forecasting",
-      "Stock-to-Flow BTC price model integration",
+      "Live hashrate, fees and halving-aware revenue forecasts",
       "Solar power offset modeling",
       "Dry cooler and ventilation fan sizing with ERA5 climate data",
       "Deployment labor and electrical infrastructure estimation",
@@ -138,7 +138,7 @@ const jsonLd = {
         name: "How accurate are the mining profitability projections?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "The projections are estimates based on current network difficulty, the Stock-to-Flow price model, and your input parameters. Real results depend on actual BTC price movement, difficulty changes, hardware reliability, and electricity rate changes. Use this as a planning tool, not a guarantee.",
+          text: "The projections are estimates based on the live network hashrate, block subsidy and transaction fees, the BTC price scenario you choose (flat, annual growth or a target price), and your input parameters. Real results depend on actual BTC price movement, difficulty changes, hardware reliability, and electricity rate changes. Use this as a planning tool, not a guarantee.",
         },
       },
       {
@@ -154,7 +154,7 @@ const jsonLd = {
         name: "Does this calculator account for Bitcoin halving events?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Yes. The Stock-to-Flow model inherently accounts for halving events in its price projection. The forecast engine also adjusts block reward in revenue calculations when a halving occurs within your projection window.",
+          text: "Yes. Halvings are computed from block height: the forecast estimates when block 1,050,000 (and later halvings) will be mined at 10 minutes per block and halves the block subsidy from that month on, weighting the month in which it happens by blocks on each side.",
         },
       },
       {

@@ -11,9 +11,8 @@ import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { getStockToFlowTarget } from "@/lib/forecasting";
-import { FALLBACK_MARKET } from "@/lib/networkData";
-import { fetchJson, useForecast, useNetworkData } from "@/lib/apiClient";
+import { scenarioBtcPrice } from "@/lib/forecasting";
+import { fetchJson, useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { FarmConfig, ForecastParams, ForecastPeriod, ForecastResult } from "@/types";
 
@@ -125,53 +124,24 @@ export default function ForecastCharts() {
   const [params, setParams] = useState<ForecastParams>({
     months: 48,
     revenueMode: "sell_opex",
-    btcPriceModel: "fixed",
-    pessimisticAdjustPercent: -20,
+    btcPriceModel: "flat",
+    annualGrowthPercent: 30,
+    finalBtcPrice: null,
     networkHashrateGrowthPercent: 10,
     asicDegradationPercent: 4,
     discountRatePercent: 10,
-    startingBtcPrice: FALLBACK_MARKET.btcPriceUsd,
-    finalBtcPrice: null,
   });
 
   const [btcDecimals, setBtcDecimals] = useState(8);
   const [granularity, setGranularity] = useState<Granularity>("monthly");
   const [tableExpanded, setTableExpanded] = useState(false);
 
-  // Fetch current BTC price via our API
-  const { data: networkData } = useNetworkData();
-  useEffect(() => {
-    if (networkData?.btcPriceUsd && networkData.btcPriceUsd > 0) {
-      setParams((prev) => ({ ...prev, startingBtcPrice: Math.round(networkData.btcPriceUsd) }));
-    }
-  }, [networkData?.btcPriceUsd]);
-
-  const tipHeight = networkData?.blockHeight ?? FALLBACK_MARKET.blockHeight;
-
-  // Auto-calculate S2F prices
-  const s2fFinalPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, 0, tipHeight)),
-    [params.months, tipHeight]
-  );
-  const s2fPessimisticPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, params.pessimisticAdjustPercent, tipHeight)),
-    [params.months, params.pessimisticAdjustPercent, tipHeight]
-  );
-
-  const effectiveFinalPrice = useMemo(() => {
-    switch (params.btcPriceModel) {
-      case "fixed": return params.startingBtcPrice;
-      case "stock_to_flow": return s2fFinalPrice;
-      case "stock_to_flow_pessimistic": return s2fPessimisticPrice;
-      case "custom": return params.finalBtcPrice ?? params.startingBtcPrice;
-      default: return params.startingBtcPrice;
-    }
-  }, [params.btcPriceModel, params.startingBtcPrice, params.finalBtcPrice, s2fFinalPrice, s2fPessimisticPrice]);
-
-  const effectiveParams = useMemo(
-    () => ({ ...params, finalBtcPrice: effectiveFinalPrice }),
-    [params, effectiveFinalPrice]
-  );
+  // Market snapshot (live, or the labelled offline estimate). Start price and
+  // fees follow it unless the user overrides them.
+  const market = useMarket();
+  const startPrice = params.startingBtcPrice ?? Math.round(market.btcPriceUsd);
+  const effectiveParams = params;
+  const effectiveFinalPrice = scenarioBtcPrice(params, startPrice, params.months);
 
   const { data: forecast } = useForecast(config, effectiveParams);
 
@@ -193,8 +163,12 @@ export default function ForecastCharts() {
           ...config,
           regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
         };
-        const bearFinalPrice = Math.round(effectiveFinalPrice * 0.9);
-        const paramsBear = { ...effectiveParams, finalBtcPrice: bearFinalPrice };
+        // Every price in the scenario 10% lower
+        const paramsBear = {
+          ...effectiveParams,
+          startingBtcPrice: startPrice * 0.9,
+          finalBtcPrice: effectiveParams.finalBtcPrice != null ? effectiveParams.finalBtcPrice * 0.9 : null,
+        };
         const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
         const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
 
@@ -226,7 +200,7 @@ export default function ForecastCharts() {
         if (!controller.signal.aborted) {
           setSensitivity([
             { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
-            { label: "BTC price -10% more", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
+            { label: "BTC price −10%", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
             { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
             { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
           ]);
@@ -238,7 +212,7 @@ export default function ForecastCharts() {
 
     runSensitivity();
     return () => controller.abort();
-  }, [forecast, config, effectiveParams, effectiveFinalPrice]);
+  }, [forecast, config, effectiveParams, startPrice]);
 
   if (config.miners.length === 0) {
     return (
@@ -339,64 +313,65 @@ export default function ForecastCharts() {
           <div>
             <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
               Starting BTC Price
-              <HelpTooltip content="Current market price of Bitcoin. Fetched automatically on load. Edit to simulate different starting scenarios." />
+              <HelpTooltip content="Defaults to the live market price. Edit it to simulate a different starting point." />
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
               <input
                 type="number"
+                aria-label="Starting BTC price in USD"
                 className="w-full bg-white/50 border border-slate-200/60 rounded-xl py-2 pl-7 pr-3 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
-                value={params.startingBtcPrice}
+                value={startPrice}
                 min={0}
                 step={100}
                 onChange={(e) => setParams({ ...params, startingBtcPrice: Math.max(0, Number(e.target.value)) })}
               />
             </div>
+            <div className="text-xs text-slate-400 mt-1">
+              {params.startingBtcPrice === undefined ? (
+                market.isLive ? "Live market price" : "Offline estimate (live data unavailable)"
+              ) : (
+                <button className="text-blueprint-deep hover:underline" onClick={() => setParams({ ...params, startingBtcPrice: undefined })}>
+                  Reset to market price ({formatUsd(market.btcPriceUsd)})
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Final BTC Price Model */}
+          {/* BTC Price Scenario */}
           <div>
             <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-              Final BTC Price
-              <HelpTooltip content="Target BTC price at the end of the forecast. 'Fixed' keeps the same price as starting. 'S2F' uses the Stock-to-Flow model. 'S2F Pessimistic' applies the pessimism slider discount. 'Custom' lets you set any target price." />
+              BTC Price Scenario
+              <HelpTooltip content="Scenarios are choices you make, not predictions. Bear and Bull compound −30% or +30% per year from the starting price; Flat holds it; Target draws a straight line to the price you set for the final month." />
             </label>
             <div className="grid grid-cols-4 gap-2 mb-2">
-              <Button
-                variant={params.btcPriceModel === "fixed" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "fixed" })}
-              >
-                Fixed
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "stock_to_flow" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "stock_to_flow" })}
-              >
-                S2F
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "stock_to_flow_pessimistic" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "stock_to_flow_pessimistic" })}
-              >
-                S2F Pessim.
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "custom" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "custom", finalBtcPrice: params.finalBtcPrice ?? params.startingBtcPrice })}
-              >
-                Custom
-              </Button>
+              {(
+                [
+                  { label: "Bear −30%/yr", active: params.btcPriceModel === "growth" && params.annualGrowthPercent === -30, next: { btcPriceModel: "growth", annualGrowthPercent: -30 } },
+                  { label: "Flat", active: params.btcPriceModel === "flat", next: { btcPriceModel: "flat" } },
+                  { label: "Bull +30%/yr", active: params.btcPriceModel === "growth" && params.annualGrowthPercent === 30, next: { btcPriceModel: "growth", annualGrowthPercent: 30 } },
+                  { label: "Target", active: params.btcPriceModel === "target", next: { btcPriceModel: "target", finalBtcPrice: params.finalBtcPrice ?? startPrice } },
+                ] as { label: string; active: boolean; next: Partial<ForecastParams> }[]
+              ).map((chip) => (
+                <Button
+                  key={chip.label}
+                  variant={chip.active ? "primary" : "default"}
+                  size="sm"
+                  aria-pressed={chip.active}
+                  onClick={() => setParams({ ...params, ...chip.next })}
+                >
+                  {chip.label}
+                </Button>
+              ))}
             </div>
-            {params.btcPriceModel === "custom" && (
+            {params.btcPriceModel === "target" && (
               <div className="relative mb-2">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
                 <input
                   type="number"
+                  aria-label="Target BTC price at the final month in USD"
                   className="w-full bg-white/50 border border-slate-200/60 rounded-xl py-2 pl-7 pr-3 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
-                  value={params.finalBtcPrice ?? params.startingBtcPrice}
+                  value={params.finalBtcPrice ?? startPrice}
                   min={0}
                   step={100}
                   onChange={(e) => setParams({ ...params, finalBtcPrice: Math.max(0, Number(e.target.value)) })}
@@ -404,29 +379,56 @@ export default function ForecastCharts() {
               </div>
             )}
             <div className="text-xs text-slate-400">
-              Final: {formatUsd(effectiveFinalPrice)}
-              {params.btcPriceModel === "fixed" && " (same as starting)"}
-              {params.btcPriceModel === "stock_to_flow" && " · S2F model"}
-              {params.btcPriceModel === "stock_to_flow_pessimistic" && ` · S2F at ${params.pessimisticAdjustPercent}%`}
-              {params.btcPriceModel === "custom" && " · manual target"}
+              Final month: {formatUsd(effectiveFinalPrice)}
+              {params.btcPriceModel === "flat" && " (same as starting)"}
+              {params.btcPriceModel === "growth" && ` · ${params.annualGrowthPercent! >= 0 ? "+" : ""}${params.annualGrowthPercent}% per year`}
+              {params.btcPriceModel === "target" && " · straight line to your target"}
+              {" · a scenario you choose, not a prediction"}
             </div>
           </div>
 
-          {/* Pessimistic Adjustment — only visible when S2F Pessimistic is selected */}
-          {params.btcPriceModel === "stock_to_flow_pessimistic" && (
+          {/* Custom annual growth — visible for growth scenarios */}
+          {params.btcPriceModel === "growth" && (
             <Slider
-              label="BTC Price Pessimism (Stock-to-Flow)"
+              label="BTC Price Change per Year"
               unit="%"
-              min={-50}
-              max={-10}
+              min={-60}
+              max={100}
               step={5}
-              value={params.pessimisticAdjustPercent}
-              onChange={(e) =>
-                setParams({ ...params, pessimisticAdjustPercent: parseFloat(e.target.value) })
-              }
-              tooltip="A negative adjustment applied to the Stock-to-Flow final price target. -20% means the model's projected final price is discounted by 20%."
+              value={params.annualGrowthPercent ?? 0}
+              onChange={(e) => setParams({ ...params, annualGrowthPercent: parseFloat(e.target.value) })}
+              tooltip="Compound annual change applied to the starting price. Bear and Bull are −30% and +30%."
             />
           )}
+
+          {/* Transaction fees */}
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              Tx Fees per Block
+              <HelpTooltip content="Average transaction fees miners collect per block, on top of the subsidy. Defaults to the average of the last 144 blocks." />
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                aria-label="Transaction fees per block in BTC"
+                className="w-full bg-white/50 border border-slate-200/60 rounded-xl py-2 pl-3 pr-12 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
+                value={params.feesPerBlockBtc ?? Number(market.avgFeesPerBlockBtc.toFixed(4))}
+                min={0}
+                step={0.001}
+                onChange={(e) => setParams({ ...params, feesPerBlockBtc: Math.max(0, Number(e.target.value)) })}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">BTC</span>
+            </div>
+            <div className="text-xs text-slate-400 mt-1">
+              {params.feesPerBlockBtc === undefined ? (
+                market.isLive ? "Live: average of the last 144 blocks" : "Offline estimate"
+              ) : (
+                <button className="text-blueprint-deep hover:underline" onClick={() => setParams({ ...params, feesPerBlockBtc: undefined })}>
+                  Reset to market average
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Network Growth */}
           <Slider
@@ -598,7 +600,7 @@ export default function ForecastCharts() {
       {/* BTC Price Forecast Chart */}
       {chartData && (
         <Card>
-          <h3 className="text-base font-semibold text-slate-900 mb-4">BTC Price Forecast (Stock-to-Flow)</h3>
+          <h3 className="text-base font-semibold text-slate-900 mb-4">BTC Price Scenario</h3>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />

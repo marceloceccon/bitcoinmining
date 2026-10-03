@@ -22,7 +22,7 @@ export const MAX_REQUEST_BYTES = 256 * 1024; // 256 KB
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string; field?: string };
+  | { ok: false; error: string; field?: string; validValues?: readonly string[] };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32,8 +32,8 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function fail(error: string, field?: string): ValidationResult<never> {
-  return { ok: false, error, field };
+function fail(error: string, field?: string, validValues?: readonly string[]): ValidationResult<never> {
+  return validValues ? { ok: false, error, field, validValues } : { ok: false, error, field };
 }
 
 function validateMiner(raw: unknown, index: number): ValidationResult<true> {
@@ -148,15 +148,13 @@ export function validateFarmConfig(body: unknown): ValidationResult<FarmConfig> 
 
 const FORECAST_MONTHS = new Set([12, 24, 36, 48, 72]);
 const REVENUE_MODES = new Set(['sell_all', 'hold_all', 'sell_opex']);
-const PRICE_MODELS = new Set([
-  'fixed',
-  'stock_to_flow',
-  'stock_to_flow_pessimistic',
-  'custom',
-]);
+export const PRICE_MODELS = ['flat', 'growth', 'target'] as const;
 
 /**
  * Validates the params half of a /api/forecast request body.
+ *
+ * Every ForecastParams field is listed here; keep it in sync with the type and
+ * the ForecastParamsBody JSDoc in app/api/forecast/route.ts (which feeds OpenAPI).
  */
 export function validateForecastParams(
   body: unknown,
@@ -173,25 +171,33 @@ export function validateForecastParams(
       'params.revenueMode',
     );
   }
-  if (typeof body.btcPriceModel !== 'string' || !PRICE_MODELS.has(body.btcPriceModel)) {
+  if (typeof body.btcPriceModel !== 'string' || !(PRICE_MODELS as readonly string[]).includes(body.btcPriceModel)) {
     return fail(
-      'params.btcPriceModel must be fixed, stock_to_flow, stock_to_flow_pessimistic, or custom',
+      `params.btcPriceModel must be one of ${PRICE_MODELS.join(', ')} (Stock-to-Flow was removed)`,
       'params.btcPriceModel',
+      PRICE_MODELS,
     );
   }
-  const numericFields: ReadonlyArray<keyof ForecastParams> = [
-    'pessimisticAdjustPercent',
+  const requiredNumbers: ReadonlyArray<keyof ForecastParams> = [
     'networkHashrateGrowthPercent',
     'asicDegradationPercent',
     'discountRatePercent',
-    'startingBtcPrice',
   ];
-  for (const key of numericFields) {
+  for (const key of requiredNumbers) {
     if (!isFiniteNumber(body[key as string])) {
       return fail(`params.${key} must be a finite number`, `params.${key}`);
     }
   }
-  if (body.finalBtcPrice !== null && !isFiniteNumber(body.finalBtcPrice)) {
+  if (body.startingBtcPrice !== undefined && (!isFiniteNumber(body.startingBtcPrice) || body.startingBtcPrice <= 0)) {
+    return fail('params.startingBtcPrice must be a positive number when provided', 'params.startingBtcPrice');
+  }
+  if (body.btcPriceModel === 'growth' && (!isFiniteNumber(body.annualGrowthPercent) || body.annualGrowthPercent <= -100)) {
+    return fail('params.annualGrowthPercent must be a number above -100 for the growth scenario', 'params.annualGrowthPercent');
+  }
+  if (body.btcPriceModel === 'target' && (!isFiniteNumber(body.finalBtcPrice) || body.finalBtcPrice <= 0)) {
+    return fail('params.finalBtcPrice must be a positive number for the target scenario', 'params.finalBtcPrice');
+  }
+  if (body.finalBtcPrice != null && !isFiniteNumber(body.finalBtcPrice)) {
     return fail('params.finalBtcPrice must be a number or null', 'params.finalBtcPrice');
   }
   if (body.feesPerBlockBtc !== undefined && (!isFiniteNumber(body.feesPerBlockBtc) || body.feesPerBlockBtc < 0)) {

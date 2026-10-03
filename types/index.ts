@@ -205,16 +205,19 @@ export interface MarketSnapshot {
 }
 
 // Forecasting Types
+export type BtcPriceModel = "flat" | "growth" | "target";
+
 export interface ForecastParams {
   months: 12 | 24 | 36 | 48 | 72;
   revenueMode: "sell_all" | "hold_all" | "sell_opex";
-  btcPriceModel: "fixed" | "stock_to_flow" | "stock_to_flow_pessimistic" | "custom";
-  pessimisticAdjustPercent: number; // -10 to -50
+  /** Price scenario (a choice, not a prediction): flat, compound annual growth, or straight line to a target */
+  btcPriceModel: BtcPriceModel;
+  annualGrowthPercent?: number; // "growth": e.g. 30 = +30%/yr, -30 = -30%/yr
+  finalBtcPrice?: number | null; // "target": price at the last month
+  startingBtcPrice?: number; // override; defaults to the market snapshot price
   networkHashrateGrowthPercent: number; // annual
   asicDegradationPercent: number; // annual, 5-10%
   discountRatePercent: number; // annual, for NPV/IRR (default 10)
-  startingBtcPrice: number; // current market price
-  finalBtcPrice: number | null; // null = auto-calculate from S2F; number = user override
   feesPerBlockBtc?: number; // transaction fees per block, BTC; defaults to the market snapshot's average
 }
 
