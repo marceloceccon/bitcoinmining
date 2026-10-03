@@ -130,7 +130,7 @@ export default function ForecastCharts() {
     networkHashrateGrowthPercent: 10,
     asicDegradationPercent: 4,
     discountRatePercent: 10,
-    startingBtcPrice: 90000,
+    startingBtcPrice: FALLBACK_MARKET.btcPriceUsd,
     finalBtcPrice: null,
   });
 

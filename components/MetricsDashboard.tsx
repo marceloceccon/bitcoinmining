@@ -6,7 +6,8 @@ import { Zap, Flame, Gauge, DollarSign, TrendingUp, Factory, Volume2, CircuitBoa
 import Card from "./ui/Card";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { useCalculation, useNetworkData } from "@/lib/apiClient";
+import { useCalculation, useMarket } from "@/lib/apiClient";
+import { dailyBtcMined, monthlyBtcMined } from "@/lib/unitEconomics";
 import { autoSelectTransformer, NO_TRANSFORMER_THRESHOLD_KVA } from "@/lib/transformerData";
 import {
   formatHashRate,
@@ -16,21 +17,14 @@ import {
   formatBtc,
 } from "@/lib/utils";
 
-const BLOCKS_PER_DAY = 144;
-const CURRENT_NETWORK_HASHRATE_EH = 750;
-const CURRENT_BLOCK_REWARD = 3.125;
-
 export default function MetricsDashboard() {
   const config = useFarmStore((state) => state.config);
-  const { data: networkData } = useNetworkData();
+  const market = useMarket();
   const { data: calcData, loading: calcLoading } = useCalculation(config);
   const dryCoolers = useFarmStore((s) => s.dryCoolerCatalog);
   const airFans = useFarmStore((s) => s.airFanCatalog);
 
-  const networkHashrateEh = networkData?.networkHashrateEh ?? CURRENT_NETWORK_HASHRATE_EH;
-  const blockReward = networkData?.blockReward ?? CURRENT_BLOCK_REWARD;
-  const btcPriceUsd = networkData?.btcPriceUsd ?? 0;
-  const marketHashprice = networkData?.hashpriceUsdPhDay ?? 0;
+  const { networkHashrateEh, blockReward, btcPriceUsd, hashpriceUsdPhDay: marketHashprice } = market;
 
   const metrics = calcData?.metrics ?? null;
 
@@ -92,13 +86,11 @@ export default function MetricsDashboard() {
   ];
 
   const farmHashrateThs = calcData?.totalHashRateThs ?? 0;
-  const farmHashrateEh = farmHashrateThs / 1e6;
-  const poolShare = networkHashrateEh > 0 ? farmHashrateEh / networkHashrateEh : 0;
-  const monthlyBtcMined = BLOCKS_PER_DAY * 30 * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
-  const costPerBtc = monthlyBtcMined > 0 ? metrics.monthlyOpex / monthlyBtcMined : 0;
+  const monthlyBtc = monthlyBtcMined(farmHashrateThs, market, config);
+  const costPerBtc = monthlyBtc > 0 ? metrics.monthlyOpex / monthlyBtc : 0;
 
   const farmPh = farmHashrateThs / 1e3;
-  const farmDailyBtc = BLOCKS_PER_DAY * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
+  const farmDailyBtc = dailyBtcMined(farmHashrateThs, market, config);
   const farmHashprice = farmPh > 0 && btcPriceUsd > 0 ? (farmDailyBtc * btcPriceUsd) / farmPh : 0;
 
   const isContainerSetup = config.infrastructureType === "containers";
@@ -130,9 +122,9 @@ export default function MetricsDashboard() {
   const isMarginal = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc >= btcPriceUsd * 0.8 && costPerBtc < btcPriceUsd;
   const isUnprofitable = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc >= btcPriceUsd;
 
-  const networkLabel = networkData?.isLive
+  const networkLabel = market.isLive
     ? `Live: ${formatNumber(networkHashrateEh, 1)} EH/s`
-    : `Est: ${formatNumber(networkHashrateEh, 0)} EH/s`;
+    : `Offline estimate: ${formatNumber(networkHashrateEh, 0)} EH/s`;
 
   return (
     <div className="space-y-6">
@@ -216,18 +208,18 @@ export default function MetricsDashboard() {
       <Card>
         <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-1">
           Price of Bitcoin Mined
-          <Tooltip content={`Estimated monthly BTC at current network conditions (${networkLabel}, ${blockReward} BTC reward). Does not account for future difficulty growth or ASIC degradation.`} />
+          <Tooltip content={`Estimated monthly BTC at current network conditions (${networkLabel}, ${blockReward} BTC subsidy + ${market.avgFeesPerBlockBtc.toFixed(3)} BTC fees per block). Does not account for future difficulty growth or ASIC degradation.`} />
         </h2>
         <div className="text-center py-3 mb-3 glass-inner">
           <div className="text-2xl font-bold text-amber-600 font-mono tabular-nums">
-            {formatBtc(monthlyBtcMined, 6)}
+            {formatBtc(monthlyBtc, 6)}
           </div>
           <div className="text-sm text-slate-500 mt-1">BTC / month</div>
         </div>
         <div className="space-y-1 mb-3">
           <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
             <span className="text-slate-500">Yearly BTC Mined</span>
-            <span className="font-mono font-medium text-amber-600 tabular-nums">{formatBtc(monthlyBtcMined * 12, 6)}</span>
+            <span className="font-mono font-medium text-amber-600 tabular-nums">{formatBtc(monthlyBtc * 12, 6)}</span>
           </div>
           {marketHashprice > 0 && (
             <>

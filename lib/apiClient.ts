@@ -8,7 +8,7 @@ import type {
   ForecastParams,
   ForecastResult,
 } from "@/types";
-import type { NetworkData as ServerNetworkData } from "@/lib/networkData";
+import { FALLBACK_MARKET, withDerived, type NetworkData as ServerNetworkData } from "@/lib/networkData";
 
 /**
  * fetch + JSON parse that rejects on non-2xx responses, so error bodies such as a
@@ -210,4 +210,18 @@ export function useNetworkData() {
   }, [fetchData]);
 
   return { data, loading };
+}
+
+const FALLBACK_NETWORK_DATA: NetworkData = (() => {
+  const derived = withDerived(FALLBACK_MARKET);
+  return { ...derived, lastUpdated: derived.asOf };
+})();
+
+/**
+ * The market snapshot to compute with: live /api/network data once it arrives,
+ * otherwise the dated offline estimate (`isLive === false`, label it in the UI).
+ */
+export function useMarket(): NetworkData {
+  const { data } = useNetworkData();
+  return data ?? FALLBACK_NETWORK_DATA;
 }

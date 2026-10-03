@@ -11,7 +11,9 @@ import {
 import { autoSelectTransformer } from '@/lib/transformerData';
 
 // Constants
-const HOURS_PER_MONTH = 730; // average
+/** Average Gregorian month (365.25 / 12). Revenue and electricity use the same month. */
+export const DAYS_PER_MONTH = 30.4375;
+const HOURS_PER_MONTH = DAYS_PER_MONTH * 24; // 730.5
 const WATTS_TO_BTU = 3.412; // BTU/h per Watt
 const VOLTAGE = 220; // Standard industrial voltage
 const SOLAR_PANEL_WATTS = 400;

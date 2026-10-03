@@ -1,10 +1,16 @@
 import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod, MarketSnapshot } from '@/types';
-import { calculateTotalHashRate, calculateMonthlyKwh, calculateEffectiveSolarCoverage, calculateFarmMetrics } from './calculations';
+import {
+  DAYS_PER_MONTH,
+  calculateTotalHashRate,
+  calculateMonthlyKwh,
+  calculateEffectiveSolarCoverage,
+  calculateFarmMetrics,
+} from './calculations';
 import { BLOCKS_PER_DAY, averageSubsidy, subsidyAtHeight } from './bitcoin';
+import { monthlyBtcMined } from './unitEconomics';
 
 const SECONDS_PER_BLOCK = 600;
-const DAYS_PER_MONTH = 30;
-const BLOCKS_PER_MONTH = BLOCKS_PER_DAY * DAYS_PER_MONTH;
+const BLOCKS_PER_MONTH = BLOCKS_PER_DAY * DAYS_PER_MONTH; // 4,383
 
 /**
  * Stock-to-Flow Bitcoin price model
@@ -46,39 +52,25 @@ function getDegradationFactor(monthsElapsed: number, degradationPercent: number)
 }
 
 /**
- * Calculate mining revenue for one month
+ * Mining revenue for one month (see `monthlyBtcMined`): the degraded farm
+ * hashrate at this month's network hashrate and mean subsidy, plus fees.
  */
 function calculateMonthlyRevenue(
   farmHashrateThs: number,
   networkHashrateEh: number,
   blockReward: number,
+  feesPerBlockBtc: number,
   btcPrice: number,
   poolFeePercent: number,
   uptimePercent: number,
   degradationFactor: number
 ): { btcMined: number; revenueUsd: number } {
-  // Effective hashrate after degradation and uptime
-  const effectiveHashrateThs = farmHashrateThs * degradationFactor * (uptimePercent / 100);
-
-  // Convert to same units (EH/s)
-  const effectiveHashrateEh = effectiveHashrateThs / 1e6;
-
-  // Pool share of network
-  const poolShare = effectiveHashrateEh / networkHashrateEh;
-
-  // Monthly blocks mined
-  const monthlyBlocks = BLOCKS_PER_MONTH * poolShare;
-
-  // BTC mined before pool fee
-  const btcMinedGross = monthlyBlocks * blockReward;
-
-  // BTC after pool fee
-  const btcMined = btcMinedGross * (1 - poolFeePercent / 100);
-
-  // Revenue in USD
-  const revenueUsd = btcMined * btcPrice;
-
-  return { btcMined, revenueUsd };
+  const btcMined = monthlyBtcMined(
+    farmHashrateThs * degradationFactor,
+    { networkHashrateEh, blockReward, avgFeesPerBlockBtc: feesPerBlockBtc },
+    { uptimePercent, poolFeePercent },
+  );
+  return { btcMined, revenueUsd: btcMined * btcPrice };
 }
 
 /**
@@ -155,6 +147,7 @@ export function generateForecast(
   let paybackMonths: number | null = null;
 
   const totalCapex = calculateFarmMetrics(config).totalCapex;
+  const feesPerBlockBtc = params.feesPerBlockBtc ?? market.avgFeesPerBlockBtc;
   const monthlyCashFlows: number[] = [];
 
   // BTC price progression: interpolate from starting price to final S2F target
@@ -191,6 +184,7 @@ export function generateForecast(
       farmHashrateThs,
       networkHashrateEh,
       blockReward,
+      feesPerBlockBtc,
       btcPrice,
       config.poolFeePercent,
       config.uptimePercent,

@@ -3,13 +3,10 @@
 import { useMemo } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useFarmStore } from "@/lib/store";
-import { useCalculation, useNetworkData } from "@/lib/apiClient";
+import { useCalculation, useMarket } from "@/lib/apiClient";
+import { monthlyBtcMined } from "@/lib/unitEconomics";
 import { coolingHeatLoadKw } from "@/lib/cooling";
 import { formatNumber, formatUsd } from "@/lib/utils";
-
-const BLOCKS_PER_DAY = 144;
-const CURRENT_NETWORK_HASHRATE_EH = 750;
-const CURRENT_BLOCK_REWARD = 3.125;
 
 interface Warning {
   type: "error" | "warning" | "info";
@@ -18,7 +15,7 @@ interface Warning {
 
 export default function FarmWarnings() {
   const config = useFarmStore((state) => state.config);
-  const { data: networkData } = useNetworkData();
+  const market = useMarket();
   const { data: calcData } = useCalculation(config);
   const airFans = useFarmStore((state) => state.airFanCatalog);
 
@@ -75,16 +72,11 @@ export default function FarmWarnings() {
       }
     }
 
-    // Profitability check with live data
-    const networkHashrateEh = networkData?.networkHashrateEh ?? CURRENT_NETWORK_HASHRATE_EH;
-    const blockReward = networkData?.blockReward ?? CURRENT_BLOCK_REWARD;
-    const btcPriceUsd = networkData?.btcPriceUsd ?? 0;
+    // Profitability check at the current market snapshot
+    const btcPriceUsd = market.btcPriceUsd;
 
     if (btcPriceUsd > 0) {
-      const farmHashrateEh = metrics.totalHashRateThs / 1e6;
-      const poolShare = networkHashrateEh > 0 ? farmHashrateEh / networkHashrateEh : 0;
-      const monthlyBtc = BLOCKS_PER_DAY * 30 * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
-      const monthlyRevenue = monthlyBtc * btcPriceUsd;
+      const monthlyRevenue = monthlyBtcMined(metrics.totalHashRateThs, market, config) * btcPriceUsd;
 
       if (monthlyRevenue > 0 && metrics.monthlyOpex > monthlyRevenue) {
         w.push({
@@ -103,7 +95,7 @@ export default function FarmWarnings() {
     }
 
     return w;
-  }, [config, networkData, calcData, airFans]);
+  }, [config, market, calcData, airFans]);
 
   if (warnings.length === 0) return null;
 

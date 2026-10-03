@@ -194,6 +194,9 @@ export function validateForecastParams(
   if (body.finalBtcPrice !== null && !isFiniteNumber(body.finalBtcPrice)) {
     return fail('params.finalBtcPrice must be a number or null', 'params.finalBtcPrice');
   }
+  if (body.feesPerBlockBtc !== undefined && (!isFiniteNumber(body.feesPerBlockBtc) || body.feesPerBlockBtc < 0)) {
+    return fail('params.feesPerBlockBtc must be a non-negative number when provided', 'params.feesPerBlockBtc');
+  }
   return { ok: true, value: body as unknown as ForecastParams };
 }
 

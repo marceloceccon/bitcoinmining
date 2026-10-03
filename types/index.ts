@@ -215,6 +215,7 @@ export interface ForecastParams {
   discountRatePercent: number; // annual, for NPV/IRR (default 10)
   startingBtcPrice: number; // current market price
   finalBtcPrice: number | null; // null = auto-calculate from S2F; number = user override
+  feesPerBlockBtc?: number; // transaction fees per block, BTC; defaults to the market snapshot's average
 }
 
 export interface ForecastPeriod {

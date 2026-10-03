@@ -4,6 +4,7 @@ import {
   getStockToFlowTarget,
   generateForecast,
 } from '@/lib/forecasting';
+import { hashpriceUsdPerPhDay } from '@/lib/bitcoin';
 import type { FarmConfig, ForecastParams, MarketSnapshot } from '@/types';
 
 // Market state and the clock are injected (never read from constants or the system clock).
@@ -154,6 +155,46 @@ describe('getStockToFlowTarget', () => {
 });
 
 // ════════════════════════════════════════════════════════════════════════
+// REVENUE INVARIANT: engine month 1 ≡ market hashprice (including fees)
+// ════════════════════════════════════════════════════════════════════════
+
+describe('Revenue invariant vs hashprice', () => {
+  it('month-1 revenue = hashprice (incl. fees) × farm PH × 30.4375 × uptime × (1 − pool fee), within 0.5%', () => {
+    const market: MarketSnapshot = { ...MARKET, btcPriceUsd: 84714, networkHashrateEh: 964, avgFeesPerBlockBtc: 0.027 };
+    const config = makeFarmConfig(100);
+    const params = makeParams({
+      months: 12,
+      networkHashrateGrowthPercent: 0,
+      asicDegradationPercent: 0,
+      startingBtcPrice: market.btcPriceUsd,
+      finalBtcPrice: market.btcPriceUsd,
+    });
+    const month1 = generateForecast(config, params, market, NOW).periods[0];
+
+    const farmPh = (100 * S21_PRO.hash_rate_ths) / 1000;
+    const expected =
+      hashpriceUsdPerPhDay(market) * farmPh * 30.4375 * (config.uptimePercent / 100) * (1 - config.poolFeePercent / 100);
+    expect(Math.abs(month1.miningRevenueUsd - expected) / expected).toBeLessThan(0.005);
+  });
+
+  it('transaction fees raise revenue by (subsidy + fees) / subsidy', () => {
+    const config = makeFarmConfig(10);
+    const params = makeParams({ months: 12, networkHashrateGrowthPercent: 0, asicDegradationPercent: 0 });
+    const noFees = generateForecast(config, params, MARKET, NOW).periods[0].miningRevenueUsd;
+    const withFees = generateForecast(config, { ...params, feesPerBlockBtc: 0.05 }, MARKET, NOW).periods[0].miningRevenueUsd;
+    expect(withFees / noFees).toBeCloseTo((3.125 + 0.05) / 3.125, 10);
+  });
+
+  it('feesPerBlockBtc defaults to the snapshot average', () => {
+    const config = makeFarmConfig(10);
+    const params = makeParams({ months: 12 });
+    const fromMarket = generateForecast(config, params, { ...MARKET, avgFeesPerBlockBtc: 0.03 }, NOW);
+    const explicit = generateForecast(config, { ...params, feesPerBlockBtc: 0.03 }, MARKET, NOW);
+    expect(fromMarket.summary.totalBtcMined).toBeCloseTo(explicit.summary.totalBtcMined, 12);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
 // HALVING SCHEDULE
 // ════════════════════════════════════════════════════════════════════════
 
@@ -172,7 +213,7 @@ describe('Halving schedule in forecasts (from block height)', () => {
     const params = makeParams({ months: 36, startingBtcPrice: 100000, finalBtcPrice: 100000 });
     const result = generateForecast(config, params, MARKET, NOW);
 
-    const blocksPerMonth = 144 * 30;
+    const blocksPerMonth = 144 * 30.4375;
     const halvingMonth = Math.ceil((1_050_000 - MARKET.blockHeight) / blocksPerMonth); // 19
     const monthStart = MARKET.blockHeight + (halvingMonth - 1) * blocksPerMonth;
     const before = 1_050_000 - monthStart;
@@ -366,13 +407,13 @@ describe('BTC revenue projections', () => {
     // Network: 750 EH/s (approx after 1 month growth, but growth = 0)
     // Actually month 1 still has growth factor applied: (1+0)^(1/12) = 1
     // Pool share: 0.00234 / 750 = 0.00000312
-    // Monthly blocks: 144 × 30 × 0.00000312 = 0.013478
-    // BTC mined: 0.013478 × 3.125 = 0.04212 BTC (0% fee)
+    // Monthly blocks: 144 × 30.4375 × 0.00000312
+    // BTC mined: monthly blocks × 3.125 (MARKET has 0 fees, 0% pool fee)
     const farmEh = 2340 / 1e6;
     const growthFactor = Math.pow(1, 1 / 12); // 0% growth
     const networkEh = MARKET.networkHashrateEh * growthFactor;
     const share = farmEh / networkEh;
-    const monthlyBlocks = 144 * 30 * share;
+    const monthlyBlocks = 144 * 30.4375 * share;
     const expectedBtc = monthlyBlocks * 3.125;
 
     expect(period1.btcMined).toBeCloseTo(expectedBtc, 6);
@@ -659,7 +700,7 @@ describe('Hashprice calculation', () => {
     const result = generateForecast(config, params, MARKET, NOW);
 
     const farmThs = 2340;
-    const totalDays = 12 * 30;
+    const totalDays = 12 * 30.4375;
     const expected = result.summary.totalRevenue / (farmThs * totalDays);
     expect(result.summary.avgHashpriceUsd).toBeCloseTo(expected, 4);
   });

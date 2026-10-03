@@ -24,7 +24,7 @@ export const GOLDEN_MARKET: MarketSnapshot = {
   networkHashrateEh: 964,
   blockHeight: 969763,
   blockReward: 3.125,
-  avgFeesPerBlockBtc: 0,
+  avgFeesPerBlockBtc: 0.027,
   asOf: '2026-10-03T00:00:00.000Z',
   isLive: false,
   sources: ['golden fixture'],
