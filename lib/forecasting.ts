@@ -1,20 +1,10 @@
-import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod } from '@/types';
+import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod, MarketSnapshot } from '@/types';
 import { calculateTotalHashRate, calculateMonthlyKwh, calculateEffectiveSolarCoverage, calculateFarmMetrics } from './calculations';
+import { BLOCKS_PER_DAY, averageSubsidy, subsidyAtHeight } from './bitcoin';
 
-// Bitcoin network constants
-const BLOCKS_PER_DAY = 144;
 const SECONDS_PER_BLOCK = 600;
-export const CURRENT_NETWORK_HASHRATE_EH = 750; // Exahash/s (approximate 2026)
-const CURRENT_DIFFICULTY = 108e12; // Approximate
-export const CURRENT_BLOCK_REWARD = 3.125; // Post-2024 halving
-
-// Halving schedule (approximate dates)
-const HALVINGS = [
-  { date: new Date('2028-04-01'), reward: 1.5625 },
-  { date: new Date('2032-04-01'), reward: 0.78125 },
-  { date: new Date('2036-04-01'), reward: 0.390625 },
-  { date: new Date('2040-04-01'), reward: 0.1953125 },
-];
+const DAYS_PER_MONTH = 30;
+const BLOCKS_PER_MONTH = BLOCKS_PER_DAY * DAYS_PER_MONTH;
 
 /**
  * Stock-to-Flow Bitcoin price model
@@ -32,13 +22,10 @@ export function calculateStockToFlowPrice(blockReward: number, pessimisticAdjust
 }
 
 /**
- * Compute the S2F target price for a date N months from now.
+ * Compute the S2F target price N months after the snapshot's chain tip.
  */
-export function getStockToFlowTarget(months: number, pessimisticAdjust: number): number {
-  const target = new Date();
-  target.setMonth(target.getMonth() + months);
-  const reward = getBlockReward(target);
-  return calculateStockToFlowPrice(reward, pessimisticAdjust);
+export function getStockToFlowTarget(months: number, pessimisticAdjust: number, tipHeight: number): number {
+  return calculateStockToFlowPrice(subsidyAtHeight(tipHeight + months * BLOCKS_PER_MONTH), pessimisticAdjust);
 }
 
 /**
@@ -48,21 +35,6 @@ function calculateDifficulty(networkHashrateEh: number): number {
   // Difficulty = (hashrate in H/s * seconds per block) / 2^32
   const hashrateHs = networkHashrateEh * 1e18;
   return (hashrateHs * SECONDS_PER_BLOCK) / Math.pow(2, 32);
-}
-
-/**
- * Calculate block reward for a given date
- */
-function getBlockReward(date: Date): number {
-  for (const halving of HALVINGS) {
-    if (date < halving.date) {
-      // Check previous halving
-      const idx = HALVINGS.indexOf(halving);
-      if (idx === 0) return CURRENT_BLOCK_REWARD;
-      return HALVINGS[idx - 1].reward;
-    }
-  }
-  return HALVINGS[HALVINGS.length - 1].reward;
 }
 
 /**
@@ -95,7 +67,7 @@ function calculateMonthlyRevenue(
   const poolShare = effectiveHashrateEh / networkHashrateEh;
 
   // Monthly blocks mined
-  const monthlyBlocks = BLOCKS_PER_DAY * 30 * poolShare;
+  const monthlyBlocks = BLOCKS_PER_MONTH * poolShare;
 
   // BTC mined before pool fee
   const btcMinedGross = monthlyBlocks * blockReward;
@@ -150,13 +122,23 @@ function calculateIrr(monthlyCashFlows: number[], initialInvestment: number): nu
 }
 
 /**
- * Main forecasting engine
+ * Main forecasting engine. Market state and the clock are inputs: the same
+ * (config, params, market, now) always produces the same forecast.
+ *
+ * Halvings come from block height: month m covers heights
+ * [tip + (m−1)·B, tip + m·B) with B = 144 blocks/day × days/month, and its
+ * reward is the mean subsidy over that range.
  */
-export function generateForecast(config: FarmConfig, params: ForecastParams): ForecastResult {
+export function generateForecast(
+  config: FarmConfig,
+  params: ForecastParams,
+  market: MarketSnapshot,
+  now: Date = new Date(),
+): ForecastResult {
   const periods: ForecastPeriod[] = [];
 
   // Initial values
-  const startDate = new Date();
+  const startDate = new Date(now);
   const farmHashrateThs = calculateTotalHashRate(config);
   const monthlyKwh = calculateMonthlyKwh(config);
   const baseElectricityCostPerKwh = config.regional.electricityPriceKwh *
@@ -167,7 +149,7 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
   const effectiveSolarCoverage = calculateEffectiveSolarCoverage(config) / 100;
   const gridKwh = monthlyKwh * (1 - effectiveSolarCoverage);
 
-  let networkHashrateEh = CURRENT_NETWORK_HASHRATE_EH;
+  let networkHashrateEh = market.networkHashrateEh;
   let btcBalance = 0;
   let cumulativeProfitUsd = 0;
   let paybackMonths: number | null = null;
@@ -177,7 +159,8 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
 
   // BTC price progression: interpolate from starting price to final S2F target
   const startPrice = params.startingBtcPrice;
-  const finalPrice = params.finalBtcPrice ?? getStockToFlowTarget(params.months, params.pessimisticAdjustPercent);
+  const finalPrice =
+    params.finalBtcPrice ?? getStockToFlowTarget(params.months, params.pessimisticAdjustPercent, market.blockHeight);
 
   for (let month = 1; month <= params.months; month++) {
     const currentDate = new Date(startDate);
@@ -185,10 +168,13 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
 
     // Update network hashrate (exponential growth)
     const growthFactor = Math.pow(1 + params.networkHashrateGrowthPercent / 100, month / 12);
-    networkHashrateEh = CURRENT_NETWORK_HASHRATE_EH * growthFactor;
+    networkHashrateEh = market.networkHashrateEh * growthFactor;
 
-    // Get block reward (check for halvings)
-    const blockReward = getBlockReward(currentDate);
+    // Mean block subsidy over this month's block heights (halvings by height)
+    const blockReward = averageSubsidy(
+      market.blockHeight + (month - 1) * BLOCKS_PER_MONTH,
+      market.blockHeight + month * BLOCKS_PER_MONTH,
+    );
 
     // Calculate difficulty
     const difficulty = calculateDifficulty(networkHashrateEh);
@@ -293,7 +279,7 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
   const breakEvenBtcPriceWithCapex = totalBtcMined > 0 ? (totalCosts + totalCapex) / totalBtcMined : 0;
 
   // Hashprice: $/TH/day average
-  const totalDays = params.months * 30;
+  const totalDays = params.months * DAYS_PER_MONTH;
   const avgHashpriceUsd = farmHashrateThs > 0 ? totalRevenue / (farmHashrateThs * totalDays) : 0;
 
   return {

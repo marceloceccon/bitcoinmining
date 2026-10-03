@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { FarmConfig } from '@/types';
 import { generateForecast } from '@/lib/forecasting';
+import { getCachedNetworkData, toMarketSnapshot } from '@/lib/networkData';
 import { corsHeaders, handleOptions } from '@/lib/cors';
 import {
   validateFarmConfig,
@@ -189,7 +190,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = generateForecast(configResult.value, paramsResult.value);
+    const market = toMarketSnapshot(await getCachedNetworkData());
+    const result = generateForecast(configResult.value, paramsResult.value, market);
 
     // Serialize Date objects to ISO strings for clean JSON output
     const serialized = {

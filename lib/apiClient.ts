@@ -8,6 +8,7 @@ import type {
   ForecastParams,
   ForecastResult,
 } from "@/types";
+import type { NetworkData as ServerNetworkData } from "@/lib/networkData";
 
 /**
  * fetch + JSON parse that rejects on non-2xx responses, so error bodies such as a
@@ -176,15 +177,8 @@ export function useForecast(config: FarmConfig, params: ForecastParams) {
 
 // ─── Network data hook ─────────────────────────────────────────────────────────
 
-export interface NetworkData {
-  btcPriceUsd: number;
-  networkHashrateEh: number;
-  difficulty: number;
-  blockReward: number;
-  hashpriceUsdPhDay: number;
-  lastUpdated: string;
-  isLive: boolean;
-}
+/** /api/network as JSON (Dates arrive as ISO strings). */
+export type NetworkData = Omit<ServerNetworkData, 'lastUpdated'> & { lastUpdated: string };
 
 export function useNetworkData() {
   const [data, setData] = useState<NetworkData | null>(null);

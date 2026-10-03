@@ -12,6 +12,7 @@ import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { getStockToFlowTarget } from "@/lib/forecasting";
+import { FALLBACK_MARKET } from "@/lib/networkData";
 import { fetchJson, useForecast, useNetworkData } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { FarmConfig, ForecastParams, ForecastPeriod, ForecastResult } from "@/types";
@@ -145,14 +146,16 @@ export default function ForecastCharts() {
     }
   }, [networkData?.btcPriceUsd]);
 
+  const tipHeight = networkData?.blockHeight ?? FALLBACK_MARKET.blockHeight;
+
   // Auto-calculate S2F prices
   const s2fFinalPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, 0)),
-    [params.months]
+    () => Math.round(getStockToFlowTarget(params.months, 0, tipHeight)),
+    [params.months, tipHeight]
   );
   const s2fPessimisticPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, params.pessimisticAdjustPercent)),
-    [params.months, params.pessimisticAdjustPercent]
+    () => Math.round(getStockToFlowTarget(params.months, params.pessimisticAdjustPercent, tipHeight)),
+    [params.months, params.pessimisticAdjustPercent, tipHeight]
   );
 
   const effectiveFinalPrice = useMemo(() => {

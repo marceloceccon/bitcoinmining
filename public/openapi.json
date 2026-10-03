@@ -1509,6 +1509,22 @@
           "degradation_year3plus"
         ]
       },
+      "NextHalving": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "number",
+            "description": "* ISO 8601 estimate at 10 minutes per block from the current tip"
+          },
+          "estimatedDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "height",
+          "estimatedDate"
+        ]
+      },
       "NetworkDataResponse": {
         "type": "object",
         "properties": {
@@ -1518,36 +1534,77 @@
           },
           "networkHashrateEh": {
             "type": "number",
+            "description": "* Chain tip height"
+          },
+          "blockHeight": {
+            "type": "number",
+            "description": "* Block subsidy at the tip, BTC (50 / 2^floor(height / 210000))"
+          },
+          "blockReward": {
+            "type": "number",
+            "description": "* Average transaction fees per block over the last 144 blocks, BTC"
+          },
+          "avgFeesPerBlockBtc": {
+            "type": "number",
             "description": "* Current mining difficulty"
           },
           "difficulty": {
             "type": "number",
-            "description": "* Current block subsidy reward in BTC (e.g. 3.125 after 2024 halving)"
-          },
-          "blockReward": {
-            "type": "number",
-            "description": "* Mining hashprice in USD per petahash per day ($/PH/day)"
+            "description": "* Hashprice in USD per petahash per day ($/PH/day), including transaction fees"
           },
           "hashpriceUsdPhDay": {
             "type": "number",
-            "description": "* ISO 8601 timestamp of when this data was last fetched"
+            "description": "* Next halving height and estimated date"
+          },
+          "nextHalving": {
+            "type": "object",
+            "properties": {
+              "height": {
+                "type": "number",
+                "description": "* ISO 8601 estimate at 10 minutes per block from the current tip"
+              },
+              "estimatedDate": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "height",
+              "estimatedDate"
+            ],
+            "description": "* ISO 8601 timestamp of when this snapshot was taken"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "* Same as asOf (kept for backward compatibility)"
           },
           "lastUpdated": {
             "type": "string",
-            "description": "* Whether the data is from a live API call (true) or fallback estimates (false)"
+            "description": "* true when price, hashrate and tip height all came from live sources; false = offline estimate"
           },
           "isLive": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "* Where each value came from"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "btcPriceUsd",
           "networkHashrateEh",
-          "difficulty",
+          "blockHeight",
           "blockReward",
+          "avgFeesPerBlockBtc",
+          "difficulty",
           "hashpriceUsdPhDay",
+          "nextHalving",
+          "asOf",
           "lastUpdated",
-          "isLive"
+          "isLive",
+          "sources"
         ]
       },
       "CatalogUpdate": {
@@ -1870,7 +1927,7 @@
       "get": {
         "operationId": "get-network",
         "summary": "Get live Bitcoin network data",
-        "description": "Returns current Bitcoin network statistics including BTC price (USD), total network hashrate (EH/s), mining difficulty, block reward, and hashprice ($/PH/day). Data is sourced from mempool.space and CoinGecko with a 60-second server-side cache. Falls back to estimated values when APIs are unreachable.",
+        "description": "Returns the live Bitcoin market snapshot used by every calculation: BTC price (USD), network hashrate (EH/s), chain tip height, block subsidy, average fees per block, difficulty, hashprice including fees ($/PH/day) and the next halving estimate. Sourced from mempool.space (CoinGecko as a price backup) with a 60-second server-side cache. When sources are unreachable, values fall back to a dated offline estimate and isLive is false.",
         "tags": [
           "Network"
         ],

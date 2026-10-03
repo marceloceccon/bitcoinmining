@@ -185,6 +185,25 @@ export interface FarmMetrics {
   maintenanceLaborOpex: number;
 }
 
+// Market state — an input to the engine, never a constant.
+// One snapshot flows from lib/networkData.ts into the UI, the REST API, MCP and tests.
+export interface MarketSnapshot {
+  btcPriceUsd: number;
+  networkHashrateEh: number;
+  /** Chain tip height the snapshot was taken at */
+  blockHeight: number;
+  /** Block subsidy at `blockHeight`, BTC (derived: 50 / 2^floor(height / 210,000)) */
+  blockReward: number;
+  /** Average transaction fees per block over the last ~144 blocks, BTC */
+  avgFeesPerBlockBtc: number;
+  /** ISO 8601 time the snapshot was taken */
+  asOf: string;
+  /** false = offline estimate (fallback values), not live data */
+  isLive: boolean;
+  /** Where each value came from, human-readable */
+  sources: string[];
+}
+
 // Forecasting Types
 export interface ForecastParams {
   months: 12 | 24 | 36 | 48 | 72;

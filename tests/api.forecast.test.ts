@@ -1,4 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// Never hit the network from unit tests: the route gets the offline snapshot.
+vi.mock('@/lib/networkData', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('@/lib/networkData')>();
+  return { ...mod, getCachedNetworkData: async () => mod.withDerived(mod.FALLBACK_MARKET) };
+});
 import { POST, OPTIONS } from '@/app/api/forecast/route';
 import { MAX_REQUEST_BYTES } from '@/lib/validateFarmConfig';
 

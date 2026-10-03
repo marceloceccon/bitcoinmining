@@ -9,12 +9,26 @@ import minersJson from '@/data/miners.json';
 import dryCoolersJson from '@/data/dryCoolers.json';
 import airFansJson from '@/data/airFans.json';
 import { useFarmStore } from '@/lib/store';
-import type { AirFanModel, DryCoolerModel, FarmConfig, ForecastParams, InfrastructureType, Miner } from '@/types';
+import type { AirFanModel, DryCoolerModel, FarmConfig, ForecastParams, InfrastructureType, MarketSnapshot, Miner } from '@/types';
 
 export const GOLDEN_NOW = new Date('2026-10-03T00:00:00Z');
 
-/** The only market input the pre-P1 engine accepts. */
 export const GOLDEN_BTC_PRICE = 84700;
+
+/**
+ * Frozen market snapshot (Appendix C, 2026-10-03). Deliberately not FALLBACK_MARKET,
+ * which gets refreshed over time; changing this is an explained fixture delta.
+ */
+export const GOLDEN_MARKET: MarketSnapshot = {
+  btcPriceUsd: GOLDEN_BTC_PRICE,
+  networkHashrateEh: 964,
+  blockHeight: 969763,
+  blockReward: 3.125,
+  avgFeesPerBlockBtc: 0,
+  asOf: '2026-10-03T00:00:00.000Z',
+  isLive: false,
+  sources: ['golden fixture'],
+};
 
 interface GoldenPreset {
   slug: string;
