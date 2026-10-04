@@ -3,7 +3,6 @@
 import { Sun, Settings, Calculator } from "lucide-react";
 import { useState, useMemo } from "react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
@@ -38,8 +37,8 @@ export default function EnergyTab() {
     <div className="space-y-6">
       {/* Regional Settings */}
       <Card>
-        <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Settings className="h-5 w-5 text-slate-600" />
+        <h2 className="text-xl font-bold text-fg mb-4 flex items-center gap-2">
+          <Settings className="h-5 w-5 text-fg-2" />
           Regional Settings
         </h2>
 
@@ -62,7 +61,7 @@ export default function EnergyTab() {
           />
           <button
             onClick={() => setShowCalc(!showCalc)}
-            className="-mt-1 text-xs text-blueprint-deep hover:underline flex items-center gap-1"
+            className="-mt-1 text-xs text-fg hover:underline flex items-center gap-1"
           >
             <Calculator className="h-3 w-3" />
             {showCalc ? "Hide calculator" : "Don't know your $/kWh? Calculate from your bill"}
@@ -70,12 +69,12 @@ export default function EnergyTab() {
 
           {/* Bill-based calculator */}
           {showCalc && (
-            <div className="p-4 glass-info rounded-2xl space-y-3">
-              <p className="text-sm font-medium text-blue-800">Electricity Rate Calculator</p>
-              <p className="text-xs text-blue-600">Enter your monthly electricity bill and kWh usage to calculate your rate.</p>
+            <div className="p-4 note-info rounded space-y-3">
+              <p className="text-sm font-medium text-cool">Electricity Rate Calculator</p>
+              <p className="text-xs text-cool">Enter your monthly electricity bill and kWh usage to calculate your rate.</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Monthly Bill ($)</label>
+                  <label className="text-xs font-medium text-fg-2 mb-1 block">Monthly Bill ($)</label>
                   <Input
                     type="number"
                     step="1"
@@ -86,7 +85,7 @@ export default function EnergyTab() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 mb-1 block">Monthly Usage (kWh)</label>
+                  <label className="text-xs font-medium text-fg-2 mb-1 block">Monthly Usage (kWh)</label>
                   <Input
                     type="number"
                     step="1"
@@ -98,10 +97,10 @@ export default function EnergyTab() {
                 </div>
               </div>
               {billAmount && billKwh && parseFloat(billKwh) > 0 && (
-                <div className="flex items-center justify-between pt-2 border-t border-blue-200/50">
+                <div className="flex items-center justify-between pt-2 border-t border-cool/30">
                   <div>
-                    <span className="text-sm text-blue-800">Your rate: </span>
-                    <span className="text-sm font-bold text-blue-900 font-mono">
+                    <span className="text-sm text-cool">Your rate: </span>
+                    <span className="text-sm font-bold text-cool font-mono">
                       ${(parseFloat(billAmount) / parseFloat(billKwh)).toFixed(4)}/kWh
                     </span>
                   </div>
@@ -113,7 +112,7 @@ export default function EnergyTab() {
                       updateRegional({ electricityPriceKwh: clamped, region: "CUSTOM" });
                       setShowCalc(false);
                     }}
-                    className="px-3 py-1.5 text-xs font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 transition-all shadow-sm"
+                    className="px-3 py-1.5 text-xs font-semibold bg-fg text-bg rounded hover:bg-fg/85 transition-all"
                   >
                     Apply Rate
                   </button>
@@ -154,8 +153,8 @@ export default function EnergyTab() {
 
       {/* Solar Configuration */}
       <Card>
-        <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Sun className="h-5 w-5 text-amber-500" />
+        <h2 className="text-xl font-bold text-fg mb-4 flex items-center gap-2">
+          <Sun className="h-5 w-5 text-warn" />
           Solar Power
         </h2>
 
@@ -189,26 +188,26 @@ export default function EnergyTab() {
                 }
                 tooltip="How much of the surplus solar energy sent back to the grid is credited by your utility. At 100%, there is no injection tax. Lower values mean you lose some credit for excess energy."
               />
-              <p className="text-xs text-slate-500 -mt-2">
+              <p className="text-xs text-muted -mt-2">
                 How much of injected solar energy is credited by the grid. Lower = higher injection tax.
               </p>
 
               {/* Commission in CAPEX toggle */}
-              <label className="flex items-start gap-3 p-3 glass-inner rounded-2xl cursor-pointer select-none">
+              <label className="flex items-start gap-3 p-3 inset rounded cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={config.solar.includeCommissioningInCapex}
                   onChange={(e) =>
                     updateSolar({ includeCommissioningInCapex: e.target.checked })
                   }
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blueprint-deep focus:ring-blueprint-deep cursor-pointer"
+                  className="mt-0.5 h-4 w-4 rounded border-line text-fg focus:ring-fg cursor-pointer"
                 />
                 <div className="flex-1">
-                  <div className="flex items-center gap-1 text-sm font-medium text-slate-700">
+                  <div className="flex items-center gap-1 text-sm font-medium text-fg-2">
                     Include Solar Farm Commissioning on Capex
                     <Tooltip content="Enable this if you are commissioning the solar farm as part of the mining farm build. When on, the solar installation cost is added to the project's total CAPEX alongside miners, racks, and cabling. When off, the solar farm is treated as a separate project and only its monthly maintenance affects your mining farm's OPEX." />
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-muted mt-0.5">
                     Rolls the full solar build estimate into the mining farm&apos;s total CAPEX.
                   </p>
                 </div>
@@ -216,7 +215,7 @@ export default function EnergyTab() {
 
               {/* Installation Cost */}
               <div>
-                <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+                <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                   Installation Cost ($/kW)
                   <Tooltip content="The upfront capital cost per kilowatt of solar capacity installed. Includes panels, inverters, mounting, and labor. Typical range for commercial installations is $800–$1,500/kW." />
                 </label>
@@ -230,7 +229,7 @@ export default function EnergyTab() {
                     })
                   }
                 />
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-muted mt-1">
                   Typical range: $800-$1,500/kW
                 </p>
               </div>
@@ -252,39 +251,39 @@ export default function EnergyTab() {
               />
 
               {/* Solar Stats Info Box */}
-              <div className="p-4 glass-warning rounded-2xl">
+              <div className="p-4 note-warn rounded">
                 <div className="text-sm space-y-2">
-                  <p className="font-semibold text-amber-600">
+                  <p className="font-semibold text-warn">
                     Solar reduces grid electricity by{" "}
                     {solarStats ? solarStats.effectiveCoverage.toFixed(1) : config.solar.coveragePercent}%
                     {config.solar.injectionRatePercent < 100 && (
-                      <span className="text-amber-500 font-normal">
+                      <span className="text-warn font-normal">
                         {" "}(nominal {config.solar.coveragePercent}%, after injection tax)
                       </span>
                     )}
                   </p>
                   {solarStats && (
                     <>
-                      <p className="text-slate-500">
+                      <p className="text-muted">
                         • Approximately{" "}
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-fg">
                           {formatNumber(solarStats.panelCount)} solar panels
                         </span>{" "}
                         (400W each) — {formatNumber(solarStats.installedKw)} kW installed
                       </p>
-                      <p className="text-slate-500">
+                      <p className="text-muted">
                         • Solar Farm area:{" "}
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-fg">
                           {formatNumber(solarStats.areaSqm)} m²
                         </span>{" "}
                         ({formatNumber(solarStats.areaSqft)} ft²)
                       </p>
                     </>
                   )}
-                  <p className="text-slate-500">
+                  <p className="text-muted">
                     • 10-year straight-line depreciation
                   </p>
-                  <p className="text-slate-500">
+                  <p className="text-muted">
                     • Daytime injection + grid fallback
                   </p>
                 </div>

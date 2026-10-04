@@ -99,12 +99,11 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 /**
- * Calculate ROI color based on value
+ * Text color class for an ROI figure, from the design tokens.
  */
 export function getRoiColor(roi: number): string {
-  if (roi < 0) return "text-red-500";
-  if (roi < 50) return "text-yellow-500";
-  if (roi < 100) return "text-orange-500";
-  return "text-green-500";
+  if (roi < 0) return "text-bad";
+  if (roi < 100) return "text-warn";
+  return "text-good";
 }
 

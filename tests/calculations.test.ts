@@ -201,10 +201,10 @@ describe('calculateMonthlyKwh', () => {
     expect(calculateMonthlyKwh(makeFarmConfig())).toBe(0);
   });
 
-  it('10 × S21 Pro → kW × 730 hours/month', () => {
+  it('10 × S21 Pro → kW × 730.5 hours/month (30.4375 days)', () => {
     const config = withMiners(S21_PRO, 10);
     const expectedKw = 36.855;
-    expect(calculateMonthlyKwh(config)).toBeCloseTo(expectedKw * 730, 0);
+    expect(calculateMonthlyKwh(config)).toBeCloseTo(expectedKw * 730.5, 0);
   });
 });
 
@@ -792,8 +792,8 @@ describe('calculateFarmMetrics', () => {
     // Power: 100 × 3510 × 1.05 / 1000 = 368.55 kW
     expect(m.totalPowerKw).toBeCloseTo(368.55, 1);
 
-    // Energy: 368.55 × 730 = 269,041.5 kWh
-    expect(m.monthlyKwh).toBeCloseTo(368.55 * 730, 0);
+    // Energy: 368.55 × 730.5 = 269,225.8 kWh
+    expect(m.monthlyKwh).toBeCloseTo(368.55 * 730.5, 0);
 
     // Heat: 368,550 W × 3.412 = 1,257,447.6 BTU/h
     expect(m.heatOutputBtuPerHour).toBeCloseTo(368550 * 3.412, 0);

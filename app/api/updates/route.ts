@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getUpdates } from '@/lib/serverData';
+import { getUpdates } from '@/lib/catalog';
 import { corsHeaders, handleOptions } from '@/lib/cors';
 import { serverCache, CACHE_KEYS, CACHE_TTL } from '@/lib/serverCache';
 

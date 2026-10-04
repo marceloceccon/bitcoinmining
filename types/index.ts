@@ -62,6 +62,13 @@ export interface TemperatureConfig {
 }
 
 // Miner Types
+export type MinerCooling = "air" | "hydro" | "immersion";
+/** current = shipping now · legacy = pre-2023 or superseded · announced = not yet shipping (hidden by default) */
+export type MinerStatus = "current" | "legacy" | "announced";
+export type MinerSegment = "industrial" | "home";
+/** How price_usd was obtained: new (shop/reseller), used (used-market listings), index ($/TH index band × TH/s) */
+export type PriceBasis = "new" | "used" | "index";
+
 export interface Miner {
   id: string;
   name: string;
@@ -72,12 +79,28 @@ export interface Miner {
   price_usd: number;
   efficiency_jth: number;
   release_year: number;
+  /** Derived: cooling !== "air" (kept for API backward compatibility) */
   watercooled: boolean;
   degradation_year1: number;
   degradation_year2: number;
   degradation_year3plus: number;
   notes?: string;
+  // Schema v2 (additive). Always present in data/miners.json; optional on client-sent miners.
+  cooling?: MinerCooling;
+  status?: MinerStatus;
+  segment?: MinerSegment;
+  price_basis?: PriceBasis;
+  /** ISO date the price was observed */
+  price_as_of?: string;
+  /** URL, or the index band used */
+  price_source?: string;
+  /** URL of the manufacturer/spec page */
+  spec_source?: string;
 }
+
+/** A row of data/miners.json: every schema-v2 field is present. */
+export type CatalogMiner = Miner & Required<Pick<Miner,
+  "cooling" | "status" | "segment" | "price_basis" | "price_as_of" | "price_source" | "spec_source">>;
 
 // Application Types
 export interface FarmMiner {
@@ -185,17 +208,40 @@ export interface FarmMetrics {
   maintenanceLaborOpex: number;
 }
 
+// Market state — an input to the engine, never a constant.
+// One snapshot flows from lib/networkData.ts into the UI, the REST API, MCP and tests.
+export interface MarketSnapshot {
+  btcPriceUsd: number;
+  networkHashrateEh: number;
+  /** Chain tip height the snapshot was taken at */
+  blockHeight: number;
+  /** Block subsidy at `blockHeight`, BTC (derived: 50 / 2^floor(height / 210,000)) */
+  blockReward: number;
+  /** Average transaction fees per block over the last ~144 blocks, BTC */
+  avgFeesPerBlockBtc: number;
+  /** ISO 8601 time the snapshot was taken */
+  asOf: string;
+  /** false = offline estimate (fallback values), not live data */
+  isLive: boolean;
+  /** Where each value came from, human-readable */
+  sources: string[];
+}
+
 // Forecasting Types
+export type BtcPriceModel = "flat" | "growth" | "target";
+
 export interface ForecastParams {
   months: 12 | 24 | 36 | 48 | 72;
   revenueMode: "sell_all" | "hold_all" | "sell_opex";
-  btcPriceModel: "fixed" | "stock_to_flow" | "stock_to_flow_pessimistic" | "custom";
-  pessimisticAdjustPercent: number; // -10 to -50
+  /** Price scenario (a choice, not a prediction): flat, compound annual growth, or straight line to a target */
+  btcPriceModel: BtcPriceModel;
+  annualGrowthPercent?: number; // "growth": e.g. 30 = +30%/yr, -30 = -30%/yr
+  finalBtcPrice?: number | null; // "target": price at the last month
+  startingBtcPrice?: number; // override; defaults to the market snapshot price
   networkHashrateGrowthPercent: number; // annual
   asicDegradationPercent: number; // annual, 5-10%
   discountRatePercent: number; // annual, for NPV/IRR (default 10)
-  startingBtcPrice: number; // current market price
-  finalBtcPrice: number | null; // null = auto-calculate from S2F; number = user override
+  feesPerBlockBtc?: number; // transaction fees per block, BTC; defaults to the market snapshot's average
 }
 
 export interface ForecastPeriod {
@@ -216,9 +262,21 @@ export interface ForecastPeriod {
   roi: number;
 }
 
+/** Exactly what a forecast assumed, echoed so API/MCP consumers can see it. */
+export interface ForecastAssumptions {
+  market: MarketSnapshot;
+  startingBtcPrice: number;
+  feesPerBlockBtc: number;
+  priceScenario: string;
+  daysPerMonth: number;
+  avgBlockMinutes: number;
+  nextHalving: { height: number; estimatedDate: string };
+}
+
 export interface ForecastResult {
   periods: ForecastPeriod[];
   totalCapex: number;
+  assumptions: ForecastAssumptions;
   summary: {
     totalRevenue: number;
     totalCosts: number;
@@ -226,7 +284,7 @@ export interface ForecastResult {
     finalBtcBalance: number;
     roiPercent: number;
     paybackMonths: number | null;
-    irr: number;
+    irr: number | null; // annual %, null when no rate repays the CAPEX
     npv: number;
     breakEvenBtcPrice: number;
     breakEvenBtcPriceWithCapex: number;

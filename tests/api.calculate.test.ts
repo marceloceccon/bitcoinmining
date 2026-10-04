@@ -1,5 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { POST, OPTIONS } from '@/app/api/calculate/route';
+import { FALLBACK_MARKET } from '@/lib/networkData';
+import { serverCache } from '@/lib/serverCache';
+
+// Never hit the network from unit tests: every upstream fails, so the route
+// computes with the dated offline snapshot (FALLBACK_MARKET).
+const fetchSpy = vi.fn(async () => new Response('offline', { status: 503 }));
+beforeEach(() => {
+  vi.stubGlobal('fetch', fetchSpy);
+  fetchSpy.mockClear();
+  serverCache.clear();
+});
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 import { MAX_REQUEST_BYTES, MAX_MINERS_ENTRIES } from '@/lib/validateFarmConfig';
 
 // ─── Fixture helpers ─────────────────────────────────────────────────
@@ -214,5 +228,45 @@ describe('POST /api/calculate — adversarial inputs', () => {
     const response = await POST(postRequest('{not json'));
     const json = await response.json();
     expect(JSON.stringify(json)).not.toMatch(/at \w+\./); // no stack frames
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Market snapshot: filled by the server, overridable, echoed back
+// ════════════════════════════════════════════════════════════════════════
+
+describe('POST /api/calculate — market assumptions', () => {
+  it('fills market inputs from the server snapshot and echoes them with spot revenue', async () => {
+    const response = await POST(postRequest(farmConfig()));
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json.assumptions.market.btcPriceUsd).toBe(FALLBACK_MARKET.btcPriceUsd);
+    expect(json.assumptions.market.networkHashrateEh).toBe(FALLBACK_MARKET.networkHashrateEh);
+    expect(json.revenue.monthlyOpexUsd).toBeCloseTo(json.metrics.monthlyOpex, 6);
+    expect(json.revenue.monthlyRevenueUsd).toBeCloseTo(json.revenue.monthlyBtc * FALLBACK_MARKET.btcPriceUsd, 6);
+    expect(json.revenue.monthlyProfitUsd).toBeCloseTo(json.revenue.monthlyRevenueUsd - json.revenue.monthlyOpexUsd, 6);
+  });
+
+  it('a fully pinned market makes no snapshot request and is marked as an override', async () => {
+    const market = { btcPriceUsd: 100000, networkHashrateEh: 1000, blockHeight: 1_050_000, avgFeesPerBlockBtc: 0 };
+    const response = await POST(postRequest({ ...farmConfig(), market }));
+    const json = await response.json();
+    expect(response.status).toBe(200);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(json.assumptions.market).toMatchObject({ ...market, blockReward: 1.5625, isLive: false });
+    expect(json.assumptions.market.sources).toContain('price: request override');
+  });
+
+  it('a partial override keeps the other values from the snapshot', async () => {
+    const response = await POST(postRequest({ ...farmConfig(), market: { btcPriceUsd: 50000 } }));
+    const json = await response.json();
+    expect(json.assumptions.market.btcPriceUsd).toBe(50000);
+    expect(json.assumptions.market.networkHashrateEh).toBe(FALLBACK_MARKET.networkHashrateEh);
+  });
+
+  it.each([{ btcPriceUsd: -1 }, { blockHeight: 1.5 }, 'not-an-object'])('rejects an invalid market override (%p)', async (market) => {
+    const response = await POST(postRequest({ ...farmConfig(), market }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).field).toMatch(/^market/);
   });
 });

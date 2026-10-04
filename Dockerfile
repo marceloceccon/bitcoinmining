@@ -2,18 +2,20 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+RUN corepack enable pnpm
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # ── Stage 2: Build the application ────────────────────────────────────
 FROM node:22-alpine AS builder
 WORKDIR /app
+RUN corepack enable pnpm
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN pnpm build
 
 # ── Stage 3: Production image ─────────────────────────────────────────
 FROM node:22-alpine AS runner

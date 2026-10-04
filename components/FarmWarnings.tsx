@@ -3,12 +3,11 @@
 import { useMemo } from "react";
 import { AlertTriangle, Info } from "lucide-react";
 import { useFarmStore } from "@/lib/store";
-import { useCalculation, useNetworkData, useAirFans } from "@/lib/apiClient";
+import { useCalculation, useMarket } from "@/lib/apiClient";
+import { monthlyBtcMined } from "@/lib/unitEconomics";
+import { coolingHeatLoadKw } from "@/lib/cooling";
+import { calculateMonthlyOpexBreakdown } from "@/lib/calculations";
 import { formatNumber, formatUsd } from "@/lib/utils";
-
-const BLOCKS_PER_DAY = 144;
-const CURRENT_NETWORK_HASHRATE_EH = 750;
-const CURRENT_BLOCK_REWARD = 3.125;
 
 interface Warning {
   type: "error" | "warning" | "info";
@@ -17,15 +16,15 @@ interface Warning {
 
 export default function FarmWarnings() {
   const config = useFarmStore((state) => state.config);
-  const { data: networkData } = useNetworkData();
+  const market = useMarket();
   const { data: calcData } = useCalculation(config);
-  const { airFans } = useAirFans();
+  const airFans = useFarmStore((state) => state.airFanCatalog);
 
   const warnings = useMemo(() => {
     const w: Warning[] = [];
     if (config.miners.length === 0 || !calcData) return w;
 
-    const { metrics, ventilation, totalPowerKw } = calcData;
+    const { metrics, ventilation } = calcData;
     const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
     const isHydro = config.miners.some(({ miner }) => miner.watercooled);
     const isAir = config.miners.some(({ miner }) => !miner.watercooled);
@@ -36,7 +35,8 @@ export default function FarmWarnings() {
         w.push({ type: "error", message: "Water-cooled miners detected but no dry coolers configured. Go to the Thermal tab." });
       } else {
         const effectiveCapacity = calcData.effectiveDryCoolerCapacityKw;
-        const ratio = effectiveCapacity / totalPowerKw;
+        const hydroHeatKw = coolingHeatLoadKw(config, "hydro");
+        const ratio = effectiveCapacity / hydroHeatKw;
         const derating = calcData.dryCoolerDeratingFactor;
         const deratingNote = derating < 1
           ? ` (derated to ${(derating * 100).toFixed(0)}% at ${calcData.climate.maxTempC}°C ambient)`
@@ -44,7 +44,7 @@ export default function FarmWarnings() {
         if (ratio < 1) {
           w.push({
             type: "error",
-            message: `Effective dry cooler capacity (${formatNumber(effectiveCapacity, 1)} kW${deratingNote}) is ${((1 - ratio) * 100).toFixed(0)}% below your heat load (${formatNumber(totalPowerKw, 1)} kW).`,
+            message: `Effective dry cooler capacity (${formatNumber(effectiveCapacity, 1)} kW${deratingNote}) is ${((1 - ratio) * 100).toFixed(0)}% below your hydro heat load (${formatNumber(hydroHeatKw, 1)} kW).`,
           });
         } else if (ratio > 1.5) {
           w.push({
@@ -73,21 +73,24 @@ export default function FarmWarnings() {
       }
     }
 
-    // Profitability check with live data
-    const networkHashrateEh = networkData?.networkHashrateEh ?? CURRENT_NETWORK_HASHRATE_EH;
-    const blockReward = networkData?.blockReward ?? CURRENT_BLOCK_REWARD;
-    const btcPriceUsd = networkData?.btcPriceUsd ?? 0;
-
+    // Profitability at the current market: informative, not an error. Red is
+    // reserved for real misconfigurations (e.g. undersized cooling).
+    const btcPriceUsd = market.btcPriceUsd;
     if (btcPriceUsd > 0) {
-      const farmHashrateEh = metrics.totalHashRateThs / 1e6;
-      const poolShare = networkHashrateEh > 0 ? farmHashrateEh / networkHashrateEh : 0;
-      const monthlyBtc = BLOCKS_PER_DAY * 30 * poolShare * blockReward * (1 - config.poolFeePercent / 100) * (config.uptimePercent / 100);
-      const monthlyRevenue = monthlyBtc * btcPriceUsd;
-
-      if (monthlyRevenue > 0 && metrics.monthlyOpex > monthlyRevenue) {
+      const monthlyRevenue = monthlyBtcMined(metrics.totalHashRateThs, market, config) * btcPriceUsd;
+      const opex = calculateMonthlyOpexBreakdown(config, metrics.totalCapex);
+      if (monthlyRevenue > 0 && opex.total > monthlyRevenue) {
+        // Electricity cost is linear in the power price, so solve revenue = OPEX for $/kWh.
+        const otherOpex = opex.total - opex.electricity;
+        const priceKwh = config.regional.electricityPriceKwh;
+        const breakEvenKwh = opex.electricity > 0 ? (priceKwh * (monthlyRevenue - otherOpex)) / opex.electricity : 0;
+        const priceLabel = `$${priceKwh.toFixed(3)}/kWh`;
         w.push({
-          type: "error",
-          message: `Monthly OPEX (${formatUsd(metrics.monthlyOpex)}) exceeds mining revenue (${formatUsd(monthlyRevenue)}). This farm loses money at current BTC price.`,
+          type: "info",
+          message:
+            breakEvenKwh > 0
+              ? `At ${priceLabel} this farm loses ${formatUsd(opex.total - monthlyRevenue)}/month at today's BTC price (${formatUsd(btcPriceUsd)}). Break-even power price: $${breakEvenKwh.toFixed(3)}/kWh.`
+              : `At today's BTC price (${formatUsd(btcPriceUsd)}) this farm's non-electricity costs alone exceed its revenue, so it loses money even with free power.`,
         });
       }
     }
@@ -101,7 +104,7 @@ export default function FarmWarnings() {
     }
 
     return w;
-  }, [config, networkData, calcData, airFans]);
+  }, [config, market, calcData, airFans]);
 
   if (warnings.length === 0) return null;
 
@@ -110,12 +113,12 @@ export default function FarmWarnings() {
       {warnings.map((w, i) => (
         <div
           key={i}
-          className={`flex items-start gap-2.5 px-4 py-3 rounded-2xl text-sm backdrop-blur-sm ${
+          className={`flex items-start gap-2.5 px-4 py-3 rounded text-sm  ${
             w.type === "error"
-              ? "glass-danger text-red-800"
+              ? "note-bad text-bad"
               : w.type === "warning"
-                ? "glass-warning text-amber-800"
-                : "glass-info text-blue-800"
+                ? "note-warn text-warn"
+                : "note-info text-cool"
           }`}
         >
           {w.type === "info" ? (

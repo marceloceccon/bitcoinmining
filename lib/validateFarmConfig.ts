@@ -1,4 +1,4 @@
-import type { FarmConfig, ForecastParams } from '@/types';
+import type { FarmConfig, ForecastParams, MarketSnapshot } from '@/types';
 
 /**
  * Runtime validators for the public API request bodies.
@@ -22,7 +22,7 @@ export const MAX_REQUEST_BYTES = 256 * 1024; // 256 KB
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
-  | { ok: false; error: string; field?: string };
+  | { ok: false; error: string; field?: string; validValues?: readonly string[] };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -32,8 +32,8 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function fail(error: string, field?: string): ValidationResult<never> {
-  return { ok: false, error, field };
+function fail(error: string, field?: string, validValues?: readonly string[]): ValidationResult<never> {
+  return validValues ? { ok: false, error, field, validValues } : { ok: false, error, field };
 }
 
 function validateMiner(raw: unknown, index: number): ValidationResult<true> {
@@ -67,8 +67,31 @@ function validateMiner(raw: unknown, index: number): ValidationResult<true> {
       );
     }
   }
+  // Schema v2 fields are optional on client-sent miners, but must be valid when present.
+  for (const [key, allowed] of OPTIONAL_MINER_ENUMS) {
+    const v = (miner as Record<string, unknown>)[key];
+    if (v !== undefined && (typeof v !== 'string' || !allowed.includes(v))) {
+      return fail(
+        `miners[${index}].miner.${key} must be one of ${allowed.join(', ')}`,
+        `miners[${index}].miner.${key}`,
+      );
+    }
+  }
+  for (const key of ['price_as_of', 'price_source', 'spec_source'] as const) {
+    const v = (miner as Record<string, unknown>)[key];
+    if (v !== undefined && typeof v !== 'string') {
+      return fail(`miners[${index}].miner.${key} must be a string`, `miners[${index}].miner.${key}`);
+    }
+  }
   return { ok: true, value: true };
 }
+
+const OPTIONAL_MINER_ENUMS: ReadonlyArray<[string, readonly string[]]> = [
+  ['cooling', ['air', 'hydro', 'immersion']],
+  ['status', ['current', 'legacy', 'announced']],
+  ['segment', ['industrial', 'home']],
+  ['price_basis', ['new', 'used', 'index']],
+];
 
 const NESTED_OBJECT_FIELDS = [
   'electrical',
@@ -148,15 +171,13 @@ export function validateFarmConfig(body: unknown): ValidationResult<FarmConfig> 
 
 const FORECAST_MONTHS = new Set([12, 24, 36, 48, 72]);
 const REVENUE_MODES = new Set(['sell_all', 'hold_all', 'sell_opex']);
-const PRICE_MODELS = new Set([
-  'fixed',
-  'stock_to_flow',
-  'stock_to_flow_pessimistic',
-  'custom',
-]);
+export const PRICE_MODELS = ['flat', 'growth', 'target'] as const;
 
 /**
  * Validates the params half of a /api/forecast request body.
+ *
+ * Every ForecastParams field is listed here; keep it in sync with the type and
+ * the ForecastParamsBody JSDoc in app/api/forecast/route.ts (which feeds OpenAPI).
  */
 export function validateForecastParams(
   body: unknown,
@@ -173,28 +194,70 @@ export function validateForecastParams(
       'params.revenueMode',
     );
   }
-  if (typeof body.btcPriceModel !== 'string' || !PRICE_MODELS.has(body.btcPriceModel)) {
+  if (typeof body.btcPriceModel !== 'string' || !(PRICE_MODELS as readonly string[]).includes(body.btcPriceModel)) {
     return fail(
-      'params.btcPriceModel must be fixed, stock_to_flow, stock_to_flow_pessimistic, or custom',
+      `params.btcPriceModel must be one of ${PRICE_MODELS.join(', ')} (Stock-to-Flow was removed)`,
       'params.btcPriceModel',
+      PRICE_MODELS,
     );
   }
-  const numericFields: ReadonlyArray<keyof ForecastParams> = [
-    'pessimisticAdjustPercent',
+  const requiredNumbers: ReadonlyArray<keyof ForecastParams> = [
     'networkHashrateGrowthPercent',
     'asicDegradationPercent',
     'discountRatePercent',
-    'startingBtcPrice',
   ];
-  for (const key of numericFields) {
+  for (const key of requiredNumbers) {
     if (!isFiniteNumber(body[key as string])) {
       return fail(`params.${key} must be a finite number`, `params.${key}`);
     }
   }
-  if (body.finalBtcPrice !== null && !isFiniteNumber(body.finalBtcPrice)) {
+  if (body.startingBtcPrice !== undefined && (!isFiniteNumber(body.startingBtcPrice) || body.startingBtcPrice <= 0)) {
+    return fail('params.startingBtcPrice must be a positive number when provided', 'params.startingBtcPrice');
+  }
+  if (body.btcPriceModel === 'growth' && (!isFiniteNumber(body.annualGrowthPercent) || body.annualGrowthPercent <= -100)) {
+    return fail('params.annualGrowthPercent must be a number above -100 for the growth scenario', 'params.annualGrowthPercent');
+  }
+  if (body.btcPriceModel === 'target' && (!isFiniteNumber(body.finalBtcPrice) || body.finalBtcPrice <= 0)) {
+    return fail('params.finalBtcPrice must be a positive number for the target scenario', 'params.finalBtcPrice');
+  }
+  if (body.finalBtcPrice != null && !isFiniteNumber(body.finalBtcPrice)) {
     return fail('params.finalBtcPrice must be a number or null', 'params.finalBtcPrice');
   }
+  if (body.feesPerBlockBtc !== undefined && (!isFiniteNumber(body.feesPerBlockBtc) || body.feesPerBlockBtc < 0)) {
+    return fail('params.feesPerBlockBtc must be a non-negative number when provided', 'params.feesPerBlockBtc');
+  }
   return { ok: true, value: body as unknown as ForecastParams };
+}
+
+/** Market inputs a caller may pin; anything omitted comes from the live snapshot. */
+export type MarketOverride = Partial<
+  Pick<MarketSnapshot, 'btcPriceUsd' | 'networkHashrateEh' | 'blockHeight' | 'avgFeesPerBlockBtc'>
+>;
+
+const MARKET_OVERRIDE_RULES: Record<keyof MarketOverride, (v: number) => boolean> = {
+  btcPriceUsd: (v) => v > 0,
+  networkHashrateEh: (v) => v > 0,
+  blockHeight: (v) => Number.isInteger(v) && v >= 0,
+  avgFeesPerBlockBtc: (v) => v >= 0,
+};
+
+/**
+ * Validates an optional `market` override. The block subsidy is always derived
+ * from `blockHeight`, so it can't be overridden on its own.
+ */
+export function validateMarketOverride(raw: unknown): ValidationResult<MarketOverride | undefined> {
+  if (raw === undefined || raw === null) return { ok: true, value: undefined };
+  if (!isPlainObject(raw)) return fail('market must be an object when provided', 'market');
+  const value: MarketOverride = {};
+  for (const key of Object.keys(MARKET_OVERRIDE_RULES) as (keyof MarketOverride)[]) {
+    const v = raw[key];
+    if (v === undefined) continue;
+    if (!isFiniteNumber(v) || !MARKET_OVERRIDE_RULES[key](v)) {
+      return fail(`market.${key} is out of range`, `market.${key}`);
+    }
+    value[key] = v;
+  }
+  return { ok: true, value };
 }
 
 /**

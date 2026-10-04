@@ -3,10 +3,10 @@
   "info": {
     "title": "Bitcoin Mining Farm Calculator API",
     "version": "1.0.0",
-    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute for external callers.",
+    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute per IP for external callers (best-effort, per serverless instance). Prefer an AI agent? The same engine is an MCP server: https://www.bitcoinminingfarmcalculator.com/mcp",
     "contact": {
       "name": "Bitcoin Mining Farm Calculator",
-      "url": "https://bitcoinminingfarmcalculator.com"
+      "url": "https://www.bitcoinminingfarmcalculator.com"
     },
     "license": {
       "name": "MIT",
@@ -15,7 +15,7 @@
   },
   "servers": [
     {
-      "url": "https://bitcoinminingfarmcalculator.com/api",
+      "url": "https://www.bitcoinminingfarmcalculator.com/api",
       "description": "Production server"
     },
     {
@@ -330,7 +330,7 @@
           },
           "uptimePercent": {
             "type": "number",
-            "description": "* Mining pool fee percentage — default 1-2",
+            "description": "* Mining pool fee percentage — default 2.5",
             "nullable": false
           },
           "poolFeePercent": {
@@ -359,12 +359,12 @@
             "properties": {
               "manHoursPerMiner": {
                 "type": "number",
-                "description": "* Hourly labor rate in USD — default 35",
+                "description": "* Hourly labor rate in USD — default 20",
                 "nullable": false
               },
               "hourlyLaborCostUsd": {
                 "type": "number",
-                "description": "* Cable + dedicated fuse breaker cost per miner in USD — default 85",
+                "description": "* Cable + dedicated fuse breaker cost per miner in USD — default 40",
                 "nullable": false
               },
               "cablesPerMinerUsd": {
@@ -379,7 +379,7 @@
               },
               "manHoursPerRack": {
                 "type": "number",
-                "description": "* Man-hours to set up each container — default 40",
+                "description": "* Man-hours to set up each container — default 80",
                 "nullable": false
               },
               "manHoursPerContainer": {
@@ -563,7 +563,33 @@
             "required": [
               "hourlyMaintenanceCostUsd"
             ],
+            "description": "* Optional market inputs to pin for the revenue figures. Omitted values come from the live snapshot (GET /api/network)",
             "nullable": false
+          },
+          "market": {
+            "type": "object",
+            "properties": {
+              "btcPriceUsd": {
+                "type": "number",
+                "description": "* Network hashrate in EH/s",
+                "nullable": true
+              },
+              "networkHashrateEh": {
+                "type": "number",
+                "description": "* Chain tip height (the block subsidy is derived from it)",
+                "nullable": true
+              },
+              "blockHeight": {
+                "type": "number",
+                "description": "* Average transaction fees per block in BTC",
+                "nullable": true
+              },
+              "avgFeesPerBlockBtc": {
+                "type": "number",
+                "nullable": true
+              }
+            },
+            "nullable": true
           }
         },
         "required": [
@@ -855,7 +881,138 @@
             "description": "* Total power consumed by air cooling fans (kW)"
           },
           "airFanPowerKw": {
-            "type": "number"
+            "type": "number",
+            "description": "* Site climate used for cooling (the selected location, or a temperate default)"
+          },
+          "climate": {
+            "type": "object",
+            "properties": {
+              "city": {
+                "type": "string",
+                "description": "* Hottest temperature (°C), drives derating and airflow"
+              },
+              "maxTempC": {
+                "type": "number",
+                "description": "* Average humidity (%)"
+              },
+              "avgHumidityPercent": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "city",
+              "maxTempC",
+              "avgHumidityPercent"
+            ],
+            "description": "* Dry cooler capacity multiplier at the site's max temperature (1.0 at 35 °C)"
+          },
+          "dryCoolerDeratingFactor": {
+            "type": "number",
+            "description": "* Selected dry coolers' total capacity after derating (kW)"
+          },
+          "effectiveDryCoolerCapacityKw": {
+            "type": "number",
+            "description": "* Revenue and profit per month at today's market (no growth, degradation or halvings)"
+          },
+          "revenue": {
+            "type": "object",
+            "properties": {
+              "dailyBtc": {
+                "type": "number",
+                "description": "* BTC mined per 30.4375-day month"
+              },
+              "monthlyBtc": {
+                "type": "number",
+                "description": "* Monthly mining revenue (USD)"
+              },
+              "monthlyRevenueUsd": {
+                "type": "number",
+                "description": "* Monthly OPEX (USD), same as metrics.monthlyOpex"
+              },
+              "monthlyOpexUsd": {
+                "type": "number",
+                "description": "* Monthly revenue minus OPEX (USD)"
+              },
+              "monthlyProfitUsd": {
+                "type": "number",
+                "description": "* Monthly OPEX per BTC mined (USD); null when nothing is mined"
+              },
+              "costPerBtcUsd": {
+                "type": "number",
+                "nullable": true,
+                "description": "* Network hashprice including fees ($/PH/day)"
+              },
+              "hashpriceUsdPhDay": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "dailyBtc",
+              "monthlyBtc",
+              "monthlyRevenueUsd",
+              "monthlyOpexUsd",
+              "monthlyProfitUsd",
+              "costPerBtcUsd",
+              "hashpriceUsdPhDay"
+            ],
+            "description": "* The inputs the revenue figures assumed"
+          },
+          "assumptions": {
+            "type": "object",
+            "properties": {
+              "market": {
+                "type": "object",
+                "properties": {
+                  "btcPriceUsd": {
+                    "type": "number",
+                    "description": "* Network hashrate in EH/s"
+                  },
+                  "networkHashrateEh": {
+                    "type": "number",
+                    "description": "* Chain tip height"
+                  },
+                  "blockHeight": {
+                    "type": "number",
+                    "description": "* Block subsidy at blockHeight (BTC)"
+                  },
+                  "blockReward": {
+                    "type": "number",
+                    "description": "* Average transaction fees per block (BTC)"
+                  },
+                  "avgFeesPerBlockBtc": {
+                    "type": "number",
+                    "description": "* ISO 8601 time of the snapshot"
+                  },
+                  "asOf": {
+                    "type": "string",
+                    "description": "* false = offline estimate or request overrides"
+                  },
+                  "isLive": {
+                    "type": "boolean",
+                    "description": "* Where each value came from"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "btcPriceUsd",
+                  "networkHashrateEh",
+                  "blockHeight",
+                  "blockReward",
+                  "avgFeesPerBlockBtc",
+                  "asOf",
+                  "isLive",
+                  "sources"
+                ]
+              }
+            },
+            "required": [
+              "market"
+            ]
           }
         },
         "required": [
@@ -863,7 +1020,12 @@
           "ventilation",
           "totalHashRateThs",
           "totalPowerKw",
-          "airFanPowerKw"
+          "airFanPowerKw",
+          "climate",
+          "dryCoolerDeratingFactor",
+          "effectiveDryCoolerCapacityKw",
+          "revenue",
+          "assumptions"
         ]
       },
       "DryCoolerItem": {
@@ -975,24 +1137,33 @@
               "hold_all",
               "sell_opex"
             ],
-            "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+            "description": "* BTC price scenario (a choice, not a prediction): \"flat\" holds the starting price, \"growth\" compounds annualGrowthPercent per year, \"target\" is a straight line to finalBtcPrice at the last month. Removed values (stock_to_flow, stock_to_flow_pessimistic, fixed, custom) return 400 with validValues",
             "nullable": false
           },
           "btcPriceModel": {
             "type": "string",
             "enum": [
-              "fixed",
-              "stock_to_flow",
-              "stock_to_flow_pessimistic",
-              "custom"
+              "flat",
+              "growth",
+              "target"
             ],
-            "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+            "description": "* Annual BTC price change in percent for the growth scenario (e.g. 30 or -30). Required when btcPriceModel is \"growth\"",
             "nullable": false
           },
-          "pessimisticAdjustPercent": {
+          "annualGrowthPercent": {
+            "type": "number",
+            "description": "* BTC price in USD at the final month for the target scenario. Required when btcPriceModel is \"target\"",
+            "nullable": true
+          },
+          "finalBtcPrice": {
+            "type": "number",
+            "nullable": true,
+            "description": "* Starting BTC price override in USD. Defaults to the live market price"
+          },
+          "startingBtcPrice": {
             "type": "number",
             "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
-            "nullable": false
+            "nullable": true
           },
           "networkHashrateGrowthPercent": {
             "type": "number",
@@ -1006,30 +1177,46 @@
           },
           "discountRatePercent": {
             "type": "number",
-            "description": "* Starting BTC price in USD (current market price)",
+            "description": "* Transaction fees per block in BTC. Defaults to the live average of the last 144 blocks",
             "nullable": false
           },
-          "startingBtcPrice": {
+          "feesPerBlockBtc": {
             "type": "number",
-            "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
-            "nullable": false
-          },
-          "finalBtcPrice": {
-            "type": "number",
-            "nullable": false
+            "nullable": true
           }
         },
         "required": [
           "months",
           "revenueMode",
           "btcPriceModel",
-          "pessimisticAdjustPercent",
           "networkHashrateGrowthPercent",
           "asicDegradationPercent",
-          "discountRatePercent",
-          "startingBtcPrice",
-          "finalBtcPrice"
+          "discountRatePercent"
         ]
+      },
+      "MarketOverrideBody": {
+        "type": "object",
+        "properties": {
+          "btcPriceUsd": {
+            "type": "number",
+            "description": "* Network hashrate in EH/s",
+            "nullable": true
+          },
+          "networkHashrateEh": {
+            "type": "number",
+            "description": "* Chain tip height",
+            "nullable": true
+          },
+          "blockHeight": {
+            "type": "number",
+            "description": "* Average transaction fees per block in BTC",
+            "nullable": true
+          },
+          "avgFeesPerBlockBtc": {
+            "type": "number",
+            "nullable": true
+          }
+        }
       },
       "ForecastBody": {
         "type": "object",
@@ -1060,24 +1247,33 @@
                   "hold_all",
                   "sell_opex"
                 ],
-                "description": "* BTC price projection model — \"fixed\" holds price constant, \"stock_to_flow\" uses S2F curve, \"stock_to_flow_pessimistic\" applies a haircut, \"custom\" uses startingBtcPrice→finalBtcPrice linear interpolation",
+                "description": "* BTC price scenario (a choice, not a prediction): \"flat\" holds the starting price, \"growth\" compounds annualGrowthPercent per year, \"target\" is a straight line to finalBtcPrice at the last month. Removed values (stock_to_flow, stock_to_flow_pessimistic, fixed, custom) return 400 with validValues",
                 "nullable": false
               },
               "btcPriceModel": {
                 "type": "string",
                 "enum": [
-                  "fixed",
-                  "stock_to_flow",
-                  "stock_to_flow_pessimistic",
-                  "custom"
+                  "flat",
+                  "growth",
+                  "target"
                 ],
-                "description": "* Pessimistic discount applied to the S2F model (negative percent, e.g. -30 means 30% below S2F)",
+                "description": "* Annual BTC price change in percent for the growth scenario (e.g. 30 or -30). Required when btcPriceModel is \"growth\"",
                 "nullable": false
               },
-              "pessimisticAdjustPercent": {
+              "annualGrowthPercent": {
+                "type": "number",
+                "description": "* BTC price in USD at the final month for the target scenario. Required when btcPriceModel is \"target\"",
+                "nullable": true
+              },
+              "finalBtcPrice": {
+                "type": "number",
+                "nullable": true,
+                "description": "* Starting BTC price override in USD. Defaults to the live market price"
+              },
+              "startingBtcPrice": {
                 "type": "number",
                 "description": "* Annual network hashrate growth rate (percent, e.g. 25 for 25% YoY)",
-                "nullable": false
+                "nullable": true
               },
               "networkHashrateGrowthPercent": {
                 "type": "number",
@@ -1091,31 +1287,49 @@
               },
               "discountRatePercent": {
                 "type": "number",
-                "description": "* Starting BTC price in USD (current market price)",
+                "description": "* Transaction fees per block in BTC. Defaults to the live average of the last 144 blocks",
                 "nullable": false
               },
-              "startingBtcPrice": {
+              "feesPerBlockBtc": {
                 "type": "number",
-                "description": "* Final BTC price override in USD — null lets the model calculate it automatically",
-                "nullable": false
-              },
-              "finalBtcPrice": {
-                "type": "number",
-                "nullable": false
+                "nullable": true
               }
             },
             "required": [
               "months",
               "revenueMode",
               "btcPriceModel",
-              "pessimisticAdjustPercent",
               "networkHashrateGrowthPercent",
               "asicDegradationPercent",
-              "discountRatePercent",
-              "startingBtcPrice",
-              "finalBtcPrice"
+              "discountRatePercent"
             ],
+            "description": "* Optional market inputs to pin. Omitted values come from the live snapshot (GET /api/network)",
             "nullable": false
+          },
+          "market": {
+            "type": "object",
+            "properties": {
+              "btcPriceUsd": {
+                "type": "number",
+                "description": "* Network hashrate in EH/s",
+                "nullable": true
+              },
+              "networkHashrateEh": {
+                "type": "number",
+                "description": "* Chain tip height",
+                "nullable": true
+              },
+              "blockHeight": {
+                "type": "number",
+                "description": "* Average transaction fees per block in BTC",
+                "nullable": true
+              },
+              "avgFeesPerBlockBtc": {
+                "type": "number",
+                "nullable": true
+              }
+            },
+            "nullable": true
           }
         },
         "required": [
@@ -1144,7 +1358,7 @@
           },
           "difficulty": {
             "type": "number",
-            "description": "* Block reward at this point (accounts for halvings)"
+            "description": "* Mean block subsidy over this month's block heights, BTC (block-weighted in the month a halving happens)"
           },
           "blockReward": {
             "type": "number",
@@ -1176,7 +1390,7 @@
           },
           "btcBalance": {
             "type": "number",
-            "description": "* Running total profit/loss in USD (includes CAPEX)"
+            "description": "* Running total of this strategy's realized profit in USD (CAPEX not subtracted)"
           },
           "cumulativeProfitUsd": {
             "type": "number",
@@ -1209,7 +1423,7 @@
         "properties": {
           "totalRevenue": {
             "type": "number",
-            "description": "* Total costs including CAPEX and OPEX (USD)"
+            "description": "* Total OPEX over the forecast (USD; CAPEX excluded)"
           },
           "totalCosts": {
             "type": "number",
@@ -1225,20 +1439,21 @@
           },
           "roiPercent": {
             "type": "number",
-            "description": "* Months until cumulative profit turns positive — null if never reached"
+            "description": "* First month in which cumulative operating cash flow (revenue − OPEX) covers CAPEX, independent of revenueMode — null if not reached"
           },
           "paybackMonths": {
             "type": "number",
             "nullable": true,
-            "description": "* Internal rate of return (annualized, as a decimal)"
+            "description": "* Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX"
           },
           "irr": {
             "type": "number",
+            "nullable": true,
             "description": "* Net present value of all cash flows (USD)"
           },
           "npv": {
             "type": "number",
-            "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+            "description": "* BTC price at which total revenue over the horizon equals total OPEX (USD)"
           },
           "breakEvenBtcPrice": {
             "type": "number",
@@ -1246,7 +1461,7 @@
           },
           "breakEvenBtcPriceWithCapex": {
             "type": "number",
-            "description": "* Average hashprice over the forecast ($/PH/day)"
+            "description": "* Average farm revenue per TH/s per day over the forecast ($/TH/day)"
           },
           "avgHashpriceUsd": {
             "type": "number",
@@ -1269,6 +1484,154 @@
           "breakEvenBtcPriceWithCapex",
           "avgHashpriceUsd",
           "totalBtcMined"
+        ]
+      },
+      "MarketSnapshotResponse": {
+        "type": "object",
+        "properties": {
+          "btcPriceUsd": {
+            "type": "number",
+            "description": "* Network hashrate in EH/s"
+          },
+          "networkHashrateEh": {
+            "type": "number",
+            "description": "* Chain tip height"
+          },
+          "blockHeight": {
+            "type": "number",
+            "description": "* Block subsidy at blockHeight (BTC)"
+          },
+          "blockReward": {
+            "type": "number",
+            "description": "* Average transaction fees per block (BTC)"
+          },
+          "avgFeesPerBlockBtc": {
+            "type": "number",
+            "description": "* ISO 8601 time of the snapshot"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "* false = offline estimate or request overrides"
+          },
+          "isLive": {
+            "type": "boolean",
+            "description": "* Where each value came from"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "btcPriceUsd",
+          "networkHashrateEh",
+          "blockHeight",
+          "blockReward",
+          "avgFeesPerBlockBtc",
+          "asOf",
+          "isLive",
+          "sources"
+        ]
+      },
+      "ForecastAssumptionsResponse": {
+        "type": "object",
+        "properties": {
+          "market": {
+            "type": "object",
+            "properties": {
+              "btcPriceUsd": {
+                "type": "number",
+                "description": "* Network hashrate in EH/s"
+              },
+              "networkHashrateEh": {
+                "type": "number",
+                "description": "* Chain tip height"
+              },
+              "blockHeight": {
+                "type": "number",
+                "description": "* Block subsidy at blockHeight (BTC)"
+              },
+              "blockReward": {
+                "type": "number",
+                "description": "* Average transaction fees per block (BTC)"
+              },
+              "avgFeesPerBlockBtc": {
+                "type": "number",
+                "description": "* ISO 8601 time of the snapshot"
+              },
+              "asOf": {
+                "type": "string",
+                "description": "* false = offline estimate or request overrides"
+              },
+              "isLive": {
+                "type": "boolean",
+                "description": "* Where each value came from"
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "btcPriceUsd",
+              "networkHashrateEh",
+              "blockHeight",
+              "blockReward",
+              "avgFeesPerBlockBtc",
+              "asOf",
+              "isLive",
+              "sources"
+            ],
+            "description": "* BTC price the scenario starts from (USD)"
+          },
+          "startingBtcPrice": {
+            "type": "number",
+            "description": "* Transaction fees per block used for revenue (BTC)"
+          },
+          "feesPerBlockBtc": {
+            "type": "number",
+            "description": "* Human-readable price scenario, e.g. \"flat at $84,700\""
+          },
+          "priceScenario": {
+            "type": "string",
+            "description": "* Days per month used for revenue and electricity (30.4375)"
+          },
+          "daysPerMonth": {
+            "type": "number",
+            "description": "* Minutes per block used to place halvings (10)"
+          },
+          "avgBlockMinutes": {
+            "type": "number",
+            "description": "* Next halving height and estimated date"
+          },
+          "nextHalving": {
+            "type": "object",
+            "properties": {
+              "height": {
+                "type": "number"
+              },
+              "estimatedDate": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "height",
+              "estimatedDate"
+            ]
+          }
+        },
+        "required": [
+          "market",
+          "startingBtcPrice",
+          "feesPerBlockBtc",
+          "priceScenario",
+          "daysPerMonth",
+          "avgBlockMinutes",
+          "nextHalving"
         ]
       },
       "ForecastResponse": {
@@ -1297,7 +1660,7 @@
                 },
                 "difficulty": {
                   "type": "number",
-                  "description": "* Block reward at this point (accounts for halvings)"
+                  "description": "* Mean block subsidy over this month's block heights, BTC (block-weighted in the month a halving happens)"
                 },
                 "blockReward": {
                   "type": "number",
@@ -1329,7 +1692,7 @@
                 },
                 "btcBalance": {
                   "type": "number",
-                  "description": "* Running total profit/loss in USD (includes CAPEX)"
+                  "description": "* Running total of this strategy's realized profit in USD (CAPEX not subtracted)"
                 },
                 "cumulativeProfitUsd": {
                   "type": "number",
@@ -1368,7 +1731,7 @@
             "properties": {
               "totalRevenue": {
                 "type": "number",
-                "description": "* Total costs including CAPEX and OPEX (USD)"
+                "description": "* Total OPEX over the forecast (USD; CAPEX excluded)"
               },
               "totalCosts": {
                 "type": "number",
@@ -1384,20 +1747,21 @@
               },
               "roiPercent": {
                 "type": "number",
-                "description": "* Months until cumulative profit turns positive — null if never reached"
+                "description": "* First month in which cumulative operating cash flow (revenue − OPEX) covers CAPEX, independent of revenueMode — null if not reached"
               },
               "paybackMonths": {
                 "type": "number",
                 "nullable": true,
-                "description": "* Internal rate of return (annualized, as a decimal)"
+                "description": "* Internal rate of return, annualized percent. null when no discount rate makes the cash flows repay the CAPEX"
               },
               "irr": {
                 "type": "number",
+                "nullable": true,
                 "description": "* Net present value of all cash flows (USD)"
               },
               "npv": {
                 "type": "number",
-                "description": "* BTC price at which monthly mining revenue equals monthly OPEX (USD)"
+                "description": "* BTC price at which total revenue over the horizon equals total OPEX (USD)"
               },
               "breakEvenBtcPrice": {
                 "type": "number",
@@ -1405,7 +1769,7 @@
               },
               "breakEvenBtcPriceWithCapex": {
                 "type": "number",
-                "description": "* Average hashprice over the forecast ($/PH/day)"
+                "description": "* Average farm revenue per TH/s per day over the forecast ($/TH/day)"
               },
               "avgHashpriceUsd": {
                 "type": "number",
@@ -1428,13 +1792,114 @@
               "breakEvenBtcPriceWithCapex",
               "avgHashpriceUsd",
               "totalBtcMined"
+            ],
+            "description": "* Inputs the forecast assumed (market snapshot, start price, fees, scenario)"
+          },
+          "assumptions": {
+            "type": "object",
+            "properties": {
+              "market": {
+                "type": "object",
+                "properties": {
+                  "btcPriceUsd": {
+                    "type": "number",
+                    "description": "* Network hashrate in EH/s"
+                  },
+                  "networkHashrateEh": {
+                    "type": "number",
+                    "description": "* Chain tip height"
+                  },
+                  "blockHeight": {
+                    "type": "number",
+                    "description": "* Block subsidy at blockHeight (BTC)"
+                  },
+                  "blockReward": {
+                    "type": "number",
+                    "description": "* Average transaction fees per block (BTC)"
+                  },
+                  "avgFeesPerBlockBtc": {
+                    "type": "number",
+                    "description": "* ISO 8601 time of the snapshot"
+                  },
+                  "asOf": {
+                    "type": "string",
+                    "description": "* false = offline estimate or request overrides"
+                  },
+                  "isLive": {
+                    "type": "boolean",
+                    "description": "* Where each value came from"
+                  },
+                  "sources": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "btcPriceUsd",
+                  "networkHashrateEh",
+                  "blockHeight",
+                  "blockReward",
+                  "avgFeesPerBlockBtc",
+                  "asOf",
+                  "isLive",
+                  "sources"
+                ],
+                "description": "* BTC price the scenario starts from (USD)"
+              },
+              "startingBtcPrice": {
+                "type": "number",
+                "description": "* Transaction fees per block used for revenue (BTC)"
+              },
+              "feesPerBlockBtc": {
+                "type": "number",
+                "description": "* Human-readable price scenario, e.g. \"flat at $84,700\""
+              },
+              "priceScenario": {
+                "type": "string",
+                "description": "* Days per month used for revenue and electricity (30.4375)"
+              },
+              "daysPerMonth": {
+                "type": "number",
+                "description": "* Minutes per block used to place halvings (10)"
+              },
+              "avgBlockMinutes": {
+                "type": "number",
+                "description": "* Next halving height and estimated date"
+              },
+              "nextHalving": {
+                "type": "object",
+                "properties": {
+                  "height": {
+                    "type": "number"
+                  },
+                  "estimatedDate": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "height",
+                  "estimatedDate"
+                ]
+              }
+            },
+            "required": [
+              "market",
+              "startingBtcPrice",
+              "feesPerBlockBtc",
+              "priceScenario",
+              "daysPerMonth",
+              "avgBlockMinutes",
+              "nextHalving"
             ]
           }
         },
         "required": [
           "periods",
           "totalCapex",
-          "summary"
+          "summary",
+          "assumptions"
         ]
       },
       "MinerResponse": {
@@ -1478,7 +1943,7 @@
           },
           "watercooled": {
             "type": "boolean",
-            "description": "Whether the miner requires water/hydro cooling"
+            "description": "Whether the miner needs liquid cooling (hydro or immersion); equals cooling !== \"air\""
           },
           "degradation_year1": {
             "type": "number",
@@ -1491,6 +1956,53 @@
           "degradation_year3plus": {
             "type": "number",
             "description": "Annual hashrate degradation % in year 3+"
+          },
+          "cooling": {
+            "type": "string",
+            "enum": [
+              "air",
+              "hydro",
+              "immersion"
+            ],
+            "description": "Cooling method"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "legacy",
+              "announced"
+            ],
+            "description": "current = shipping, legacy = pre-2023 or superseded, announced = not yet shipping"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "industrial",
+              "home"
+            ],
+            "description": "Market segment"
+          },
+          "price_basis": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used",
+              "index"
+            ],
+            "description": "How price_usd was obtained: shop/reseller new price, used-market listings, or $/TH index band x TH/s"
+          },
+          "price_as_of": {
+            "type": "string",
+            "description": "ISO date the price was observed"
+          },
+          "price_source": {
+            "type": "string",
+            "description": "URL or index band the price came from"
+          },
+          "spec_source": {
+            "type": "string",
+            "description": "URL of the manufacturer/spec page"
           }
         },
         "required": [
@@ -1506,7 +2018,30 @@
           "watercooled",
           "degradation_year1",
           "degradation_year2",
-          "degradation_year3plus"
+          "degradation_year3plus",
+          "cooling",
+          "status",
+          "segment",
+          "price_basis",
+          "price_as_of",
+          "price_source",
+          "spec_source"
+        ]
+      },
+      "NextHalving": {
+        "type": "object",
+        "properties": {
+          "height": {
+            "type": "number",
+            "description": "* ISO 8601 estimate at 10 minutes per block from the current tip"
+          },
+          "estimatedDate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "height",
+          "estimatedDate"
         ]
       },
       "NetworkDataResponse": {
@@ -1518,36 +2053,83 @@
           },
           "networkHashrateEh": {
             "type": "number",
+            "description": "* Chain tip height"
+          },
+          "blockHeight": {
+            "type": "number",
+            "description": "* Block subsidy at the tip, BTC (50 / 2^floor(height / 210000))"
+          },
+          "blockReward": {
+            "type": "number",
+            "description": "* Average transaction fees per block over the last 144 blocks, BTC"
+          },
+          "avgFeesPerBlockBtc": {
+            "type": "number",
             "description": "* Current mining difficulty"
           },
           "difficulty": {
             "type": "number",
-            "description": "* Current block subsidy reward in BTC (e.g. 3.125 after 2024 halving)"
-          },
-          "blockReward": {
-            "type": "number",
-            "description": "* Mining hashprice in USD per petahash per day ($/PH/day)"
+            "description": "* Hashprice in USD per petahash per day ($/PH/day), including transaction fees"
           },
           "hashpriceUsdPhDay": {
             "type": "number",
-            "description": "* ISO 8601 timestamp of when this data was last fetched"
+            "description": "* Next halving height and estimated date"
+          },
+          "nextHalving": {
+            "type": "object",
+            "properties": {
+              "height": {
+                "type": "number",
+                "description": "* ISO 8601 estimate at 10 minutes per block from the current tip"
+              },
+              "estimatedDate": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "height",
+              "estimatedDate"
+            ],
+            "description": "* ISO 8601 timestamp of when this snapshot was taken"
+          },
+          "asOf": {
+            "type": "string",
+            "description": "* Same as asOf (kept for backward compatibility)"
           },
           "lastUpdated": {
             "type": "string",
-            "description": "* Whether the data is from a live API call (true) or fallback estimates (false)"
+            "description": "* true when price, hashrate and tip height all came from live sources; false = offline estimate"
           },
           "isLive": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "* Where each value came from"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "* Trailing 12-month network hashrate growth (% per year, from 7-day means a year apart); null when unavailable. Clamped to 0–60 it makes a sensible default for the forecast's networkHashrateGrowthPercent"
+          },
+          "hashrateGrowth12mPercent": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
           "btcPriceUsd",
           "networkHashrateEh",
-          "difficulty",
+          "blockHeight",
           "blockReward",
+          "avgFeesPerBlockBtc",
+          "difficulty",
           "hashpriceUsdPhDay",
+          "nextHalving",
+          "asOf",
           "lastUpdated",
-          "isLive"
+          "isLive",
+          "sources",
+          "hashrateGrowth12mPercent"
         ]
       },
       "CatalogUpdate": {
@@ -1645,7 +2227,7 @@
         }
       },
       "429": {
-        "description": "Too Many Requests — rate limit exceeded (60 req/min for external callers)",
+        "description": "Too Many Requests — rate limit exceeded (60 req/min per IP for external callers). See the Retry-After header.",
         "content": {
           "application/json": {
             "schema": {
@@ -1718,7 +2300,7 @@
       "post": {
         "operationId": "post-calculate",
         "summary": "Calculate farm metrics",
-        "description": "Calculates comprehensive CAPEX, OPEX, and operational metrics for a Bitcoin mining farm configuration. Accepts a complete FarmConfig and returns all derived values including total hash rate, power draw, heat output, transformer sizing, infrastructure costs, and monthly operating expenses. This is the primary calculation endpoint — send your full farm configuration and receive all metrics in one call.",
+        "description": "Calculates comprehensive CAPEX, OPEX, and operational metrics for a Bitcoin mining farm configuration. Accepts a complete FarmConfig and returns all derived values including total hash rate, power draw, heat output, transformer sizing, cooling, infrastructure costs, monthly operating expenses, and monthly revenue/profit at the live market snapshot (pin market inputs with the optional `market` field). The response echoes the market assumptions used.",
         "tags": [
           "Calculate"
         ],
@@ -1794,7 +2376,7 @@
       "post": {
         "operationId": "post-forecast",
         "summary": "Generate multi-year revenue forecast",
-        "description": "Generates a month-by-month Bitcoin mining revenue forecast with BTC price modeling (Stock-to-Flow), network difficulty growth, ASIC degradation, energy inflation, and halving events. Returns NPV, IRR, break-even BTC price, payback period, and cumulative profit/loss for each period. Supports three revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.",
+        "description": "Generates a month-by-month Bitcoin mining revenue forecast. Market inputs (BTC price, network hashrate, block height, fees per block) come from the live snapshot unless you pin them in `market`. Models a user-chosen BTC price scenario (flat, annual growth or target), network hashrate growth, ASIC degradation, energy inflation, and halvings computed from block height. Returns NPV, IRR, break-even BTC price, payback period, cumulative profit/loss per period, and the assumptions used. Revenue strategies: sell all BTC, hold all BTC, or sell only enough to cover OPEX.",
         "tags": [
           "Forecast"
         ],
@@ -1835,7 +2417,7 @@
       "get": {
         "operationId": "get-miners",
         "summary": "List all ASIC miners",
-        "description": "Returns the complete catalog of 50+ Bitcoin ASIC mining hardware models with specs, pricing, and degradation curves. Sorted by hash rate descending. Check GET /updates for last data update timestamp.",
+        "description": "Returns the complete catalog of Bitcoin ASIC mining hardware (industrial and home units) with specs, pricing and degradation curves. Every row carries its price provenance (price_basis, price_as_of, price_source) and a spec_source URL; status marks current, legacy and announced (not yet shipping) models. Check GET /updates for the last refresh date.",
         "tags": [
           "Miners"
         ],
@@ -1870,7 +2452,7 @@
       "get": {
         "operationId": "get-network",
         "summary": "Get live Bitcoin network data",
-        "description": "Returns current Bitcoin network statistics including BTC price (USD), total network hashrate (EH/s), mining difficulty, block reward, and hashprice ($/PH/day). Data is sourced from mempool.space and CoinGecko with a 60-second server-side cache. Falls back to estimated values when APIs are unreachable.",
+        "description": "Returns the live Bitcoin market snapshot used by every calculation: BTC price (USD), network hashrate (EH/s), chain tip height, block subsidy, average fees per block, difficulty, hashprice including fees ($/PH/day) and the next halving estimate. Sourced from mempool.space (CoinGecko as a price backup) with a 60-second server-side cache. When sources are unreachable, values fall back to a dated offline estimate and isLive is false.",
         "tags": [
           "Network"
         ],

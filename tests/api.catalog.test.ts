@@ -3,7 +3,7 @@ import { GET as getMiners, OPTIONS as optionsMiners } from '@/app/api/miners/rou
 import { GET as getDryCoolers } from '@/app/api/dry-coolers/route';
 import { GET as getAirFans } from '@/app/api/air-fans/route';
 import { GET as getUpdates } from '@/app/api/updates/route';
-import * as serverData from '@/lib/serverData';
+import * as catalog from '@/lib/catalog';
 import { serverCache } from '@/lib/serverCache';
 
 function makeRequest(headers: Record<string, string> = {}): Request {
@@ -13,7 +13,6 @@ function makeRequest(headers: Record<string, string> = {}): Request {
 }
 
 beforeEach(() => {
-  serverData.__resetCacheForTests();
   serverCache.clear();
 });
 
@@ -42,7 +41,7 @@ describe('GET /api/miners', () => {
   });
 
   it('returns 500 with a JSON error body when the catalog cannot be loaded', async () => {
-    vi.spyOn(serverData, 'getMiners').mockImplementation(() => {
+    vi.spyOn(catalog, 'getMiners').mockImplementation(() => {
       throw new Error('disk read failed');
     });
     const response = await getMiners(makeRequest());
@@ -80,7 +79,7 @@ describe('GET /api/dry-coolers', () => {
   });
 
   it('returns 500 with a JSON error body when the catalog cannot be loaded', async () => {
-    vi.spyOn(serverData, 'getDryCoolers').mockImplementation(() => {
+    vi.spyOn(catalog, 'getDryCoolers').mockImplementation(() => {
       throw new Error('parse failed');
     });
     const response = await getDryCoolers(makeRequest());
@@ -106,7 +105,7 @@ describe('GET /api/air-fans', () => {
   });
 
   it('returns 500 with a JSON error body when the catalog cannot be loaded', async () => {
-    vi.spyOn(serverData, 'getAirFans').mockImplementation(() => {
+    vi.spyOn(catalog, 'getAirFans').mockImplementation(() => {
       throw new Error('file not found');
     });
     const response = await getAirFans(makeRequest());
@@ -129,7 +128,7 @@ describe('GET /api/updates', () => {
   });
 
   it('returns 500 with a JSON error body when the file cannot be loaded', async () => {
-    vi.spyOn(serverData, 'getUpdates').mockImplementation(() => {
+    vi.spyOn(catalog, 'getUpdates').mockImplementation(() => {
       throw new Error('updates.json missing');
     });
     const response = await getUpdates(makeRequest());
@@ -144,36 +143,74 @@ describe('GET /api/updates', () => {
 // ════════════════════════════════════════════════════════════════════════
 
 describe('catalog routes are cached via serverCache', () => {
-  it('GET /api/miners reads from disk once, then serves from cache', async () => {
-    const spy = vi.spyOn(serverData, 'getMiners');
+  it('GET /api/miners reads the catalog once, then serves from cache', async () => {
+    const spy = vi.spyOn(catalog, 'getMiners');
     const first = await getMiners(makeRequest());
     const second = await getMiners(makeRequest());
     const third = await getMiners(makeRequest());
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(third.status).toBe(200);
-    // Only one disk read across three requests.
+    // Only one catalog read across three requests.
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('GET /api/dry-coolers reads from disk once, then serves from cache', async () => {
-    const spy = vi.spyOn(serverData, 'getDryCoolers');
+  it('GET /api/dry-coolers reads the catalog once, then serves from cache', async () => {
+    const spy = vi.spyOn(catalog, 'getDryCoolers');
     await getDryCoolers(makeRequest());
     await getDryCoolers(makeRequest());
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('GET /api/air-fans reads from disk once, then serves from cache', async () => {
-    const spy = vi.spyOn(serverData, 'getAirFans');
+  it('GET /api/air-fans reads the catalog once, then serves from cache', async () => {
+    const spy = vi.spyOn(catalog, 'getAirFans');
     await getAirFans(makeRequest());
     await getAirFans(makeRequest());
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it('GET /api/updates reads from disk once, then serves from cache', async () => {
-    const spy = vi.spyOn(serverData, 'getUpdates');
+  it('GET /api/updates reads the catalog once, then serves from cache', async () => {
+    const spy = vi.spyOn(catalog, 'getUpdates');
     await getUpdates(makeRequest());
     await getUpdates(makeRequest());
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Single source — the engine and the API read the same catalog objects
+// ════════════════════════════════════════════════════════════════════════
+
+describe('catalog single source (data/*.json)', () => {
+  it('the API serves exactly the rows the engine computes with', async () => {
+    const [miners, dryCoolers, airFans] = await Promise.all([
+      getMiners(makeRequest()).then((r) => r.json()),
+      getDryCoolers(makeRequest()).then((r) => r.json()),
+      getAirFans(makeRequest()).then((r) => r.json()),
+    ]);
+    expect(miners).toEqual(catalog.MINERS);
+    expect(dryCoolers).toEqual(catalog.DRY_COOLERS);
+    expect(airFans).toEqual(catalog.AIR_FANS);
+  });
+
+  it('engine cooling CAPEX is priced from the served JSON rows', async () => {
+    const { calculateDryCoolerCapex, calculateAirFanCapex } = await import('@/lib/calculations');
+    const dryCoolers = await getDryCoolers(makeRequest()).then((r) => r.json());
+    const airFans = await getAirFans(makeRequest()).then((r) => r.json());
+    const dc = dryCoolers[0];
+    const fan = airFans[0];
+    const rate = 20;
+    const config = {
+      labor: { hourlyLaborCostUsd: rate },
+      temperature: {
+        location: null,
+        dryCoolerSelections: [{ model: dc.model, quantity: 2 }],
+        airFanSelections: [{ model: fan.model, quantity: 3 }],
+      },
+    } as unknown as Parameters<typeof calculateDryCoolerCapex>[0];
+    expect(calculateDryCoolerCapex(config)).toBeCloseTo(
+      2 * (dc.estimated_cost_usd + dc.man_hours_deploy * rate + dc.plumbing_fluid_cost_usd),
+    );
+    expect(calculateAirFanCapex(config)).toBeCloseTo(3 * (fan.cost_usd + fan.man_hours_deploy * rate));
   });
 });

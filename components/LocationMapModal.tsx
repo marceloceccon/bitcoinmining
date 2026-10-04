@@ -1,288 +1,210 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
-import type { LatLng } from "leaflet";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { Search } from "lucide-react";
 import type { LocationData } from "@/types";
-
-// Fix leaflet default marker icons broken by webpack. Uses require() so the
-// side-effecting mutation runs only on the client, inside the window guard —
-// a top-level import would execute during SSR and crash.
-if (typeof window !== "undefined") {
-  const L = require("leaflet");
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  });
-}
+import { fetchClimate, reverseGeocode, searchPlaces, type PlaceResult } from "@/lib/climate";
+import Dialog from "@/components/ui/Dialog";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
 interface Props {
   onConfirm: (location: LocationData) => void;
   onClose: () => void;
 }
 
-interface PickState {
-  lat: number;
-  lng: number;
-  city: string;
-  avgYearlyTempC: number;
-  maxTempC: number;
-  minTempC: number;
-  avgHumidityPercent: number;
-}
+/** Inline SVG pin (no image requests); the drop animation is CSS and respects reduced motion. */
+const PIN_ICON = L.divIcon({
+  className: "site-pin",
+  html: `<svg width="28" height="38" viewBox="0 0 28 38" aria-hidden="true"><path d="M14 37s12-13.4 12-23A12 12 0 0 0 2 14c0 9.6 12 23 12 23z" fill="rgb(247 147 26)" stroke="rgb(12 14 16)" stroke-width="1.5"/><circle cx="14" cy="14" r="4.5" fill="rgb(12 14 16)"/></svg>`,
+  iconSize: [28, 38],
+  iconAnchor: [14, 37],
+});
 
-function MapClickHandler({
-  onPick,
-}: {
-  onPick: (latlng: LatLng) => void;
-}) {
-  useMapEvents({
-    click(e) {
-      onPick(e.latlng);
-    },
-  });
+const SEARCH_DEBOUNCE_MS = 600; // Nominatim: at most 1 request per second
+
+function MapClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onPick(e.latlng.lat, e.latlng.lng) });
   return null;
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-      { headers: { "Accept-Language": "en" } }
-    );
-    const data = await res.json();
-    const addr = data.address || {};
-    return (
-      addr.city ||
-      addr.town ||
-      addr.village ||
-      addr.county ||
-      addr.state ||
-      data.display_name?.split(",")[0] ||
-      `${lat.toFixed(2)}, ${lng.toFixed(2)}`
-    );
-  } catch {
-    return `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
-  }
+function FlyTo({ target }: { target: { lat: number; lng: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 6), { duration: 0.8 });
+  }, [map, target]);
+  return null;
 }
 
-async function fetchClimate(lat: number, lng: number) {
-  const year = new Date().getFullYear() - 1;
-  const start = `${year}-01-01`;
-  const end = `${year}-12-31`;
-  const url =
-    `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lng}` +
-    `&start_date=${start}&end_date=${end}` +
-    `&daily=temperature_2m_max,temperature_2m_min` +
-    `&hourly=relative_humidity_2m&timezone=auto`;
-
-  const res = await fetch(url);
-  const data = await res.json();
-
-  const maxTemps: number[] = data.daily?.temperature_2m_max ?? [];
-  const minTemps: number[] = data.daily?.temperature_2m_min ?? [];
-  const humidity: number[] = data.hourly?.relative_humidity_2m ?? [];
-
-  const avg = (arr: number[]) =>
-    arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 20;
-
-  const avgYearlyTempC = parseFloat(
-    ((avg(maxTemps) + avg(minTemps)) / 2).toFixed(1)
-  );
-  const maxTempC = parseFloat(Math.max(...maxTemps).toFixed(1));
-  const minTempC = parseFloat(Math.min(...minTemps).toFixed(1));
-  const avgHumidityPercent = parseFloat(avg(humidity).toFixed(1));
-
-  return { avgYearlyTempC, maxTempC, minTempC, avgHumidityPercent };
-}
+const FIELDS: { key: keyof Omit<LocationData, "lat" | "lng" | "city">; label: string; step: string }[] = [
+  { key: "avgYearlyTempC", label: "Avg yearly temp (°C)", step: "0.1" },
+  { key: "maxTempC", label: "Max temp (°C)", step: "0.1" },
+  { key: "minTempC", label: "Min temp (°C)", step: "0.1" },
+  { key: "avgHumidityPercent", label: "Avg humidity (%)", step: "1" },
+];
 
 export default function LocationMapModal({ onConfirm, onClose }: Props) {
-  const [markerPos, setMarkerPos] = useState<{ lat: number; lng: number } | null>(null);
-  const [pick, setPick] = useState<PickState | null>(null);
+  const [marker, setMarker] = useState<{ lat: number; lng: number } | null>(null);
+  const [pick, setPick] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Portal target is null until the component mounts on the client. This
-  // guards SSR (no `document` during server render) and avoids the flash
-  // where the modal briefly renders inside its parent's stacking context
-  // before being portaled — we simply render nothing until we can escape
-  // to document.body.
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PlaceResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const pickAbort = useRef<AbortController | null>(null);
+  // The label of the result the user just picked: don't search for it again
+  const chosenLabel = useRef<string | null>(null);
 
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
-
-  // Lock body scroll while the modal is open — prevents scroll chaining
-  // through the overlay and keeps the map interaction crisp.
-  useEffect(() => {
-    if (!portalTarget) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [portalTarget]);
-
-  // Close on Escape
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
-
-  const handleMapClick = useCallback(async (latlng: LatLng) => {
-    const { lat, lng } = latlng;
-    setMarkerPos({ lat, lng });
+  const pickPoint = useCallback(async (lat: number, lng: number, knownName?: string) => {
+    pickAbort.current?.abort();
+    const controller = new AbortController();
+    pickAbort.current = controller;
+    setMarker({ lat, lng });
     setLoading(true);
     setError(null);
     setPick(null);
     try {
       const [city, climate] = await Promise.all([
-        reverseGeocode(lat, lng),
-        fetchClimate(lat, lng),
+        knownName ? Promise.resolve(knownName) : reverseGeocode(lat, lng, { signal: controller.signal }),
+        fetchClimate(lat, lng, { signal: controller.signal }),
       ]);
-      setPick({ lat, lng, city, ...climate });
+      if (!controller.signal.aborted) setPick({ lat, lng, city, ...climate });
     } catch {
-      setError("Could not fetch location data. Try again.");
+      if (!controller.signal.aborted) setError("Couldn't load climate data for this point. Try again or pick another spot.");
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
 
-  if (!portalTarget) return null;
+  // Debounced place search
+  useEffect(() => {
+    if (query.trim().length < 3 || query === chosenLabel.current) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        setResults(await searchPlaces(query, { signal: controller.signal }));
+      } catch {
+        if (!controller.signal.aborted) setResults([]);
+      } finally {
+        if (!controller.signal.aborted) setSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
-  const modal = (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center glass-modal-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Choose Location"
+  useEffect(() => () => pickAbort.current?.abort(), []);
+
+  const flyTarget = useMemo(() => marker, [marker]);
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Choose Location"
+      description="Search for a place or click the map. Climate comes from a full year of ERA5 reanalysis."
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={!pick} onClick={() => pick && onConfirm(pick)}>
+            Confirm location
+          </Button>
+        </>
+      }
     >
-      <div className="relative glass-modal w-full max-w-3xl mx-4 overflow-hidden flex flex-col animate-fade-in-scale">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50">
-          <h2 className="text-lg font-bold text-slate-900">Choose Location</h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 transition-colors text-xl leading-none"
-          >
-            x
-          </button>
-        </div>
-
-        {/* Map */}
-        <div className="relative" style={{ height: 380 }}>
-          <MapContainer
-            center={[20, 0]}
-            zoom={2}
-            style={{ height: "100%", width: "100%", background: "#f1f5f9" }}
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
-            />
-            <MapClickHandler onPick={handleMapClick} />
-            {markerPos && <Marker position={[markerPos.lat, markerPos.lng]} />}
-          </MapContainer>
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-[1000]">
-              <span className="text-slate-700 text-sm animate-pulse">Fetching climate data...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Bottom panel */}
-        <div className="px-6 py-4 space-y-4">
-          <p className="text-xs text-slate-400">
-            Click anywhere on the map to auto-fill climate data for that location.
-          </p>
-
-          {error && (
-            <p className="text-red-600 text-sm">{error}</p>
-          )}
-
-          {pick && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-              <div className="space-y-1">
-                <label className="text-xs text-slate-500">City</label>
-                <input
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
-                  value={pick.city}
-                  onChange={(e) => setPick({ ...pick, city: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-500">Avg Yearly Temp (C)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
-                  value={pick.avgYearlyTempC}
-                  onChange={(e) => setPick({ ...pick, avgYearlyTempC: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-500">Max Temp (C)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
-                  value={pick.maxTempC}
-                  onChange={(e) => setPick({ ...pick, maxTempC: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-500">Min Temp (C)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
-                  value={pick.minTempC}
-                  onChange={(e) => setPick({ ...pick, minTempC: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-500">Avg Humidity (%)</label>
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="100"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
-                  value={pick.avgHumidityPercent}
-                  onChange={(e) => setPick({ ...pick, avgHumidityPercent: parseFloat(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-1">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              disabled={!pick}
-              onClick={() => {
-                if (pick) onConfirm({ lat: pick.lat, lng: pick.lng, city: pick.city, avgYearlyTempC: pick.avgYearlyTempC, maxTempC: pick.maxTempC, minTempC: pick.minTempC, avgHumidityPercent: pick.avgHumidityPercent });
-              }}
-              className="px-5 py-2 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
-            >
-              Confirm Location
-            </button>
-          </div>
-        </div>
+      <div className="relative border-b border-line px-5 py-3">
+        <label htmlFor="place-search" className="sr-only">
+          Search for a place
+        </label>
+        <Search className="pointer-events-none absolute left-8 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" aria-hidden />
+        <Input
+          id="place-search"
+          type="search"
+          autoComplete="off"
+          placeholder="Search a city or region, e.g. Asunción or West Texas"
+          className="pl-9"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-controls="place-results"
+        />
+        {(results.length > 0 || searching) && (
+          <ul id="place-results" className="dialog absolute inset-x-5 top-full z-[1100] mt-1 max-h-60 overflow-auto py-1" role="listbox" aria-label="Places">
+            {searching && results.length === 0 && <li className="px-3 py-2 text-sm text-muted">Searching…</li>}
+            {results.map((r) => (
+              <li key={`${r.lat},${r.lng}`} role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm text-fg hover:bg-surface-2"
+                  onClick={() => {
+                    chosenLabel.current = r.label;
+                    setQuery(r.label);
+                    setResults([]);
+                    pickPoint(r.lat, r.lng, r.name);
+                  }}
+                >
+                  {r.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </div>
-  );
 
-  return createPortal(modal, portalTarget);
+      <div className="map-frame relative h-[340px]">
+        <MapContainer center={[20, 0]} zoom={2} className="h-full w-full bg-surface-2" scrollWheelZoom>
+          <TileLayer
+            className="map-tiles"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          <MapClickHandler onPick={(lat, lng) => pickPoint(lat, lng)} />
+          <FlyTo target={flyTarget} />
+          {marker && <Marker key={`${marker.lat},${marker.lng}`} position={[marker.lat, marker.lng]} icon={PIN_ICON} />}
+        </MapContainer>
+        {loading && (
+          <div className="absolute inset-x-0 bottom-0 z-[1000] bg-surface/90 px-4 py-2 text-sm text-fg-2" role="status">
+            Fetching a year of climate data…
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3 px-5 py-4" aria-live="polite">
+        {error && <p className="text-sm text-bad">{error}</p>}
+        {!pick && !error && <p className="text-xs text-muted">Pick a point to fill in its climate. Every value stays editable.</p>}
+        {pick && (
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
+            <div className="col-span-2 space-y-1 sm:col-span-1">
+              <label htmlFor="pick-city" className="text-xs text-muted">City</label>
+              <Input id="pick-city" className="h-9" value={pick.city} onChange={(e) => setPick({ ...pick, city: e.target.value })} />
+            </div>
+            {FIELDS.map((f) => (
+              <div key={f.key} className="space-y-1">
+                <label htmlFor={`pick-${f.key}`} className="text-xs text-muted">{f.label}</label>
+                <Input
+                  id={`pick-${f.key}`}
+                  type="number"
+                  step={f.step}
+                  className="h-9 font-mono"
+                  value={pick[f.key]}
+                  onChange={(e) => setPick({ ...pick, [f.key]: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Dialog>
+  );
 }

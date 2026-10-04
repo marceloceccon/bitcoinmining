@@ -342,8 +342,7 @@ describe('validateFarmConfig — nested objects', () => {
 const VALID_FORECAST_PARAMS = {
   months: 24 as const,
   revenueMode: 'sell_all' as const,
-  btcPriceModel: 'stock_to_flow' as const,
-  pessimisticAdjustPercent: -30,
+  btcPriceModel: 'flat' as const,
   networkHashrateGrowthPercent: 25,
   asicDegradationPercent: 5,
   discountRatePercent: 10,
@@ -387,8 +386,35 @@ describe('validateForecastParams', () => {
     if (!result.ok) expect(result.field).toBe('params.btcPriceModel');
   });
 
+  it('accepts the growth scenario with annualGrowthPercent, and rejects it without', () => {
+    expect(validateForecastParams({ ...VALID_FORECAST_PARAMS, btcPriceModel: 'growth', annualGrowthPercent: -30 }).ok).toBe(true);
+    const missing = validateForecastParams({ ...VALID_FORECAST_PARAMS, btcPriceModel: 'growth' });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.field).toBe('params.annualGrowthPercent');
+  });
+
+  it('requires a positive finalBtcPrice for the target scenario', () => {
+    expect(validateForecastParams({ ...VALID_FORECAST_PARAMS, btcPriceModel: 'target', finalBtcPrice: 150000 }).ok).toBe(true);
+    const missing = validateForecastParams({ ...VALID_FORECAST_PARAMS, btcPriceModel: 'target' });
+    expect(missing.ok).toBe(false);
+    if (!missing.ok) expect(missing.field).toBe('params.finalBtcPrice');
+  });
+
+  it('treats startingBtcPrice and feesPerBlockBtc as optional overrides', () => {
+    const { startingBtcPrice: _omit, ...withoutStart } = VALID_FORECAST_PARAMS;
+    expect(validateForecastParams(withoutStart).ok).toBe(true);
+    expect(validateForecastParams({ ...VALID_FORECAST_PARAMS, feesPerBlockBtc: 0.03 }).ok).toBe(true);
+    expect(validateForecastParams({ ...VALID_FORECAST_PARAMS, feesPerBlockBtc: -1 }).ok).toBe(false);
+    expect(validateForecastParams({ ...VALID_FORECAST_PARAMS, startingBtcPrice: 0 }).ok).toBe(false);
+  });
+
+  it('lists the valid price models when rejecting a removed one', () => {
+    const result = validateForecastParams({ ...VALID_FORECAST_PARAMS, btcPriceModel: 'stock_to_flow' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.validValues).toEqual(['flat', 'growth', 'target']);
+  });
+
   it.each([
-    'pessimisticAdjustPercent',
     'networkHashrateGrowthPercent',
     'asicDegradationPercent',
     'discountRatePercent',

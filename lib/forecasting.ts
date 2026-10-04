@@ -1,44 +1,49 @@
-import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod } from '@/types';
-import { calculateTotalHashRate, calculateMonthlyKwh, calculateEffectiveSolarCoverage, calculateFarmMetrics } from './calculations';
+import type { FarmConfig, ForecastParams, ForecastResult, ForecastPeriod, MarketSnapshot } from '@/types';
+import {
+  DAYS_PER_MONTH,
+  calculateTotalHashRate,
+  calculateFarmMetrics,
+  calculateMonthlyOpexBreakdown,
+} from './calculations';
+import { BLOCKS_PER_DAY, TARGET_BLOCK_MINUTES, averageSubsidy, nextHalving } from './bitcoin';
+import { monthlyBtcMined } from './unitEconomics';
 
-// Bitcoin network constants
-const BLOCKS_PER_DAY = 144;
 const SECONDS_PER_BLOCK = 600;
-export const CURRENT_NETWORK_HASHRATE_EH = 750; // Exahash/s (approximate 2026)
-const CURRENT_DIFFICULTY = 108e12; // Approximate
-export const CURRENT_BLOCK_REWARD = 3.125; // Post-2024 halving
-
-// Halving schedule (approximate dates)
-const HALVINGS = [
-  { date: new Date('2028-04-01'), reward: 1.5625 },
-  { date: new Date('2032-04-01'), reward: 0.78125 },
-  { date: new Date('2036-04-01'), reward: 0.390625 },
-  { date: new Date('2040-04-01'), reward: 0.1953125 },
-];
+const BLOCKS_PER_MONTH = BLOCKS_PER_DAY * DAYS_PER_MONTH; // 4,383
 
 /**
- * Stock-to-Flow Bitcoin price model
- * Formula: Price = 0.4 * SF^3 (simplified power law)
- * Exported so the UI can compute default final price.
+ * BTC price in month `month` for the chosen scenario. Scenarios are choices the
+ * user makes, not predictions:
+ * - flat:   the starting price throughout
+ * - growth: compounds `annualGrowthPercent` per year
+ * - target: straight line from the starting price to `finalBtcPrice` at the last month
  */
-export function calculateStockToFlowPrice(blockReward: number, pessimisticAdjust: number): number {
-  const blocksPerYear = BLOCKS_PER_DAY * 365;
-  const annualSupply = blocksPerYear * blockReward;
-  const existingSupply = 19.8e6; // Approximate circulating supply 2026
-  const sf = existingSupply / annualSupply;
-  const basePrice = 0.4 * Math.pow(sf, 3);
-  const adjustedPrice = basePrice * (1 + pessimisticAdjust / 100);
-  return Math.max(adjustedPrice, 10000);
+export function scenarioBtcPrice(params: ForecastParams, startPrice: number, month: number): number {
+  switch (params.btcPriceModel) {
+    case 'growth':
+      return startPrice * Math.pow(1 + (params.annualGrowthPercent ?? 0) / 100, month / 12);
+    case 'target': {
+      const finalPrice = params.finalBtcPrice ?? startPrice;
+      return startPrice + (finalPrice - startPrice) * (month / params.months);
+    }
+    default:
+      return startPrice;
+  }
 }
 
-/**
- * Compute the S2F target price for a date N months from now.
- */
-export function getStockToFlowTarget(months: number, pessimisticAdjust: number): number {
-  const target = new Date();
-  target.setMonth(target.getMonth() + months);
-  const reward = getBlockReward(target);
-  return calculateStockToFlowPrice(reward, pessimisticAdjust);
+/** One-line description of the price scenario, for the assumptions echo. */
+export function describePriceScenario(params: ForecastParams, startPrice: number): string {
+  const usd = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
+  switch (params.btcPriceModel) {
+    case 'growth': {
+      const g = params.annualGrowthPercent ?? 0;
+      return `growth: ${g >= 0 ? '+' : ''}${g}%/yr from ${usd(startPrice)}`;
+    }
+    case 'target':
+      return `target: ${usd(startPrice)} → ${usd(params.finalBtcPrice ?? startPrice)} over ${params.months} months`;
+    default:
+      return `flat at ${usd(startPrice)}`;
+  }
 }
 
 /**
@@ -51,21 +56,6 @@ function calculateDifficulty(networkHashrateEh: number): number {
 }
 
 /**
- * Calculate block reward for a given date
- */
-function getBlockReward(date: Date): number {
-  for (const halving of HALVINGS) {
-    if (date < halving.date) {
-      // Check previous halving
-      const idx = HALVINGS.indexOf(halving);
-      if (idx === 0) return CURRENT_BLOCK_REWARD;
-      return HALVINGS[idx - 1].reward;
-    }
-  }
-  return HALVINGS[HALVINGS.length - 1].reward;
-}
-
-/**
  * Calculate ASIC degradation factor for a given year
  */
 function getDegradationFactor(monthsElapsed: number, degradationPercent: number): number {
@@ -74,39 +64,25 @@ function getDegradationFactor(monthsElapsed: number, degradationPercent: number)
 }
 
 /**
- * Calculate mining revenue for one month
+ * Mining revenue for one month (see `monthlyBtcMined`): the degraded farm
+ * hashrate at this month's network hashrate and mean subsidy, plus fees.
  */
 function calculateMonthlyRevenue(
   farmHashrateThs: number,
   networkHashrateEh: number,
   blockReward: number,
+  feesPerBlockBtc: number,
   btcPrice: number,
   poolFeePercent: number,
   uptimePercent: number,
   degradationFactor: number
 ): { btcMined: number; revenueUsd: number } {
-  // Effective hashrate after degradation and uptime
-  const effectiveHashrateThs = farmHashrateThs * degradationFactor * (uptimePercent / 100);
-
-  // Convert to same units (EH/s)
-  const effectiveHashrateEh = effectiveHashrateThs / 1e6;
-
-  // Pool share of network
-  const poolShare = effectiveHashrateEh / networkHashrateEh;
-
-  // Monthly blocks mined
-  const monthlyBlocks = BLOCKS_PER_DAY * 30 * poolShare;
-
-  // BTC mined before pool fee
-  const btcMinedGross = monthlyBlocks * blockReward;
-
-  // BTC after pool fee
-  const btcMined = btcMinedGross * (1 - poolFeePercent / 100);
-
-  // Revenue in USD
-  const revenueUsd = btcMined * btcPrice;
-
-  return { btcMined, revenueUsd };
+  const btcMined = monthlyBtcMined(
+    farmHashrateThs * degradationFactor,
+    { networkHashrateEh, blockReward, avgFeesPerBlockBtc: feesPerBlockBtc },
+    { uptimePercent, poolFeePercent },
+  );
+  return { btcMined, revenueUsd: btcMined * btcPrice };
 }
 
 /**
@@ -121,63 +97,69 @@ function calculateNpv(monthlyCashFlows: number[], annualDiscountRate: number, in
   return npv;
 }
 
+/** IRR search range, annual %. Below −99.9 % the monthly discount factor stops being meaningful. */
+const IRR_MIN_PERCENT = -99.9;
+const IRR_MAX_PERCENT = 1000;
+
 /**
- * Calculate IRR using bisection method
+ * Annual IRR (percent) by bisection, or null when none exists: if NPV has the
+ * same sign at both ends of the range, no discount rate makes the cash flows
+ * repay the investment (e.g. a farm whose cash flows never recover CAPEX).
  */
-function calculateIrr(monthlyCashFlows: number[], initialInvestment: number): number {
-  let lo = -50; // -50% annual
-  let hi = 500; // 500% annual
+function calculateIrr(monthlyCashFlows: number[], initialInvestment: number): number | null {
+  let lo = IRR_MIN_PERCENT;
+  let hi = IRR_MAX_PERCENT;
+  const npvLo = calculateNpv(monthlyCashFlows, lo, initialInvestment);
+  const npvHi = calculateNpv(monthlyCashFlows, hi, initialInvestment);
+  if (!Number.isFinite(npvLo) || !Number.isFinite(npvHi) || Math.sign(npvLo) === Math.sign(npvHi)) return null;
 
-  // Check if IRR exists (does NPV at 0% start positive?)
-  const npvAtZero = calculateNpv(monthlyCashFlows, 0, initialInvestment);
-  if (npvAtZero < 0) {
-    // Project never pays back even at 0% discount — negative IRR
-    // Try extending range
-    lo = -99;
-  }
-
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 200; i++) {
     const mid = (lo + hi) / 2;
     const npv = calculateNpv(monthlyCashFlows, mid, initialInvestment);
     if (Math.abs(npv) < 0.01) return mid;
-    if (npv > 0) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
+    // NPV falls as the rate rises; keep the half whose ends straddle zero
+    if (Math.sign(npv) === Math.sign(npvLo)) lo = mid;
+    else hi = mid;
   }
   return (lo + hi) / 2;
 }
 
 /**
- * Main forecasting engine
+ * Main forecasting engine. Market state and the clock are inputs: the same
+ * (config, params, market, now) always produces the same forecast.
+ *
+ * Halvings come from block height: month m covers heights
+ * [tip + (m−1)·B, tip + m·B) with B = 144 blocks/day × days/month, and its
+ * reward is the mean subsidy over that range.
  */
-export function generateForecast(config: FarmConfig, params: ForecastParams): ForecastResult {
+export function generateForecast(
+  config: FarmConfig,
+  params: ForecastParams,
+  market: MarketSnapshot,
+  now: Date = new Date(),
+): ForecastResult {
   const periods: ForecastPeriod[] = [];
 
   // Initial values
-  const startDate = new Date();
+  const startDate = new Date(now);
   const farmHashrateThs = calculateTotalHashRate(config);
-  const monthlyKwh = calculateMonthlyKwh(config);
-  const baseElectricityCostPerKwh = config.regional.electricityPriceKwh *
-                                    (1 + config.regional.taxAdderPercent / 100);
   const energyInflationPercent = config.regional.energyInflationPercent ?? 3;
 
-  // Solar offset (injection rate reduces effective coverage)
-  const effectiveSolarCoverage = calculateEffectiveSolarCoverage(config) / 100;
-  const gridKwh = monthlyKwh * (1 - effectiveSolarCoverage);
-
-  let networkHashrateEh = CURRENT_NETWORK_HASHRATE_EH;
+  let networkHashrateEh = market.networkHashrateEh;
   let btcBalance = 0;
   let cumulativeProfitUsd = 0;
+  let cumulativeCashFlowUsd = 0;
   let paybackMonths: number | null = null;
 
   const totalCapex = calculateFarmMetrics(config).totalCapex;
+  // Same itemized OPEX as the dashboard; only electricity inflates over time.
+  const baseOpex = calculateMonthlyOpexBreakdown(config, totalCapex);
+  const fixedOpexUsd = baseOpex.maintenance + baseOpex.solarMaintenance + baseOpex.maintenanceLabor;
+  const feesPerBlockBtc = params.feesPerBlockBtc ?? market.avgFeesPerBlockBtc;
   const monthlyCashFlows: number[] = [];
 
-  // BTC price progression: interpolate from starting price to final S2F target
-  const startPrice = params.startingBtcPrice;
-  const finalPrice = params.finalBtcPrice ?? getStockToFlowTarget(params.months, params.pessimisticAdjustPercent);
+  // BTC price scenario starts at the market price unless the user overrides it
+  const startPrice = params.startingBtcPrice ?? market.btcPriceUsd;
 
   for (let month = 1; month <= params.months; month++) {
     const currentDate = new Date(startDate);
@@ -185,17 +167,18 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
 
     // Update network hashrate (exponential growth)
     const growthFactor = Math.pow(1 + params.networkHashrateGrowthPercent / 100, month / 12);
-    networkHashrateEh = CURRENT_NETWORK_HASHRATE_EH * growthFactor;
+    networkHashrateEh = market.networkHashrateEh * growthFactor;
 
-    // Get block reward (check for halvings)
-    const blockReward = getBlockReward(currentDate);
+    // Mean block subsidy over this month's block heights (halvings by height)
+    const blockReward = averageSubsidy(
+      market.blockHeight + (month - 1) * BLOCKS_PER_MONTH,
+      market.blockHeight + month * BLOCKS_PER_MONTH,
+    );
 
     // Calculate difficulty
     const difficulty = calculateDifficulty(networkHashrateEh);
 
-    // BTC price: linear interpolation from starting to final price over the forecast
-    const t = month / params.months; // 0→1
-    const btcPrice = startPrice + (finalPrice - startPrice) * t;
+    const btcPrice = scenarioBtcPrice(params, startPrice, month);
 
     // Degradation factor
     const degradationFactor = getDegradationFactor(month, params.asicDegradationPercent);
@@ -205,6 +188,7 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
       farmHashrateThs,
       networkHashrateEh,
       blockReward,
+      feesPerBlockBtc,
       btcPrice,
       config.poolFeePercent,
       config.uptimePercent,
@@ -213,9 +197,8 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
 
     // Costs — apply energy inflation compounded per year
     const inflationFactor = Math.pow(1 + energyInflationPercent / 100, month / 12);
-    const electricityCostUsd = gridKwh * baseElectricityCostPerKwh * inflationFactor;
-    const maintenanceUsd = totalCapex > 0 ? (totalCapex * (config.maintenanceOpexPercent / 100)) / 12 : 500;
-    const opexUsd = electricityCostUsd + maintenanceUsd;
+    const electricityCostUsd = baseOpex.electricity * inflationFactor;
+    const opexUsd = electricityCostUsd + fixedOpexUsd;
 
     // Profit calculation based on revenue mode
     let profitUsd = 0;
@@ -246,9 +229,11 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
     monthlyCashFlows.push(revenueUsd - opexUsd);
 
     cumulativeProfitUsd += profitUsd;
+    cumulativeCashFlowUsd += revenueUsd - opexUsd;
 
-    // Check for payback
-    if (paybackMonths === null && cumulativeProfitUsd >= totalCapex) {
+    // Payback: operating cash flow (revenue − OPEX) has recovered CAPEX. Independent
+    // of revenueMode, like NPV/IRR (held BTC still counts at that month's price).
+    if (paybackMonths === null && cumulativeCashFlowUsd >= totalCapex) {
       paybackMonths = month;
     }
 
@@ -285,7 +270,7 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
   // NPV & IRR
   const discountRate = params.discountRatePercent ?? 10;
   const npv = calculateNpv(monthlyCashFlows, discountRate, totalCapex);
-  const irr = totalCapex > 0 ? calculateIrr(monthlyCashFlows, totalCapex) : 0;
+  const irr = totalCapex > 0 ? calculateIrr(monthlyCashFlows, totalCapex) : null;
 
   // Break-even BTC price: price at which total revenue = total costs
   // Revenue = totalBtcMined × price, so price = totalCosts / totalBtcMined
@@ -293,12 +278,21 @@ export function generateForecast(config: FarmConfig, params: ForecastParams): Fo
   const breakEvenBtcPriceWithCapex = totalBtcMined > 0 ? (totalCosts + totalCapex) / totalBtcMined : 0;
 
   // Hashprice: $/TH/day average
-  const totalDays = params.months * 30;
+  const totalDays = params.months * DAYS_PER_MONTH;
   const avgHashpriceUsd = farmHashrateThs > 0 ? totalRevenue / (farmHashrateThs * totalDays) : 0;
 
   return {
     periods,
     totalCapex,
+    assumptions: {
+      market,
+      startingBtcPrice: startPrice,
+      feesPerBlockBtc,
+      priceScenario: describePriceScenario(params, startPrice),
+      daysPerMonth: DAYS_PER_MONTH,
+      avgBlockMinutes: TARGET_BLOCK_MINUTES,
+      nextHalving: nextHalving(market.blockHeight, now),
+    },
     summary: {
       totalRevenue,
       totalCosts,

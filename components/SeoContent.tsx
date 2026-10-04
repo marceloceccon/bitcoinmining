@@ -3,12 +3,12 @@
 
 export default function SeoContent() {
   return (
-    <section className="container mx-auto px-4 py-12 max-w-4xl">
-      <div className="space-y-8 text-sm text-slate-500 leading-relaxed glass-card p-8 lg:p-10">
+    <section>
+      <div className="space-y-8 text-sm text-fg-2 leading-relaxed panel p-6 lg:p-8">
 
         {/* How it works */}
         <div id="how-it-works">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-fg mb-4">
             How This Bitcoin Mining Farm Calculator Works
           </h2>
 
@@ -29,7 +29,7 @@ export default function SeoContent() {
 
         {/* What makes it different */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             What Makes This Different From Other Mining Calculators
           </h3>
 
@@ -44,53 +44,53 @@ export default function SeoContent() {
 
           <ul className="mt-3 space-y-2 list-disc list-inside">
             <li>
-              <strong className="text-slate-900">Hardware CAPEX</strong> &mdash; Select
+              <strong className="text-fg">Hardware CAPEX</strong> &mdash; Select
               from 50+ real ASIC miners (Antminer, Whatsminer, Avalon) with current
               market pricing. Mix different models in the same farm to optimize
               hashrate-per-watt.
             </li>
             <li>
-              <strong className="text-slate-900">Import taxes</strong> &mdash; Apply
+              <strong className="text-fg">Import taxes</strong> &mdash; Apply
               country-specific import duties that add 5&ndash;30% to hardware cost
               depending on jurisdiction. Includes pre-configured rates for 20+ countries.
             </li>
             <li>
-              <strong className="text-slate-900">Deployment labor</strong> &mdash;
+              <strong className="text-fg">Deployment labor</strong> &mdash;
               Calculate installation hours per miner, per rack, per container, and per
               transformer. Set your local hourly labor rate. The simulator computes total
               deployment cost including cables, breakers, and electrical infrastructure.
             </li>
             <li>
-              <strong className="text-slate-900">Energy modeling</strong> &mdash; Set
+              <strong className="text-fg">Energy modeling</strong> &mdash; Set
               electricity price per kWh by region, apply energy inflation rates
               (compounded monthly over your forecast horizon), and optionally model solar
               panel offset to reduce grid dependency.
             </li>
             <li>
-              <strong className="text-slate-900">Thermal management</strong> &mdash;
+              <strong className="text-fg">Thermal management</strong> &mdash;
               Size ventilation fans and dry coolers based on total heat output. Select
               from 26 real dry cooler models with accurate capacity ratings. The
               calculator accounts for local ambient temperature using ERA5 climate data
               for any location on earth.
             </li>
             <li>
-              <strong className="text-slate-900">Mining pool parameters</strong> &mdash;
+              <strong className="text-fg">Mining pool parameters</strong> &mdash;
               Choose PPS, FPPS, PPLNS, or PPS+ payout schemes with accurate default
               pool fee percentages for each. Pool fees directly impact revenue projections.
             </li>
             <li>
-              <strong className="text-slate-900">Multi-year ROI forecasting</strong>
+              <strong className="text-fg">Multi-year ROI forecasting</strong>
               &mdash; Project revenue, expenses, and cumulative profit over 12&ndash;60
-              months. The forecast engine uses the Bitcoin Stock-to-Flow model for price
-              projection, applies difficulty adjustment estimates, and compounds energy
-              inflation &mdash; giving you a realistic payback timeline.
+              months. The forecast starts from live network hashrate, subsidy and fees,
+              applies your hashrate-growth estimate and halvings by block height, and
+              compounds energy inflation &mdash; giving you a realistic payback timeline.
             </li>
           </ul>
         </div>
 
         {/* CAPEX components */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             CAPEX Components Explained
           </h3>
 
@@ -101,43 +101,43 @@ export default function SeoContent() {
 
           <ol className="mt-3 space-y-2 list-decimal list-inside">
             <li>
-              <strong className="text-slate-900">Miner hardware cost</strong> &mdash;
+              <strong className="text-fg">Miner hardware cost</strong> &mdash;
               Unit price times quantity for each ASIC model selected
             </li>
             <li>
-              <strong className="text-slate-900">Transformer cost</strong> &mdash;
+              <strong className="text-fg">Transformer cost</strong> &mdash;
               Electrical transformer sized for total farm power draw
             </li>
             <li>
-              <strong className="text-slate-900">Cabling cost</strong> &mdash;
+              <strong className="text-fg">Cabling cost</strong> &mdash;
               Per-miner cable and breaker budget
             </li>
             <li>
-              <strong className="text-slate-900">Rack cost</strong> &mdash; Mining
+              <strong className="text-fg">Rack cost</strong> &mdash; Mining
               racks calculated at 10 miners per rack
             </li>
             <li>
-              <strong className="text-slate-900">Container cost</strong> &mdash;
+              <strong className="text-fg">Container cost</strong> &mdash;
               Shipping containers at 100 miners per container
             </li>
             <li>
-              <strong className="text-slate-900">Cooling infrastructure</strong>
+              <strong className="text-fg">Cooling infrastructure</strong>
               &mdash; Fans, ducting, or dry cooler hardware and installation
             </li>
             <li>
-              <strong className="text-slate-900">Solar CAPEX</strong> &mdash; Panel
+              <strong className="text-fg">Solar CAPEX</strong> &mdash; Panel
               and inverter cost for optional solar offset
             </li>
             <li>
-              <strong className="text-slate-900">Deployment labor</strong> &mdash;
+              <strong className="text-fg">Deployment labor</strong> &mdash;
               Total installation hours times hourly rate
             </li>
             <li>
-              <strong className="text-slate-900">Cables and breakers</strong> &mdash;
+              <strong className="text-fg">Cables and breakers</strong> &mdash;
               Per-unit electrical infrastructure
             </li>
             <li>
-              <strong className="text-slate-900">Dry cooler CAPEX</strong> &mdash;
+              <strong className="text-fg">Dry cooler CAPEX</strong> &mdash;
               Hardware + plumbing + installation labor for liquid cooling
             </li>
           </ol>
@@ -151,7 +151,7 @@ export default function SeoContent() {
 
         {/* OPEX methodology */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             OPEX Modeling Methodology
           </h3>
 
@@ -164,38 +164,37 @@ export default function SeoContent() {
           </p>
 
           <p className="mt-3">
-            Revenue is calculated from total farm hashrate against current network
-            difficulty, with difficulty adjustments modeled across the forecast
-            period. Bitcoin price uses the Stock-to-Flow model &mdash; a quantitative
-            framework based on BTC&apos;s fixed supply schedule and halving cycles.
+            Revenue is your farm&apos;s share of the live network hashrate times the
+            block subsidy plus transaction fees, with network growth and halvings
+            modeled across the forecast period. The BTC price follows a scenario you
+            choose &mdash; flat, a yearly percentage change, or a target price.
           </p>
         </div>
 
-        {/* S2F model */}
+        {/* Price scenarios */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
-            Stock-to-Flow Forecasting Model
+          <h3 className="text-xl font-semibold text-fg mb-3">
+            BTC Price Scenarios, Not Predictions
           </h3>
 
           <p>
-            The Stock-to-Flow (S2F) model values Bitcoin based on its scarcity
-            ratio: existing supply (stock) divided by annual production rate (flow).
-            After each halving, the flow drops 50%, doubling the S2F ratio and
-            historically correlating with significant price appreciation.
+            Nobody can forecast the Bitcoin price, so the calculator doesn&apos;t
+            pretend to. You pick a scenario: hold today&apos;s price flat, apply a
+            yearly change (the Bear and Bull presets are &minus;30% and +30% per
+            year), or draw a straight line to a target price of your own.
           </p>
 
           <p className="mt-3">
-            This calculator integrates the S2F model into its multi-year projections
-            so you can evaluate farm ROI under a scarcity-driven price thesis rather
-            than assuming a flat BTC price. This is particularly relevant for miners
-            evaluating 3&ndash;5 year investment horizons that span one or more halving
-            events.
+            Comparing scenarios shows how sensitive a farm is to price. The
+            break-even BTC price tells you how far the market can fall before the
+            farm stops covering its operating costs &mdash; the number that matters
+            for 3&ndash;5 year horizons that span a halving.
           </p>
         </div>
 
         {/* Who it's for */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             Who This Tool Is For
           </h3>
 
@@ -210,37 +209,37 @@ export default function SeoContent() {
 
         {/* FAQ */}
         <div id="faq">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-fg mb-4">
             Frequently Asked Questions
           </h2>
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Is this Bitcoin mining calculator free?
               </h3>
               <p>
-                Yes. No account, no payment, no trial period. All calculations are
-                performed server-side via our free API. Your farm configuration
-                stays in your browser — nothing is stored.
+                Yes. No account, no payment, no trial period. Calculations run in
+                your browser; the only request is for live market data, and your
+                farm configuration is never sent or stored.
               </p>
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 How accurate are the profitability projections?
               </h3>
               <p>
-                The projections are estimates based on current network difficulty,
-                the Stock-to-Flow price model, and your input parameters. Real
-                results depend on actual BTC price movement, difficulty changes,
-                hardware reliability, and electricity rate changes. Use this as a
-                planning tool, not a guarantee.
+                The projections are estimates based on the live network hashrate,
+                block subsidy and transaction fees, the BTC price scenario you
+                choose, and your input parameters. Real results depend on actual BTC
+                price movement, difficulty changes, hardware reliability, and
+                electricity rate changes. Use this as a planning tool, not a guarantee.
               </p>
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Can I model a large-scale industrial mining farm?
               </h3>
               <p>
@@ -252,19 +251,18 @@ export default function SeoContent() {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Does this calculator account for Bitcoin halving events?
               </h3>
               <p>
-                Yes. The Stock-to-Flow model inherently accounts for halving events
-                in its price projection. The forecast engine also adjusts block reward
-                in revenue calculations when a halving occurs within your projection
-                window.
+                Yes. Halvings are computed from block height: the forecast estimates
+                when block 1,050,000 (and later halvings) will be mined at 10 minutes
+                per block and halves the subsidy from then on.
               </p>
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 How is electricity cost modeled?
               </h3>
               <p>

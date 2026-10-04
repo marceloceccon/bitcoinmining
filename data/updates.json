@@ -1,5 +1,5 @@
 {
-  "miners": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" },
-  "dryCoolers": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" },
-  "airFans": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial data from Supabase migration" }
+  "miners": { "lastUpdated": "2026-10-03T00:00:00Z", "note": "Q4-2026 refresh: 90 models (current-gen Bitmain, MicroBT, Canaan and Bitdeer, plus home miners); legacy units repriced from the Luxor ASIC price index; removed CK5/CK6 (not SHA-256), S21 Ultra and AvalonMiner 1346 Pro (not real products)" },
+  "dryCoolers": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial catalog (2024 hardware data)" },
+  "airFans": { "lastUpdated": "2026-04-13T00:00:00Z", "note": "Initial catalog (2024 hardware data)" }
 }

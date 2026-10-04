@@ -2,224 +2,183 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design tokens — "Control Room" (G1). Two themes from one token set:
+ *   light = blueprint paper, dark = graphite. The default follows the system
+ *   preference; the theme toggle sets data-theme on <html> to override it.
+ * Colors are RGB triplets so Tailwind can apply alpha (see tailwind.config.ts).
+ * One accent: btc orange, reserved for live market data. Semantic hues:
+ *   good/bad (money), heat (amber → red), cool (cooling), power (electrical).
+ */
 @layer base {
   :root {
-    /* Glass theme tokens */
-    --background: #F8F9FC;
-    --foreground: #111827;
-    --card-bg: rgba(255, 255, 255, 0.65);
-    --card-border: rgba(210, 218, 230, 0.7);
-    --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-    --card-shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    --card-radius: 20px;
-    --backdrop-blur: 20px;
-
-    /* Semantic palette (preserved) */
-    --primary: #1E40AF;
-    --primary-light: #3B82F6;
-    --primary-faint: #EFF6FF;
-    --primary-glow: rgba(30, 64, 175, 0.08);
-
-    /* Status tints for glass backgrounds */
-    --success-tint: rgba(16, 185, 129, 0.08);
-    --danger-tint: rgba(239, 68, 68, 0.08);
-    --warning-tint: rgba(251, 191, 36, 0.08);
-    --info-tint: rgba(59, 130, 246, 0.08);
-
-    --radius: 0.75rem;
-  }
-}
-
-@layer base {
-  * {
-    border-color: var(--card-border);
-  }
-  html {
+    --bg: 244 246 248;
+    --surface: 255 255 255;
+    --surface-2: 234 239 243;
+    --fg: 20 32 43;
+    --fg-2: 47 61 74;
+    --muted: 78 91 104;
+    --faint: 94 107 120;
+    --line: 207 216 225;
+    --line-strong: 170 184 198;
+    --btc: 158 82 0;
+    --good: 22 112 64;
+    --bad: 178 44 34;
+    --warn: 140 82 0;
+    --heat: 166 84 10;
+    --cool: 32 96 170;
+    --power: 43 58 72;
+    --grid: 20 60 110;
+    --grid-alpha: 0.05;
+    --radius: 6px;
     color-scheme: light;
   }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: 12 14 16;
+      --surface: 18 21 25;
+      --surface-2: 15 18 21;
+      --fg: 228 231 234;
+      --fg-2: 195 201 207;
+      --muted: 150 159 168;
+      --faint: 128 137 148;
+      --line: 35 40 48;
+      --line-strong: 56 64 75;
+      --btc: 247 147 26;
+      --good: 79 201 138;
+      --bad: 239 106 91;
+      --warn: 240 163 60;
+      --heat: 240 163 60;
+      --cool: 90 169 240;
+      --power: 217 222 227;
+      --grid: 255 255 255;
+      --grid-alpha: 0.025;
+      color-scheme: dark;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: 12 14 16;
+    --surface: 18 21 25;
+    --surface-2: 15 18 21;
+    --fg: 228 231 234;
+    --fg-2: 195 201 207;
+    --muted: 150 159 168;
+    --faint: 128 137 148;
+    --line: 35 40 48;
+    --line-strong: 56 64 75;
+    --btc: 247 147 26;
+    --good: 79 201 138;
+    --bad: 239 106 91;
+    --warn: 240 163 60;
+    --heat: 240 163 60;
+    --cool: 90 169 240;
+    --power: 217 222 227;
+    --grid: 255 255 255;
+    --grid-alpha: 0.025;
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: rgb(var(--line));
+  }
+
   body {
-    background: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    background-color: rgb(var(--bg));
+    background-image:
+      linear-gradient(rgb(var(--grid) / var(--grid-alpha)) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--grid) / var(--grid-alpha)) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: rgb(var(--fg));
+    font-family: var(--font-geist), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    line-height: 1.6;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--fg));
+    outline-offset: 2px;
+  }
+
+  select,
+  input[type="number"],
+  input[type="text"],
+  input[type="search"] {
+    background-color: rgb(var(--surface));
+    color: rgb(var(--fg));
+  }
+
+  input[type="range"] {
+    accent-color: rgb(var(--fg));
   }
 }
 
-/* ────────────────────────────────────────────────────────
-   Body background: subtle gradient + decorative blobs
-   ──────────────────────────────────────────────────────── */
-.glass-body-bg {
-  position: relative;
-  background:
-    linear-gradient(145deg, #F8F9FC 0%, #EEF1F8 35%, #F4F0F9 65%, #F8F9FC 100%);
-  min-height: 100vh;
-}
-
-.glass-body-bg::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 64, 175, 0.04) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(245, 158, 11, 0.02) 0%, transparent 40%);
-}
-
-.glass-body-bg > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* ────────────────────────────────────────────────────────
-   Glass card utility (applied via Card component)
-   ──────────────────────────────────────────────────────── */
-@layer utilities {
-  .glass-card {
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--card-radius);
-    box-shadow: var(--card-shadow);
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+@layer components {
+  /* A bordered surface that sets one block off from the page */
+  .panel {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line));
+    border-radius: var(--radius);
   }
 
-  @supports (backdrop-filter: blur(1px)) {
-    .glass-card {
-      backdrop-filter: blur(var(--backdrop-blur));
-      -webkit-backdrop-filter: blur(var(--backdrop-blur));
-    }
+  /* A recessed row or stat inside a panel */
+  .inset {
+    background: rgb(var(--surface-2));
+    border: 1px solid rgb(var(--line));
+    border-radius: calc(var(--radius) - 2px);
   }
 
-  @supports not (backdrop-filter: blur(1px)) {
-    .glass-card {
-      background: rgba(255, 255, 255, 0.92);
-    }
+  /* Status notes: a tinted surface with a matching edge */
+  .note-info { background: rgb(var(--cool) / 0.08); border: 1px solid rgb(var(--cool) / 0.3); color: rgb(var(--fg)); }
+  .note-good { background: rgb(var(--good) / 0.08); border: 1px solid rgb(var(--good) / 0.3); color: rgb(var(--fg)); }
+  .note-warn { background: rgb(var(--warn) / 0.08); border: 1px solid rgb(var(--warn) / 0.35); color: rgb(var(--fg)); }
+  .note-bad  { background: rgb(var(--bad) / 0.08);  border: 1px solid rgb(var(--bad) / 0.35);  color: rgb(var(--fg)); }
+
+  .site-header {
+    background: rgb(var(--bg) / 0.9);
+    border-bottom: 1px solid rgb(var(--line));
+    backdrop-filter: saturate(1.2) blur(8px);
   }
 
-  .glass-card-hover:hover {
-    box-shadow: var(--card-shadow-hover);
-    transform: translateY(-1px);
+  .ticker {
+    background: rgb(var(--surface-2));
+    border-bottom: 1px solid rgb(var(--line));
   }
 
-  /* Glass header bar */
-  .glass-header {
-    background: rgba(255, 255, 255, 0.75);
-    border-bottom: 1px solid var(--card-border);
-    box-shadow: 0 1px 12px rgba(0, 0, 0, 0.04);
+  .dialog-overlay {
+    background: rgb(0 0 0 / 0.45);
   }
 
-  @supports (backdrop-filter: blur(1px)) {
-    .glass-header {
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
+  .dialog {
+    background: rgb(var(--surface));
+    border: 1px solid rgb(var(--line-strong));
+    border-radius: var(--radius);
+    box-shadow: 0 24px 64px rgb(0 0 0 / 0.25);
   }
 
-  /* Glass nav pill bar */
-  .glass-nav {
-    background: rgba(255, 255, 255, 0.55);
-    border: 1px solid var(--card-border);
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  /* Small uppercase label for figures and section captions */
+  .label {
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: rgb(var(--muted));
   }
 
-  @supports (backdrop-filter: blur(1px)) {
-    .glass-nav {
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-  }
-
-  /* Glass inner section (for nested cards, stat items) */
-  .glass-inner {
-    background: rgba(255, 255, 255, 0.45);
-    border: 1px solid rgba(226, 232, 240, 0.6);
-    border-radius: 12px;
-    transition: background 0.2s ease;
-  }
-
-  .glass-inner:hover {
-    background: rgba(255, 255, 255, 0.6);
-  }
-
-  /* Status tinted glass */
-  .glass-success {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
-    border-color: rgba(16, 185, 129, 0.2);
-  }
-
-  .glass-danger {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
-    border-color: rgba(239, 68, 68, 0.2);
-  }
-
-  .glass-warning {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
-    border-color: rgba(251, 191, 36, 0.2);
-  }
-
-  .glass-info {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.06) 0%, rgba(255, 255, 255, 0.5) 100%);
-    border-color: rgba(59, 130, 246, 0.2);
-  }
-
-  /* Row hover for data rows */
   .row-hover {
-    @apply transition-all duration-150;
-    border-radius: 8px;
+    border-radius: 4px;
+    transition: background-color 150ms ease-out;
   }
   .row-hover:hover {
-    background: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    background: rgb(var(--surface-2));
   }
-
-  /* Text accent for key values */
-  .text-accent-value {
-    color: #1E40AF;
-  }
-}
-
-/* ────────────────────────────────────────────────────────
-   Smooth animations
-   ──────────────────────────────────────────────────────── */
-@media (prefers-reduced-motion: no-preference) {
-  * {
-    scroll-behavior: smooth;
-  }
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fadeInUp 0.3s ease-out forwards;
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.animate-fade-in-scale {
-  animation: fadeInScale 0.25s ease-out forwards;
 }
 
 /* Tabular numbers for all mono-spaced data */
@@ -227,59 +186,54 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ────────────────────────────────────────────────────────
-   Network stats banner (glassmorphic dark)
-   ──────────────────────────────────────────────────────── */
-.glass-banner {
-  background: rgba(15, 23, 42, 0.85);
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.12);
+/* One subtle "live" pulse for the market ticker — the only ambient motion */
+@keyframes live-pulse {
+  50% { opacity: 0.35; }
+}
+.live-dot {
+  animation: live-pulse 2.4s ease-in-out infinite;
 }
 
-@supports (backdrop-filter: blur(1px)) {
-  .glass-banner {
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
-/* ────────────────────────────────────────────────────────
-   Modal overlay with glass backdrop
-   ──────────────────────────────────────────────────────── */
-.glass-modal-overlay {
-  background: rgba(0, 0, 0, 0.25);
+/* Farm schematic: power flow along the wires and the heat plume above cooling.
+   CSS-gated (not JS) so server-rendered markup respects reduced motion too. */
+@media (prefers-reduced-motion: no-preference) {
+  .schem-flow { animation: schematic-flow var(--flow-s, 1.5s) linear infinite; }
+  .schem-plume { animation: schematic-plume 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+}
+@keyframes schematic-flow {
+  to { stroke-dashoffset: -24; }
+}
+@keyframes schematic-plume {
+  50% { opacity: 0.25; transform: translateY(-4px) scaleY(1.06); }
 }
 
-@supports (backdrop-filter: blur(1px)) {
-  .glass-modal-overlay {
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-  }
+/* Map: OSM tiles darkened in the dark theme with a filter (no new tile provider) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .map-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
 }
+:root[data-theme="dark"] .map-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+.leaflet-container { font-family: inherit; }
+.leaflet-control-attribution { background: rgb(var(--surface) / 0.85) !important; color: rgb(var(--muted)) !important; }
+.leaflet-control-attribution a { color: rgb(var(--fg)) !important; }
 
-.glass-modal {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid var(--card-border);
-  border-radius: var(--card-radius);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-@supports (backdrop-filter: blur(1px)) {
-  .glass-modal {
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-  }
-}
-
-/* ────────────────────────────────────────────────────────
-   Select / dropdown styling
-   ──────────────────────────────────────────────────────── */
-select {
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-select:focus {
-  border-color: #3B82F6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+/* Site pin drops onto the map */
+.site-pin { background: none; border: 0; }
+.site-pin svg { animation: pin-drop 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2); transform-origin: 50% 100%; }
+@keyframes pin-drop {
+  0% { transform: translateY(-36px) scale(0.9); opacity: 0; }
+  70% { transform: translateY(2px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
 }

@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server';
-import {
-  calculateFarmMetrics,
-  calculateVentilation,
-  calculateTotalPower,
-  calculateTotalHashRate,
-  calculateAirFanPowerKw,
-  getEffectiveClimate,
-  getDryCoolerDeratingFactor,
-  calculateEffectiveDryCoolerCapacityKw,
-} from '@/lib/calculations';
+import { computeFarmReport } from '@/lib/farmReport';
+import { resolveMarket } from '@/lib/networkData';
 import { corsHeaders, handleOptions } from '@/lib/cors';
 import {
   validateFarmConfig,
+  validateMarketOverride,
   isWithinSizeLimit,
   MAX_REQUEST_BYTES,
 } from '@/lib/validateFarmConfig';
@@ -100,7 +93,7 @@ type CalculateBody = {
   parasiticLoadPercent: number;
   /** Expected uptime percentage — default 98 */
   uptimePercent: number;
-  /** Mining pool fee percentage — default 1-2 */
+  /** Mining pool fee percentage — default 2.5 */
   poolFeePercent: number;
   /** Monthly maintenance OPEX as a percentage of total CAPEX — default 5 */
   maintenanceOpexPercent: number;
@@ -108,17 +101,17 @@ type CalculateBody = {
   payoutScheme: "pps" | "pplns" | "fpps" | "ppsplus";
   /** Labor cost parameters for deployment */
   labor: {
-    /** Man-hours to deploy each miner — default 2.5 */
+    /** Man-hours to deploy each miner — default 1 */
     manHoursPerMiner: number;
-    /** Hourly labor rate in USD — default 35 */
+    /** Hourly labor rate in USD — default 20 */
     hourlyLaborCostUsd: number;
-    /** Cable + dedicated fuse breaker cost per miner in USD — default 85 */
+    /** Cable + dedicated fuse breaker cost per miner in USD — default 40 */
     cablesPerMinerUsd: number;
     /** Man-hours to install each transformer — default 8 */
     manHoursPerTransformer: number;
     /** Man-hours to assemble each rack — default 4 */
     manHoursPerRack: number;
-    /** Man-hours to set up each container — default 40 */
+    /** Man-hours to set up each container — default 80 */
     manHoursPerContainer: number;
   };
   /** Temperature management and cooling hardware selections (optional) */
@@ -174,6 +167,17 @@ type CalculateBody = {
   maintenanceLabor: {
     /** Hourly rate for maintenance technicians (USD) — default 35 */
     hourlyMaintenanceCostUsd: number;
+  };
+  /** Optional market inputs to pin for the revenue figures. Omitted values come from the live snapshot (GET /api/network) */
+  market?: {
+    /** BTC price in USD */
+    btcPriceUsd?: number;
+    /** Network hashrate in EH/s */
+    networkHashrateEh?: number;
+    /** Chain tip height (the block subsidy is derived from it) */
+    blockHeight?: number;
+    /** Average transaction fees per block in BTC */
+    avgFeesPerBlockBtc?: number;
   };
 };
 
@@ -246,6 +250,58 @@ type CalculateResponse = {
   totalPowerKw: number;
   /** Total power consumed by air cooling fans (kW) */
   airFanPowerKw: number;
+  /** Site climate used for cooling (the selected location, or a temperate default) */
+  climate: {
+    /** Location name */
+    city: string;
+    /** Hottest temperature (°C), drives derating and airflow */
+    maxTempC: number;
+    /** Average humidity (%) */
+    avgHumidityPercent: number;
+  };
+  /** Dry cooler capacity multiplier at the site's max temperature (1.0 at 35 °C) */
+  dryCoolerDeratingFactor: number;
+  /** Selected dry coolers' total capacity after derating (kW) */
+  effectiveDryCoolerCapacityKw: number;
+  /** Revenue and profit per month at today's market (no growth, degradation or halvings) */
+  revenue: {
+    /** BTC mined per day (after uptime and pool fee) */
+    dailyBtc: number;
+    /** BTC mined per 30.4375-day month */
+    monthlyBtc: number;
+    /** Monthly mining revenue (USD) */
+    monthlyRevenueUsd: number;
+    /** Monthly OPEX (USD), same as metrics.monthlyOpex */
+    monthlyOpexUsd: number;
+    /** Monthly revenue minus OPEX (USD) */
+    monthlyProfitUsd: number;
+    /** Monthly OPEX per BTC mined (USD); null when nothing is mined */
+    costPerBtcUsd: number | null;
+    /** Network hashprice including fees ($/PH/day) */
+    hashpriceUsdPhDay: number;
+  };
+  /** The inputs the revenue figures assumed */
+  assumptions: {
+    /** Market snapshot used (live unless overridden) */
+    market: {
+      /** BTC price in USD */
+      btcPriceUsd: number;
+      /** Network hashrate in EH/s */
+      networkHashrateEh: number;
+      /** Chain tip height */
+      blockHeight: number;
+      /** Block subsidy at blockHeight (BTC) */
+      blockReward: number;
+      /** Average transaction fees per block (BTC) */
+      avgFeesPerBlockBtc: number;
+      /** ISO 8601 time of the snapshot */
+      asOf: string;
+      /** false = offline estimate or request overrides */
+      isLive: boolean;
+      /** Where each value came from */
+      sources: string[];
+    };
+  };
 };
 
 export async function OPTIONS(request: Request) {
@@ -254,7 +310,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * Calculate farm metrics
- * @description Calculates comprehensive CAPEX, OPEX, and operational metrics for a Bitcoin mining farm configuration. Accepts a complete FarmConfig and returns all derived values including total hash rate, power draw, heat output, transformer sizing, infrastructure costs, and monthly operating expenses. This is the primary calculation endpoint — send your full farm configuration and receive all metrics in one call.
+ * @description Calculates comprehensive CAPEX, OPEX, and operational metrics for a Bitcoin mining farm configuration. Accepts a complete FarmConfig and returns all derived values including total hash rate, power draw, heat output, transformer sizing, cooling, infrastructure costs, monthly operating expenses, and monthly revenue/profit at the live market snapshot (pin market inputs with the optional `market` field). The response echoes the market assumptions used.
  * @body CalculateBody
  * @response CalculateResponse
  * @openapi
@@ -279,7 +335,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const validation = validateFarmConfig(parsed);
+  // The body is a FarmConfig plus an optional `market` override.
+  const { market: rawMarket, ...rawConfig } = (parsed ?? {}) as Record<string, unknown>;
+  const validation = validateFarmConfig(parsed === null || typeof parsed !== 'object' || Array.isArray(parsed) ? parsed : rawConfig);
   if (!validation.ok) {
     return NextResponse.json(
       { error: validation.error, field: validation.field },
@@ -287,30 +345,14 @@ export async function POST(request: Request) {
     );
   }
   const config = validation.value;
+  const marketResult = validateMarketOverride(rawMarket);
+  if (!marketResult.ok) {
+    return NextResponse.json({ error: marketResult.error, field: marketResult.field }, { status: 400, headers });
+  }
 
   try {
-    const metrics = calculateFarmMetrics(config);
-    const ventilation = calculateVentilation(config);
-    const totalHashRateThs = calculateTotalHashRate(config);
-    const totalPowerKw = calculateTotalPower(config);
-    const airFanPowerKw = calculateAirFanPowerKw(config);
-    const climate = getEffectiveClimate(config);
-    const dryCoolerDeratingFactor = getDryCoolerDeratingFactor(config);
-    const effectiveDryCoolerCapacityKw = calculateEffectiveDryCoolerCapacityKw(config);
-
-    return NextResponse.json(
-      {
-        metrics,
-        ventilation,
-        totalHashRateThs,
-        totalPowerKw,
-        airFanPowerKw,
-        climate,
-        dryCoolerDeratingFactor,
-        effectiveDryCoolerCapacityKw,
-      },
-      { headers }
-    );
+    const market = await resolveMarket(marketResult.value);
+    return NextResponse.json(computeFarmReport(config, market), { headers });
   } catch (err) {
     return NextResponse.json(
       { error: 'Calculation failed', detail: String(err) },

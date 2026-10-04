@@ -1,110 +1,212 @@
 /**
- * Live Bitcoin network data fetched from public APIs.
- * Falls back to hardcoded approximations when offline.
+ * Live Bitcoin market state from public APIs (mempool.space, CoinGecko as a
+ * price backup), with one clearly-labelled offline fallback.
  */
+import type { MarketSnapshot } from '@/types';
+import type { MarketOverride } from '@/lib/validateFarmConfig';
+import { hashpriceUsdPerPhDay, nextHalving, subsidyAtHeight } from '@/lib/bitcoin';
+import { serverCache, CACHE_KEYS, CACHE_TTL } from '@/lib/serverCache';
 
-export interface NetworkData {
-  btcPriceUsd: number;
-  networkHashrateEh: number;
+/** What /api/network serves: the market snapshot plus derived display values. */
+export interface NetworkData extends MarketSnapshot {
   difficulty: number;
-  blockReward: number;
-  hashpriceUsdPhDay: number; // $/PH/day
+  /** $/PH/day including transaction fees */
+  hashpriceUsdPhDay: number;
+  /** Same instant as `asOf`; kept for API backward compatibility */
   lastUpdated: Date;
-  isLive: boolean;
+  nextHalving: { height: number; estimatedDate: string };
+  /** Trailing 12-month network hashrate growth, % per year (unclamped); null when unavailable */
+  hashrateGrowth12mPercent: number | null;
 }
 
-const BLOCKS_PER_DAY = 144;
-
-const FALLBACK: NetworkData = {
-  btcPriceUsd: 0,
-  networkHashrateEh: 750,
-  difficulty: 108e12,
-  blockReward: 3.125,
-  hashpriceUsdPhDay: 0,
-  lastUpdated: new Date(),
+/**
+ * The **only** hardcoded market values in the app. Used when the live sources
+ * are unreachable, and always shown in the UI as an "offline estimate".
+ * Snapshot of 2026-10-03 (mempool.space).
+ */
+export const FALLBACK_MARKET: MarketSnapshot = {
+  btcPriceUsd: 84714,
+  networkHashrateEh: 964,
+  blockHeight: 969763,
+  blockReward: subsidyAtHeight(969763),
+  avgFeesPerBlockBtc: 0.027,
+  asOf: '2026-10-03T00:00:00.000Z',
   isLive: false,
+  sources: ['offline estimate (2026-10-03 snapshot)'],
 };
 
-/**
- * Calculate hashprice in $/PH/day.
- * hashprice = (blocks_per_day * block_reward * btc_price) / (network_hashrate_eh * 1000)
- * where 1 EH = 1000 PH
- */
-function calcHashprice(btcPrice: number, networkHashrateEh: number, blockReward: number): number {
-  if (networkHashrateEh <= 0) return 0;
-  const dailyBtc = BLOCKS_PER_DAY * blockReward;
-  const dailyRevenueUsd = dailyBtc * btcPrice;
-  const networkPh = networkHashrateEh * 1000;
-  return dailyRevenueUsd / networkPh;
+const MEMPOOL = 'https://mempool.space/api';
+const FETCH_TIMEOUT_MS = 5000;
+
+/** Strip a NetworkData (or anything wider) down to the engine's MarketSnapshot. */
+export function toMarketSnapshot(data: MarketSnapshot): MarketSnapshot {
+  const { btcPriceUsd, networkHashrateEh, blockHeight, blockReward, avgFeesPerBlockBtc, asOf, isLive, sources } = data;
+  return { btcPriceUsd, networkHashrateEh, blockHeight, blockReward, avgFeesPerBlockBtc, asOf, isLive, sources };
 }
 
-/**
- * Fetch live BTC network stats from mempool.space and CoinGecko.
- * Returns fallback values if any request fails.
- */
-export async function fetchNetworkData(): Promise<NetworkData> {
+/** Network difficulty implied by a hashrate: H/s × 600 s / 2^32. */
+function impliedDifficulty(networkHashrateEh: number): number {
+  return (networkHashrateEh * 1e18 * 600) / 2 ** 32;
+}
+
+async function getJson<T>(url: string): Promise<T | null> {
   try {
-    const [priceRes, hashrateRes] = await Promise.allSettled([
-      fetch("https://mempool.space/api/v1/prices"),
-      fetch("https://mempool.space/api/v1/mining/hashrate/1m"),
-    ]);
-
-    let btcPriceUsd = FALLBACK.btcPriceUsd;
-    let networkHashrateEh = FALLBACK.networkHashrateEh;
-    let difficulty = FALLBACK.difficulty;
-    let isLive = false;
-
-    if (priceRes.status === "fulfilled" && priceRes.value.ok) {
-      const priceData = await priceRes.value.json();
-      if (priceData.USD && priceData.USD > 0) {
-        btcPriceUsd = priceData.USD;
-        isLive = true;
-      }
-    }
-
-    if (hashrateRes.status === "fulfilled" && hashrateRes.value.ok) {
-      const hashrateData = await hashrateRes.value.json();
-      // currentHashrate is in H/s, convert to EH/s
-      if (hashrateData.currentHashrate && hashrateData.currentHashrate > 0) {
-        networkHashrateEh = hashrateData.currentHashrate / 1e18;
-        isLive = true;
-      }
-      if (hashrateData.currentDifficulty && hashrateData.currentDifficulty > 0) {
-        difficulty = hashrateData.currentDifficulty;
-      }
-    }
-
-    // If mempool price failed, try CoinGecko as backup
-    if (btcPriceUsd === 0) {
-      try {
-        const cgRes = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-        );
-        if (cgRes.ok) {
-          const cgData = await cgRes.json();
-          if (cgData.bitcoin?.usd) {
-            btcPriceUsd = cgData.bitcoin.usd;
-            isLive = true;
-          }
-        }
-      } catch {
-        // silent fallback
-      }
-    }
-
-    const blockReward = FALLBACK.blockReward;
-    const hashpriceUsdPhDay = calcHashprice(btcPriceUsd, networkHashrateEh, blockReward);
-
-    return {
-      btcPriceUsd,
-      networkHashrateEh,
-      difficulty,
-      blockReward,
-      hashpriceUsdPhDay,
-      lastUpdated: new Date(),
-      isLive,
-    };
+    const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    return res.ok ? ((await res.json()) as T) : null;
   } catch {
-    return { ...FALLBACK, lastUpdated: new Date() };
+    return null;
   }
 }
+
+/** Display values derived from a snapshot (hashprice incl. fees, next halving, difficulty). */
+export function withDerived(
+  market: MarketSnapshot,
+  difficulty?: number,
+  hashrateGrowth12mPercent: number | null = null,
+): NetworkData {
+  const asOf = new Date(market.asOf);
+  return {
+    ...market,
+    difficulty: difficulty ?? impliedDifficulty(market.networkHashrateEh),
+    hashpriceUsdPhDay: hashpriceUsdPerPhDay(market),
+    lastUpdated: asOf,
+    nextHalving: nextHalving(market.blockHeight, asOf),
+    hashrateGrowth12mPercent,
+  };
+}
+
+const GROWTH_SMOOTHING_DAYS = 7;
+/** Used when no trailing growth is available. */
+export const DEFAULT_NETWORK_GROWTH_PERCENT = 10;
+
+/**
+ * Default for the forecast's network hashrate growth: the trailing 12-month
+ * rate clamped to 0–60 %, so one odd year can't produce an absurd default.
+ */
+export function defaultNetworkGrowthPercent(trailingPercent: number | null): number {
+  if (trailingPercent === null) return DEFAULT_NETWORK_GROWTH_PERCENT;
+  return Math.round(Math.min(60, Math.max(0, trailingPercent)));
+}
+
+/**
+ * Annualized network hashrate growth over a daily series (e.g. mempool.space
+ * /v1/mining/hashrate/1y), comparing 7-day means at each end to damp daily noise.
+ */
+export function trailingHashrateGrowthPercent(series: { timestamp: number; avgHashrate: number }[]): number | null {
+  const points = series.filter((p) => Number.isFinite(p.timestamp) && p.avgHashrate > 0);
+  if (points.length < GROWTH_SMOOTHING_DAYS * 2) return null;
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const head = points.slice(0, GROWTH_SMOOTHING_DAYS);
+  const tail = points.slice(-GROWTH_SMOOTHING_DAYS);
+  const years = (mean(tail.map((p) => p.timestamp)) - mean(head.map((p) => p.timestamp))) / (365.25 * 86400);
+  if (years <= 0) return null;
+  const ratio = mean(tail.map((p) => p.avgHashrate)) / mean(head.map((p) => p.avgHashrate));
+  return Math.round((Math.pow(ratio, 1 / years) - 1) * 1000) / 10;
+}
+
+/**
+ * Fetch live market state. Each value falls back independently; `isLive` is
+ * true only when price, hashrate and tip height all came from a live source.
+ */
+export async function fetchNetworkData(now: Date = new Date()): Promise<NetworkData> {
+  const [prices, hashrate, tipHeight, rewards, hashrate1y] = await Promise.all([
+    getJson<{ USD?: number }>(`${MEMPOOL}/v1/prices`),
+    getJson<{ currentHashrate?: number; currentDifficulty?: number }>(`${MEMPOOL}/v1/mining/hashrate/1m`),
+    getJson<number>(`${MEMPOOL}/blocks/tip/height`),
+    getJson<{ startBlock?: number; endBlock?: number; totalFee?: string | number }>(
+      `${MEMPOOL}/v1/mining/reward-stats/144`,
+    ),
+    getJson<{ hashrates?: { timestamp: number; avgHashrate: number }[] }>(`${MEMPOOL}/v1/mining/hashrate/1y`),
+  ]);
+
+  const sources: string[] = [];
+  const fallbackNote = 'offline estimate';
+
+  let btcPriceUsd = prices?.USD && prices.USD > 0 ? prices.USD : 0;
+  if (btcPriceUsd > 0) {
+    sources.push('price: mempool.space');
+  } else {
+    const cg = await getJson<{ bitcoin?: { usd?: number } }>(
+      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',
+    );
+    btcPriceUsd = cg?.bitcoin?.usd && cg.bitcoin.usd > 0 ? cg.bitcoin.usd : 0;
+    sources.push(btcPriceUsd > 0 ? 'price: CoinGecko' : `price: ${fallbackNote}`);
+  }
+  const priceLive = btcPriceUsd > 0;
+  if (!priceLive) btcPriceUsd = FALLBACK_MARKET.btcPriceUsd;
+
+  const hashrateLive = !!hashrate?.currentHashrate && hashrate.currentHashrate > 0;
+  const networkHashrateEh = hashrateLive ? hashrate!.currentHashrate! / 1e18 : FALLBACK_MARKET.networkHashrateEh;
+  sources.push(hashrateLive ? 'hashrate: mempool.space' : `hashrate: ${fallbackNote}`);
+
+  const heightLive = typeof tipHeight === 'number' && Number.isFinite(tipHeight) && tipHeight > 0;
+  const blockHeight = heightLive ? tipHeight : FALLBACK_MARKET.blockHeight;
+  sources.push(heightLive ? 'tip height: mempool.space' : `tip height: ${fallbackNote}`);
+
+  const blockCount = rewards?.startBlock != null && rewards.endBlock != null ? rewards.endBlock - rewards.startBlock + 1 : 0;
+  const totalFeeSats = Number(rewards?.totalFee);
+  const feesLive = blockCount > 0 && Number.isFinite(totalFeeSats) && totalFeeSats >= 0;
+  const avgFeesPerBlockBtc = feesLive ? totalFeeSats / blockCount / 1e8 : FALLBACK_MARKET.avgFeesPerBlockBtc;
+  sources.push(feesLive ? `fees: mempool.space (avg of last ${blockCount} blocks)` : `fees: ${fallbackNote}`);
+
+  const difficulty =
+    hashrate?.currentDifficulty && hashrate.currentDifficulty > 0 ? hashrate.currentDifficulty : undefined;
+
+  return withDerived(
+    {
+      btcPriceUsd,
+      networkHashrateEh,
+      blockHeight,
+      blockReward: subsidyAtHeight(blockHeight),
+      avgFeesPerBlockBtc,
+      asOf: now.toISOString(),
+      isLive: priceLive && hashrateLive && heightLive,
+      sources,
+    },
+    difficulty,
+    hashrate1y?.hashrates ? trailingHashrateGrowthPercent(hashrate1y.hashrates) : null,
+  );
+}
+
+/** Server-side: the live snapshot, cached for 60 s and de-duplicated across concurrent requests. */
+export function getCachedNetworkData(): Promise<NetworkData> {
+  return serverCache.getOrLoad(CACHE_KEYS.networkData, CACHE_TTL.network, () => fetchNetworkData());
+}
+
+/**
+ * Server-side: the snapshot a calculation should use. Values the caller pinned
+ * in `override` win; everything else comes from the cached live snapshot. When
+ * the caller pins all four inputs, no network request is made.
+ */
+export async function resolveMarket(override: MarketOverride = {}, now: Date = new Date()): Promise<MarketSnapshot> {
+  const pinned = Object.keys(override) as (keyof MarketOverride)[];
+  const complete =
+    override.btcPriceUsd !== undefined &&
+    override.networkHashrateEh !== undefined &&
+    override.blockHeight !== undefined &&
+    override.avgFeesPerBlockBtc !== undefined;
+  const base: MarketSnapshot = complete
+    ? { ...FALLBACK_MARKET, asOf: now.toISOString(), sources: [] }
+    : toMarketSnapshot(await getCachedNetworkData());
+  if (pinned.length === 0) return base;
+
+  const blockHeight = override.blockHeight ?? base.blockHeight;
+  return {
+    ...base,
+    ...override,
+    blockHeight,
+    blockReward: subsidyAtHeight(blockHeight),
+    isLive: false,
+    sources: [
+      ...base.sources.filter((src) => !pinned.some((key) => src.startsWith(SOURCE_LABEL[key]))),
+      ...pinned.map((key) => `${SOURCE_LABEL[key]}: request override`),
+    ],
+  };
+}
+
+const SOURCE_LABEL: Record<keyof MarketOverride, string> = {
+  btcPriceUsd: 'price',
+  networkHashrateEh: 'hashrate',
+  blockHeight: 'tip height',
+  avgFeesPerBlockBtc: 'fees',
+};

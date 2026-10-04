@@ -1,27 +1,34 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, m } from "motion/react";
 import {
   ComposedChart, LineChart, Line, Bar, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, Bitcoin, ChevronDown, ChevronUp, Activity } from "lucide-react";
+import BreakEvenHero from "./projections/BreakEvenHero";
+import KeyDriversTornado from "./projections/KeyDriversTornado";
+import { keyDrivers } from "@/lib/sensitivity";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { getStockToFlowTarget } from "@/lib/forecasting";
-import { useForecast, useNetworkData } from "@/lib/apiClient";
+import { scenarioBtcPrice } from "@/lib/forecasting";
+import { defaultNetworkGrowthPercent, toMarketSnapshot } from "@/lib/networkData";
+import { useForecastStore } from "@/lib/forecastStore";
+import { useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { ForecastParams, ForecastPeriod } from "@/types";
 
 /** Compact USD formatter for chart axis ticks */
 function tickUsd(v: number): string {
-  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  return `$${v.toFixed(0)}`;
+  const sign = v < 0 ? "−" : "";
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${sign}$${(a / 1_000_000).toFixed(1)}M`;
+  if (a >= 1_000) return `${sign}$${(a / 1_000).toFixed(0)}K`;
+  return `${sign}$${a.toFixed(0)}`;
 }
 
 function tickBtcPrice(v: number): string {
@@ -30,16 +37,25 @@ function tickBtcPrice(v: number): string {
   return `$${v.toFixed(0)}`;
 }
 
+/** Chart colors come from the design tokens, so both themes work. */
+const C = {
+  good: "rgb(var(--good))",
+  bad: "rgb(var(--bad))",
+  btc: "rgb(var(--btc))",
+  fg: "rgb(var(--fg))",
+  axis: "rgb(var(--muted))",
+  grid: "rgb(var(--line))",
+};
+
 const TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "rgba(255,255,255,0.85)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    border: "1px solid rgba(210,218,230,0.7)",
-    borderRadius: "16px",
-    fontSize: "13px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+    backgroundColor: "rgb(var(--surface))",
+    border: "1px solid rgb(var(--line-strong))",
+    borderRadius: "6px",
+    fontSize: "12px",
+    color: "rgb(var(--fg))",
   },
+  labelStyle: { color: "rgb(var(--muted))" },
 };
 
 type Granularity = "monthly" | "quarterly" | "yearly";
@@ -122,128 +138,49 @@ function aggregatePeriods(
 export default function ForecastCharts() {
   const config = useFarmStore((state) => state.config);
 
-  const [params, setParams] = useState<ForecastParams>({
-    months: 48,
-    revenueMode: "sell_opex",
-    btcPriceModel: "fixed",
-    pessimisticAdjustPercent: -20,
-    networkHashrateGrowthPercent: 10,
-    asicDegradationPercent: 4,
-    discountRatePercent: 10,
-    startingBtcPrice: 90000,
-    finalBtcPrice: null,
-  });
+  const { params, setParams, growthOverride, setGrowthOverride } = useForecastStore();
 
   const [btcDecimals, setBtcDecimals] = useState(8);
   const [granularity, setGranularity] = useState<Granularity>("monthly");
   const [tableExpanded, setTableExpanded] = useState(false);
 
-  // Fetch current BTC price via our API
-  const { data: networkData } = useNetworkData();
-  useEffect(() => {
-    if (networkData?.btcPriceUsd && networkData.btcPriceUsd > 0) {
-      setParams((prev) => ({ ...prev, startingBtcPrice: Math.round(networkData.btcPriceUsd) }));
-    }
-  }, [networkData?.btcPriceUsd]);
-
-  // Auto-calculate S2F prices
-  const s2fFinalPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, 0)),
-    [params.months]
-  );
-  const s2fPessimisticPrice = useMemo(
-    () => Math.round(getStockToFlowTarget(params.months, params.pessimisticAdjustPercent)),
-    [params.months, params.pessimisticAdjustPercent]
-  );
-
-  const effectiveFinalPrice = useMemo(() => {
-    switch (params.btcPriceModel) {
-      case "fixed": return params.startingBtcPrice;
-      case "stock_to_flow": return s2fFinalPrice;
-      case "stock_to_flow_pessimistic": return s2fPessimisticPrice;
-      case "custom": return params.finalBtcPrice ?? params.startingBtcPrice;
-      default: return params.startingBtcPrice;
-    }
-  }, [params.btcPriceModel, params.startingBtcPrice, params.finalBtcPrice, s2fFinalPrice, s2fPessimisticPrice]);
-
+  // Market snapshot (live, or the labelled offline estimate). Start price and
+  // fees follow it unless the user overrides them.
+  const market = useMarket();
+  const startPrice = params.startingBtcPrice ?? Math.round(market.btcPriceUsd);
+  // Network growth defaults to the trailing 12-month rate (clamped 0–60 %) until the user moves the slider.
+  const trailingGrowth = market.hashrateGrowth12mPercent;
   const effectiveParams = useMemo(
-    () => ({ ...params, finalBtcPrice: effectiveFinalPrice }),
-    [params, effectiveFinalPrice]
+    () => ({ ...params, networkHashrateGrowthPercent: growthOverride ?? defaultNetworkGrowthPercent(trailingGrowth) }),
+    [params, growthOverride, trailingGrowth],
   );
+  const effectiveFinalPrice = scenarioBtcPrice(params, startPrice, params.months);
 
   const { data: forecast } = useForecast(config, effectiveParams);
 
-  // Sensitivity analysis — fetch 4 what-if scenarios from API
-  const [sensitivity, setSensitivity] = useState<{ label: string; value: string; delta: number }[] | null>(null);
+  // Key drivers: NPV swing per input (tornado), computed in the browser
+  const drivers = useMemo(
+    () => (forecast ? keyDrivers(config, effectiveParams, toMarketSnapshot(market), new Date()) : null),
+    [forecast, config, effectiveParams, market],
+  );
 
+  // Charts draw on first view only; recalculations update in place
+  const drawnOnce = useRef(false);
   useEffect(() => {
-    if (!forecast || config.miners.length === 0) {
-      setSensitivity(null);
-      return;
-    }
-
-    const base = forecast.summary.npv;
-    const controller = new AbortController();
-
-    async function runSensitivity() {
-      try {
-        const configElec = {
-          ...config,
-          regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
-        };
-        const bearFinalPrice = Math.round(effectiveFinalPrice * 0.9);
-        const paramsBear = { ...effectiveParams, finalBtcPrice: bearFinalPrice };
-        const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
-        const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
-
-        const [elecRes, bearRes, netRes, noDegRes] = await Promise.all([
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config: configElec, params: effectiveParams }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsBear }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNet }), signal: controller.signal }),
-          fetch("/api/forecast", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ config, params: paramsNoDeg }), signal: controller.signal }),
-        ]);
-
-        const [elecData, bearData, netData, noDegData] = await Promise.all([
-          elecRes.json(), bearRes.json(), netRes.json(), noDegRes.json(),
-        ]);
-
-        const elecNpv = elecData.summary.npv;
-        const bearNpv = bearData.summary.npv;
-
-        const netLastRevenue = netData.periods[netData.periods.length - 1]?.miningRevenueUsd ?? 0;
-        const baseLastRevenue = forecast!.periods[forecast!.periods.length - 1]?.miningRevenueUsd ?? 0;
-        const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
-
-        const baseBtc = forecast!.summary.totalBtcMined;
-        const noDegBtc = noDegData.summary.totalBtcMined;
-        const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
-
-        if (!controller.signal.aborted) {
-          setSensitivity([
-            { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
-            { label: "BTC price -10% more", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
-            { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
-            { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
-          ]);
-        }
-      } catch {
-        // Aborted or failed — ignore
-      }
-    }
-
-    runSensitivity();
-    return () => controller.abort();
-  }, [forecast, config, effectiveParams, effectiveFinalPrice]);
+    if (forecast) drawnOnce.current = true;
+  }, [forecast]);
+  const animateCharts = !drawnOnce.current;
+  const scenarioKey = `${params.btcPriceModel}:${params.annualGrowthPercent}:${params.finalBtcPrice}`;
 
   if (config.miners.length === 0) {
     return (
       <Card>
         <div className="text-center py-12">
-          <div className="text-4xl mb-4 text-slate-300">--</div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          <div className="text-4xl mb-4 text-faint">--</div>
+          <h3 className="text-lg font-semibold text-fg mb-2">
             No Farm Configured
           </h3>
-          <p className="text-slate-500">
+          <p className="text-muted">
             Build your farm first to see forecasts
           </p>
         </div>
@@ -262,6 +199,8 @@ export default function ForecastCharts() {
     grossRevenue: p.miningRevenueUsd,
     btcSoldForOpex: params.revenueMode === "sell_opex" ? Math.min(p.opexUsd, p.miningRevenueUsd) : 0,
     netCashFlow: p.miningRevenueUsd - p.opexUsd - (i === 0 ? forecast.totalCapex : 0),
+    opexPositive: p.opexUsd,
+    cumulativeCash: forecast.periods.slice(0, i + 1).reduce((sum, q) => sum + q.miningRevenueUsd - q.opexUsd, -forecast.totalCapex),
     btc: p.btcBalance,
     btcMined: p.btcMined,
   }));
@@ -273,16 +212,15 @@ export default function ForecastCharts() {
     <div className="space-y-6">
       {/* Controls */}
       <Card>
-        <CardIllustration theme="chart" />
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-blueprint-deep" />
+        <h2 className="text-lg font-bold text-fg mb-4 flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-fg" />
           Forecast Parameters
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Time Range */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
               Forecast Period
               <HelpTooltip content="The number of months to project forward. Longer periods capture more halving cycles but carry greater uncertainty in BTC price and network hashrate assumptions." />
             </label>
@@ -302,7 +240,7 @@ export default function ForecastCharts() {
 
           {/* Revenue Mode */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
               Revenue Strategy
               <HelpTooltip content="How you handle mined BTC. 'Sell All' converts everything to USD immediately. 'Hold All' accumulates BTC at market value. 'Sell OPEX' sells only enough to cover operating costs." />
             </label>
@@ -333,110 +271,149 @@ export default function ForecastCharts() {
 
           {/* Starting BTC Price */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
               Starting BTC Price
-              <HelpTooltip content="Current market price of Bitcoin. Fetched automatically on load. Edit to simulate different starting scenarios." />
+              <HelpTooltip content="Defaults to the live market price. Edit it to simulate a different starting point." />
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">$</span>
               <input
                 type="number"
-                className="w-full bg-white/50 border border-slate-200/60 rounded-xl py-2 pl-7 pr-3 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
-                value={params.startingBtcPrice}
+                aria-label="Starting BTC price in USD"
+                className="w-full bg-surface border border-line rounded py-2 pl-7 pr-3 text-sm font-mono text-fg-2 focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
+                value={startPrice}
                 min={0}
                 step={100}
                 onChange={(e) => setParams({ ...params, startingBtcPrice: Math.max(0, Number(e.target.value)) })}
               />
             </div>
+            <div className="text-xs text-faint mt-1">
+              {params.startingBtcPrice === undefined ? (
+                market.isLive ? "Live market price" : "Offline estimate (live data unavailable)"
+              ) : (
+                <button className="text-fg hover:underline" onClick={() => setParams({ ...params, startingBtcPrice: undefined })}>
+                  Reset to market price ({formatUsd(market.btcPriceUsd)})
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Final BTC Price Model */}
+          {/* BTC Price Scenario */}
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
-              Final BTC Price
-              <HelpTooltip content="Target BTC price at the end of the forecast. 'Fixed' keeps the same price as starting. 'S2F' uses the Stock-to-Flow model. 'S2F Pessimistic' applies the pessimism slider discount. 'Custom' lets you set any target price." />
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
+              BTC Price Scenario
+              <HelpTooltip content="Scenarios are choices you make, not predictions. Bear and Bull compound −30% or +30% per year from the starting price; Flat holds it; Target draws a straight line to the price you set for the final month." />
             </label>
             <div className="grid grid-cols-4 gap-2 mb-2">
-              <Button
-                variant={params.btcPriceModel === "fixed" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "fixed" })}
-              >
-                Fixed
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "stock_to_flow" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "stock_to_flow" })}
-              >
-                S2F
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "stock_to_flow_pessimistic" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "stock_to_flow_pessimistic" })}
-              >
-                S2F Pessim.
-              </Button>
-              <Button
-                variant={params.btcPriceModel === "custom" ? "primary" : "default"}
-                size="sm"
-                onClick={() => setParams({ ...params, btcPriceModel: "custom", finalBtcPrice: params.finalBtcPrice ?? params.startingBtcPrice })}
-              >
-                Custom
-              </Button>
+              {(
+                [
+                  { label: "Bear −30%/yr", active: params.btcPriceModel === "growth" && params.annualGrowthPercent === -30, next: { btcPriceModel: "growth", annualGrowthPercent: -30 } },
+                  { label: "Flat", active: params.btcPriceModel === "flat", next: { btcPriceModel: "flat" } },
+                  { label: "Bull +30%/yr", active: params.btcPriceModel === "growth" && params.annualGrowthPercent === 30, next: { btcPriceModel: "growth", annualGrowthPercent: 30 } },
+                  { label: "Target", active: params.btcPriceModel === "target", next: { btcPriceModel: "target", finalBtcPrice: params.finalBtcPrice ?? startPrice } },
+                ] as { label: string; active: boolean; next: Partial<ForecastParams> }[]
+              ).map((chip) => (
+                <Button
+                  key={chip.label}
+                  variant={chip.active ? "primary" : "default"}
+                  size="sm"
+                  aria-pressed={chip.active}
+                  onClick={() => setParams({ ...params, ...chip.next })}
+                >
+                  {chip.label}
+                </Button>
+              ))}
             </div>
-            {params.btcPriceModel === "custom" && (
+            {params.btcPriceModel === "target" && (
               <div className="relative mb-2">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-sm">$</span>
                 <input
                   type="number"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl py-2 pl-7 pr-3 text-sm font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
-                  value={params.finalBtcPrice ?? params.startingBtcPrice}
+                  aria-label="Target BTC price at the final month in USD"
+                  className="w-full bg-surface border border-line rounded py-2 pl-7 pr-3 text-sm font-mono text-fg-2 focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
+                  value={params.finalBtcPrice ?? startPrice}
                   min={0}
                   step={100}
                   onChange={(e) => setParams({ ...params, finalBtcPrice: Math.max(0, Number(e.target.value)) })}
                 />
               </div>
             )}
-            <div className="text-xs text-slate-400">
-              Final: {formatUsd(effectiveFinalPrice)}
-              {params.btcPriceModel === "fixed" && " (same as starting)"}
-              {params.btcPriceModel === "stock_to_flow" && " · S2F model"}
-              {params.btcPriceModel === "stock_to_flow_pessimistic" && ` · S2F at ${params.pessimisticAdjustPercent}%`}
-              {params.btcPriceModel === "custom" && " · manual target"}
+            <div className="text-xs text-faint">
+              Final month: {formatUsd(effectiveFinalPrice)}
+              {params.btcPriceModel === "flat" && " (same as starting)"}
+              {params.btcPriceModel === "growth" && ` · ${params.annualGrowthPercent! >= 0 ? "+" : ""}${params.annualGrowthPercent}% per year`}
+              {params.btcPriceModel === "target" && " · straight line to your target"}
+              {" · a scenario you choose, not a prediction"}
             </div>
           </div>
 
-          {/* Pessimistic Adjustment — only visible when S2F Pessimistic is selected */}
-          {params.btcPriceModel === "stock_to_flow_pessimistic" && (
+          {/* Custom annual growth — visible for growth scenarios */}
+          {params.btcPriceModel === "growth" && (
             <Slider
-              label="BTC Price Pessimism (Stock-to-Flow)"
+              label="BTC Price Change per Year"
               unit="%"
-              min={-50}
-              max={-10}
+              min={-60}
+              max={100}
               step={5}
-              value={params.pessimisticAdjustPercent}
-              onChange={(e) =>
-                setParams({ ...params, pessimisticAdjustPercent: parseFloat(e.target.value) })
-              }
-              tooltip="A negative adjustment applied to the Stock-to-Flow final price target. -20% means the model's projected final price is discounted by 20%."
+              value={params.annualGrowthPercent ?? 0}
+              onChange={(e) => setParams({ ...params, annualGrowthPercent: parseFloat(e.target.value) })}
+              tooltip="Compound annual change applied to the starting price. Bear and Bull are −30% and +30%."
             />
           )}
 
+          {/* Transaction fees */}
+          <div>
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
+              Tx Fees per Block
+              <HelpTooltip content="Average transaction fees miners collect per block, on top of the subsidy. Defaults to the average of the last 144 blocks." />
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                aria-label="Transaction fees per block in BTC"
+                className="w-full bg-surface border border-line rounded py-2 pl-3 pr-12 text-sm font-mono text-fg-2 focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
+                value={params.feesPerBlockBtc ?? Number(market.avgFeesPerBlockBtc.toFixed(4))}
+                min={0}
+                step={0.001}
+                onChange={(e) => setParams({ ...params, feesPerBlockBtc: Math.max(0, Number(e.target.value)) })}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-faint text-sm">BTC</span>
+            </div>
+            <div className="text-xs text-faint mt-1">
+              {params.feesPerBlockBtc === undefined ? (
+                market.isLive ? "Live: average of the last 144 blocks" : "Offline estimate"
+              ) : (
+                <button className="text-fg hover:underline" onClick={() => setParams({ ...params, feesPerBlockBtc: undefined })}>
+                  Reset to market average
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Network Growth */}
-          <Slider
-            label="Annual Network Hashrate Growth"
-            unit="%"
-            min={10}
-            max={60}
-            step={5}
-            value={params.networkHashrateGrowthPercent}
-            onChange={(e) =>
-              setParams({ ...params, networkHashrateGrowthPercent: parseFloat(e.target.value) })
-            }
-            tooltip="The expected year-over-year growth rate of Bitcoin's total network hashrate. Higher growth means more competition, harder difficulty, and lower per-unit mining yields over time."
-          />
+          <div>
+            <Slider
+              label="Annual Network Hashrate Growth"
+              unit="%"
+              min={0}
+              max={60}
+              step={1}
+              value={effectiveParams.networkHashrateGrowthPercent}
+              onChange={(e) => setGrowthOverride(parseFloat(e.target.value))}
+              tooltip="The expected year-over-year growth rate of Bitcoin's total network hashrate. Higher growth means more competition, harder difficulty, and lower per-unit mining yields over time. Defaults to the trailing 12-month rate, clamped to 0–60%."
+            />
+            <div className="text-xs text-faint mt-1">
+              {trailingGrowth === null ? "trailing 12m: unavailable (default 10%)" : `trailing 12m: ${trailingGrowth > 0 ? "+" : ""}${trailingGrowth.toFixed(1)}%`}
+              {growthOverride !== null && (
+                <>
+                  {" · "}
+                  <button className="text-fg hover:underline" onClick={() => setGrowthOverride(null)}>
+                    use trailing rate
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* ASIC Degradation */}
           <Slider
@@ -469,255 +446,119 @@ export default function ForecastCharts() {
         </div>
       </Card>
 
-      {/* Summary Cards — row 1 */}
-      {forecast && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
-            <div className="text-sm text-slate-500 mb-1">Total Revenue</div>
-            <div className="text-xl font-bold text-emerald-600 font-mono tabular-nums">
-              {formatUsd(forecast.summary.totalRevenue)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1">Total Costs</div>
-            <div className="text-xl font-bold text-red-600 font-mono tabular-nums">
-              {formatUsd(forecast.summary.totalCosts)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1">Net Profit</div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-              {formatUsd(forecast.summary.totalProfit)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1 flex items-center gap-1">
-              BTC / Month
-              <HelpTooltip content="Average Bitcoin mined per month over the forecast period, accounting for network growth and ASIC degradation." />
-            </div>
-            <div className="text-xl font-bold text-amber-600 font-mono tabular-nums">
-              {formatBtc(forecast.summary.totalBtcMined / params.months, 6)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              Total: {formatBtc(forecast.summary.totalBtcMined, 4)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1">ROI</div>
-            <div className="text-xl font-bold text-blueprint-deep font-mono tabular-nums">
-              {formatPercent(forecast.summary.roiPercent)}
-            </div>
-            {forecast.summary.paybackMonths && (
-              <div className="text-xs text-slate-400 mt-1">
-                Payback: {forecast.summary.paybackMonths} months
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
+      {forecast && <BreakEvenHero forecast={forecast} startPrice={startPrice} months={params.months} discountRate={params.discountRatePercent} />}
 
-      {/* Financial Metric Cards — row 2 */}
-      {forecast && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <div className="text-sm text-slate-500 mb-1 flex items-center gap-1">
-              IRR
-              <HelpTooltip content="Internal Rate of Return — the annualized discount rate at which the project's NPV equals zero. Higher = better. Comparable across investments of different sizes." />
-            </div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.irr >= 0 ? 'text-blueprint-mid' : 'text-red-600'}`}>
-              {forecast.summary.irr.toFixed(1)}%
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              annual, at {params.discountRatePercent}% discount
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1 flex items-center gap-1">
-              NPV
-              <HelpTooltip content="Net Present Value — the total value of future cash flows discounted to today's dollars, minus initial investment. Positive = project adds value above your required return." />
-            </div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.npv >= 0 ? 'text-blueprint-mid' : 'text-red-600'}`}>
-              {formatUsd(forecast.summary.npv)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              at {params.discountRatePercent}% discount rate
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1 flex items-center gap-1">
-              Break-even BTC Price
-              <HelpTooltip content="The average BTC price needed for revenue to cover all costs. 'OPEX only' covers operating costs; 'With CAPEX' covers total investment including hardware." />
-            </div>
-            <div className="text-xl font-bold text-blueprint-deep font-mono tabular-nums">
-              {formatUsd(forecast.summary.breakEvenBtcPriceWithCapex)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              OPEX only: {formatUsd(forecast.summary.breakEvenBtcPrice)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-slate-500 mb-1 flex items-center gap-1">
-              Avg Hashprice
-              <HelpTooltip content="Average revenue per terahash per day over the forecast period. Key metric for comparing mining profitability across different hardware and time periods." />
-            </div>
-            <div className="text-xl font-bold text-blueprint-deep font-mono tabular-nums">
-              ${forecast.summary.avgHashpriceUsd.toFixed(4)}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">
-              $/TH/day avg over {params.months}m
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Revenue & Profit Chart */}
+      {/* Cash flow — draws on first view; scenario changes cross-fade */}
       {chartData && (
         <Card>
-          <h3 className="text-base font-semibold text-slate-900 mb-4">Revenue & Profit</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickUsd} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatUsd(value), name]}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#059669" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-              <Line type="monotone" dataKey="profit" name="Profit" stroke="#3B82F6" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      {/* BTC Price Forecast Chart */}
-      {chartData && (
-        <Card>
-          <h3 className="text-base font-semibold text-slate-900 mb-4">BTC Price Forecast (Stock-to-Flow)</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickBtcPrice} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatUsd(value), name]}
-              />
-              <Line type="monotone" dataKey="btcPrice" name="BTC Price" stroke="#F59E0B" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      {/* Cash Flow Chart */}
-      {chartData && forecast && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-slate-900">Cash Flow Analysis</h3>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <h3 className="text-base font-semibold text-fg">Monthly cash flow</h3>
+              <p className="text-sm text-muted">Revenue against OPEX, and the cumulative cash position after CAPEX</p>
+            </div>
+            <span className="label">{forecast!.assumptions.priceScenario}</span>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="opexGrad" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickUsd} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => {
-                  return [formatUsd(Math.abs(value)), name];
-                }}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="grossRevenue" name="Revenue" stroke="#059669" fill="url(#revenueGrad)" strokeWidth={1.5} />
-              <Area type="monotone" dataKey="opex" name="OPEX" stroke="#dc2626" fill="url(#opexGrad)" strokeWidth={1.5} />
-              <Bar dataKey="capex" name="CAPEX" fill="#7c3aed" opacity={0.8} />
-              {params.revenueMode === "sell_opex" && (
-                <Area type="monotone" dataKey="btcSoldForOpex" name="BTC Sold for OPEX" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="4 2" />
-              )}
-              <Line type="monotone" dataKey="netCashFlow" name="Net Cash Flow" stroke="#3B82F6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <AnimatePresence mode="wait" initial={false}>
+            <m.div key={scenarioKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={C.good} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={C.good} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={C.grid} vertical={false} />
+                  <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+                  <YAxis yAxisId="m" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickUsd} width={64} tickLine={false} />
+                  <YAxis yAxisId="c" orientation="right" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickUsd} width={64} tickLine={false} />
+                  <Tooltip {...TOOLTIP_STYLE} formatter={(value: number, name: string) => [formatUsd(value), name]} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: C.axis }} />
+                  <Area yAxisId="m" type="monotone" dataKey="grossRevenue" name="Revenue" stroke={C.good} fill="url(#revenueGrad)" strokeWidth={2} isAnimationActive={animateCharts} />
+                  <Line yAxisId="m" type="monotone" dataKey="opexPositive" name="OPEX" stroke={C.bad} strokeWidth={2} dot={false} isAnimationActive={animateCharts} />
+                  <Line yAxisId="c" type="monotone" dataKey="cumulativeCash" name="Cumulative cash (right)" stroke={C.fg} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animateCharts} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </m.div>
+          </AnimatePresence>
         </Card>
       )}
 
-      {/* BTC Balance Chart (if holding) */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* BTC price scenario */}
+        {chartData && (
+          <Card>
+            <h3 className="text-base font-semibold text-fg">BTC price scenario</h3>
+            <p className="mb-3 text-sm text-muted">A scenario you choose, not a prediction</p>
+            <AnimatePresence mode="wait" initial={false}>
+              <m.div key={scenarioKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid stroke={C.grid} vertical={false} />
+                    <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+                    <YAxis stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickBtcPrice} width={64} tickLine={false} domain={[(min: number) => Math.floor((min * 0.85) / 1000) * 1000, (max: number) => Math.ceil((max * 1.1) / 1000) * 1000]} tickCount={5} />
+                    <Tooltip {...TOOLTIP_STYLE} formatter={(value: number) => [formatUsd(value), "BTC price"]} />
+                    <Line type="monotone" dataKey="btcPrice" name="BTC price" stroke={C.btc} strokeWidth={2} dot={false} isAnimationActive={animateCharts} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </m.div>
+            </AnimatePresence>
+          </Card>
+        )}
+
+        {/* Key drivers tornado */}
+        {drivers && <KeyDriversTornado drivers={drivers} />}
+      </div>
+
+      {/* BTC balance (when holding) */}
       {chartData && params.revenueMode !== "sell_all" && (
         <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <Bitcoin className="h-5 w-5 text-amber-500" />
-            <h3 className="text-base font-semibold text-slate-900">Bitcoin Balance</h3>
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-fg">
+              <Bitcoin className="h-4 w-4 text-btc" aria-hidden />
+              BTC held
+            </h3>
+            <span className="font-mono text-sm text-fg">{formatBtc(forecast!.summary.finalBtcBalance, 4)} at month {params.months}</span>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="btcGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatBtc(value, btcDecimals), name]}
-              />
-              <Area type="monotone" dataKey="btc" name="BTC Balance" stroke="#F59E0B" fillOpacity={1} fill="url(#btcGradient)" activeDot={{ r: 4, strokeWidth: 2 }} />
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke={C.grid} vertical={false} />
+              <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+              <YAxis stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} width={64} tickLine={false} tickFormatter={(v: number) => v.toFixed(v < 10 ? 1 : 0)} />
+              <Tooltip {...TOOLTIP_STYLE} formatter={(value: number) => [formatBtc(value, btcDecimals), "BTC held"]} />
+              <Area type="monotone" dataKey="btc" name="BTC held" stroke={C.btc} fill={C.btc} fillOpacity={0.12} strokeWidth={2} isAnimationActive={animateCharts} />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
       )}
 
-      {/* Granularity Toggle + Expandable Data Table */}
+      {/* Period data table */}
       {forecast && (
         <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-slate-500">View:</span>
-            {(["monthly", "quarterly", "yearly"] as const).map((g) => (
-              <Button
-                key={g}
-                variant={granularity === g ? "primary" : "default"}
-                size="sm"
-                onClick={() => setGranularity(g)}
-              >
-                {g.charAt(0).toUpperCase() + g.slice(1)}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              className="flex items-center gap-2 text-left"
+              onClick={() => setTableExpanded(!tableExpanded)}
+              aria-expanded={tableExpanded}
+            >
+              <Activity className="h-4 w-4 text-muted" aria-hidden />
+              <h3 className="text-base font-semibold text-fg">Period data</h3>
+              {tableExpanded ? <ChevronUp className="h-4 w-4 text-faint" aria-hidden /> : <ChevronDown className="h-4 w-4 text-faint" aria-hidden />}
+            </button>
+            <div className="flex gap-1.5" role="group" aria-label="Table granularity">
+              {(["monthly", "quarterly", "yearly"] as const).map((g) => (
+                <Button key={g} variant={granularity === g ? "primary" : "default"} size="sm" aria-pressed={granularity === g} onClick={() => setGranularity(g)}>
+                  {g.charAt(0).toUpperCase() + g.slice(1)}
+                </Button>
+              ))}
+            </div>
           </div>
-        </Card>
-      )}
-      {forecast && (
-        <Card>
-          <button
-            className="w-full flex items-center justify-between text-left"
-            onClick={() => setTableExpanded(!tableExpanded)}
-          >
-            <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-              <Activity className="h-5 w-5 text-blueprint-deep" />
-              Period Data ({granularity})
-            </h3>
-            {tableExpanded ? (
-              <ChevronUp className="h-5 w-5 text-slate-400" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-slate-400" />
-            )}
-          </button>
 
           {tableExpanded && (
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200/50 text-slate-500">
+                  <tr className="border-b border-line text-muted">
                     <th className="text-left py-2 px-2 font-medium">Period</th>
                     <th className="text-right py-2 px-2 font-medium">BTC Mined</th>
                     <th className="text-right py-2 px-2 font-medium">Revenue</th>
@@ -731,22 +572,22 @@ export default function ForecastCharts() {
                 </thead>
                 <tbody>
                   {tableData.map((row, i) => (
-                    <tr key={i} className="border-b border-slate-100/50 row-hover">
-                      <td className="py-2 px-2 font-mono text-xs text-slate-700">{row.label}</td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-slate-700">{formatBtc(row.btcMined, btcDecimals)}</td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-emerald-600">{formatUsd(row.revenue)}</td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-red-600">{formatUsd(row.opex)}</td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-violet-600">{row.capex > 0 ? formatUsd(row.capex) : "—"}</td>
-                      <td className={`py-2 px-2 text-right font-mono text-xs ${row.netCashFlow >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                    <tr key={i} className="border-b border-line row-hover">
+                      <td className="py-2 px-2 font-mono text-xs text-fg-2">{row.label}</td>
+                      <td className="py-2 px-2 text-right font-mono text-xs text-fg-2">{formatBtc(row.btcMined, btcDecimals)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-xs text-good">{formatUsd(row.revenue)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-xs text-bad">{formatUsd(row.opex)}</td>
+                      <td className="py-2 px-2 text-right font-mono text-xs text-muted">{row.capex > 0 ? formatUsd(row.capex) : "—"}</td>
+                      <td className={`py-2 px-2 text-right font-mono text-xs ${row.netCashFlow >= 0 ? 'text-cool' : 'text-bad'}`}>
                         {formatUsd(row.netCashFlow)}
                       </td>
-                      <td className={`py-2 px-2 text-right font-mono text-xs ${row.cumulativeCash >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      <td className={`py-2 px-2 text-right font-mono text-xs ${row.cumulativeCash >= 0 ? 'text-good' : 'text-bad'}`}>
                         {formatUsd(row.cumulativeCash)}
                       </td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-amber-600">
+                      <td className="py-2 px-2 text-right font-mono text-xs text-warn">
                         {row.btcSold > 0 ? formatBtc(row.btcSold, btcDecimals) : "—"}
                       </td>
-                      <td className="py-2 px-2 text-right font-mono text-xs text-blueprint-deep">
+                      <td className="py-2 px-2 text-right font-mono text-xs text-fg">
                         {formatBtc(row.btcBalance, btcDecimals)}
                       </td>
                     </tr>
@@ -758,28 +599,6 @@ export default function ForecastCharts() {
         </Card>
       )}
 
-      {/* Sensitivity Analysis */}
-      {sensitivity && (
-        <Card>
-          <h3 className="text-base font-semibold text-slate-900 mb-3 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-blueprint-deep" />
-            Key Drivers Impact
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {sensitivity.map((s, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between py-2 px-3 glass-inner"
-              >
-                <span className="text-sm text-slate-500">{s.label}</span>
-                <span className={`text-sm font-mono font-semibold tabular-nums ${s.delta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {s.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

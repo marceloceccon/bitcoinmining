@@ -1,12 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import {
-  calculateStockToFlowPrice,
-  getStockToFlowTarget,
-  generateForecast,
-  CURRENT_NETWORK_HASHRATE_EH,
-  CURRENT_BLOCK_REWARD,
-} from '@/lib/forecasting';
-import type { FarmConfig, ForecastParams } from '@/types';
+import { generateForecast, scenarioBtcPrice } from '@/lib/forecasting';
+import { hashpriceUsdPerPhDay } from '@/lib/bitcoin';
+import type { FarmConfig, ForecastParams, MarketSnapshot } from '@/types';
+
+// Market state and the clock are injected (never read from constants or the system clock).
+const NOW = new Date('2026-10-03T00:00:00Z');
+const MARKET: MarketSnapshot = {
+  btcPriceUsd: 100000,
+  networkHashrateEh: 750,
+  blockHeight: 969763, // next halving (1,050,000) is 80,237 blocks ≈ 18.6 months out
+  blockReward: 3.125,
+  avgFeesPerBlockBtc: 0,
+  asOf: NOW.toISOString(),
+  isLive: false,
+  sources: ['test'],
+};
 
 // ─── Fixtures ────────────────────────────────────────────────────────────
 
@@ -67,8 +75,7 @@ function makeParams(overrides: Partial<ForecastParams> = {}): ForecastParams {
   return {
     months: 24,
     revenueMode: 'sell_all',
-    btcPriceModel: 'fixed',
-    pessimisticAdjustPercent: 0,
+    btcPriceModel: 'flat',
     networkHashrateGrowthPercent: 20,
     asicDegradationPercent: 5,
     discountRatePercent: 10,
@@ -79,66 +86,42 @@ function makeParams(overrides: Partial<ForecastParams> = {}): ForecastParams {
 }
 
 // ════════════════════════════════════════════════════════════════════════
-// STOCK-TO-FLOW PRICE MODEL
+// REVENUE INVARIANT: engine month 1 ≡ market hashprice (including fees)
 // ════════════════════════════════════════════════════════════════════════
 
-describe('calculateStockToFlowPrice', () => {
-  it('returns a price based on the S2F power-law: 0.4 × SF³', () => {
-    // With block reward 3.125 BTC
-    // Annual supply = 144 × 365 × 3.125 = 164,250 BTC
-    // SF = 19,800,000 / 164,250 ≈ 120.55
-    // Base price = 0.4 × 120.55³ ≈ 700,645
-    const annualSupply = 144 * 365 * 3.125;
-    const sf = 19.8e6 / annualSupply;
-    const expectedBase = 0.4 * Math.pow(sf, 3);
-    const result = calculateStockToFlowPrice(3.125, 0);
-    expect(result).toBeCloseTo(expectedBase, -2);
+describe('Revenue invariant vs hashprice', () => {
+  it('month-1 revenue = hashprice (incl. fees) × farm PH × 30.4375 × uptime × (1 − pool fee), within 0.5%', () => {
+    const market: MarketSnapshot = { ...MARKET, btcPriceUsd: 84714, networkHashrateEh: 964, avgFeesPerBlockBtc: 0.027 };
+    const config = makeFarmConfig(100);
+    const params = makeParams({
+      months: 12,
+      networkHashrateGrowthPercent: 0,
+      asicDegradationPercent: 0,
+      startingBtcPrice: market.btcPriceUsd,
+      finalBtcPrice: market.btcPriceUsd,
+    });
+    const month1 = generateForecast(config, params, market, NOW).periods[0];
+
+    const farmPh = (100 * S21_PRO.hash_rate_ths) / 1000;
+    const expected =
+      hashpriceUsdPerPhDay(market) * farmPh * 30.4375 * (config.uptimePercent / 100) * (1 - config.poolFeePercent / 100);
+    expect(Math.abs(month1.miningRevenueUsd - expected) / expected).toBeLessThan(0.005);
   });
 
-  it('pessimistic adjustment of -30% reduces the price', () => {
-    const base = calculateStockToFlowPrice(3.125, 0);
-    const pessimistic = calculateStockToFlowPrice(3.125, -30);
-    expect(pessimistic).toBeLessThan(base);
-    expect(pessimistic).toBeCloseTo(base * 0.7, -2);
+  it('transaction fees raise revenue by (subsidy + fees) / subsidy', () => {
+    const config = makeFarmConfig(10);
+    const params = makeParams({ months: 12, networkHashrateGrowthPercent: 0, asicDegradationPercent: 0 });
+    const noFees = generateForecast(config, params, MARKET, NOW).periods[0].miningRevenueUsd;
+    const withFees = generateForecast(config, { ...params, feesPerBlockBtc: 0.05 }, MARKET, NOW).periods[0].miningRevenueUsd;
+    expect(withFees / noFees).toBeCloseTo((3.125 + 0.05) / 3.125, 10);
   });
 
-  it('positive adjustment increases the price', () => {
-    const base = calculateStockToFlowPrice(3.125, 0);
-    const optimistic = calculateStockToFlowPrice(3.125, 20);
-    expect(optimistic).toBeGreaterThan(base);
-  });
-
-  it('never returns below $10,000 floor', () => {
-    // With a tiny block reward and massive pessimistic adjust
-    const result = calculateStockToFlowPrice(3.125, -99);
-    expect(result).toBeGreaterThanOrEqual(10000);
-  });
-
-  it('halved block reward (1.5625) produces higher S2F price', () => {
-    const currentReward = calculateStockToFlowPrice(3.125, 0);
-    const halvedReward = calculateStockToFlowPrice(1.5625, 0);
-    expect(halvedReward).toBeGreaterThan(currentReward);
-  });
-
-  it('S2F ratio doubles when block reward halves → price 8× (cube relationship)', () => {
-    // If reward halves: SF doubles → price = 0.4 × (2×SF)³ = 8 × original
-    const price1 = calculateStockToFlowPrice(6.25, 0);
-    const price2 = calculateStockToFlowPrice(3.125, 0);
-    // SF ratio roughly doubles → price ~8× (not exact due to fixed existing supply)
-    expect(price2 / price1).toBeCloseTo(8, -1);
-  });
-});
-
-describe('getStockToFlowTarget', () => {
-  it('returns a positive price for any month count', () => {
-    expect(getStockToFlowTarget(12, 0)).toBeGreaterThan(0);
-    expect(getStockToFlowTarget(36, 0)).toBeGreaterThan(0);
-  });
-
-  it('pessimistic adjustment reduces price vs neutral', () => {
-    const neutral = getStockToFlowTarget(24, 0);
-    const pessimistic = getStockToFlowTarget(24, -20);
-    expect(pessimistic).toBeLessThan(neutral);
+  it('feesPerBlockBtc defaults to the snapshot average', () => {
+    const config = makeFarmConfig(10);
+    const params = makeParams({ months: 12 });
+    const fromMarket = generateForecast(config, params, { ...MARKET, avgFeesPerBlockBtc: 0.03 }, NOW);
+    const explicit = generateForecast(config, { ...params, feesPerBlockBtc: 0.03 }, MARKET, NOW);
+    expect(fromMarket.summary.totalBtcMined).toBeCloseTo(explicit.summary.totalBtcMined, 12);
   });
 });
 
@@ -146,28 +129,38 @@ describe('getStockToFlowTarget', () => {
 // HALVING SCHEDULE
 // ════════════════════════════════════════════════════════════════════════
 
-describe('Halving schedule in forecasts', () => {
-  it('block reward is 3.125 BTC before April 2028 halving', () => {
+describe('Halving schedule in forecasts (from block height)', () => {
+  it('block reward is 3.125 BTC while the forecast stays below block 1,050,000', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
-    // All periods should have block reward 3.125 (within 12 months from now, 2026)
+    const result = generateForecast(config, params, MARKET, NOW);
     for (const period of result.periods) {
       expect(period.blockReward).toBe(3.125);
     }
   });
 
-  it('block reward drops to 1.5625 after April 2028 halving', () => {
+  it('the month containing block 1,050,000 gets a block-weighted reward, later months 1.5625', () => {
     const config = makeFarmConfig(10);
-    // 36 months from March 2026 → March 2029, crosses April 2028 halving
     const params = makeParams({ months: 36, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
-    const preHalving = result.periods.filter(p => p.blockReward === 3.125);
-    const postHalving = result.periods.filter(p => p.blockReward === 1.5625);
+    const blocksPerMonth = 144 * 30.4375;
+    const halvingMonth = Math.ceil((1_050_000 - MARKET.blockHeight) / blocksPerMonth); // 19
+    const monthStart = MARKET.blockHeight + (halvingMonth - 1) * blocksPerMonth;
+    const before = 1_050_000 - monthStart;
+    const expectedBlend = (before * 3.125 + (blocksPerMonth - before) * 1.5625) / blocksPerMonth;
 
-    expect(preHalving.length).toBeGreaterThan(0);
-    expect(postHalving.length).toBeGreaterThan(0);
+    expect(result.periods[halvingMonth - 2].blockReward).toBe(3.125);
+    expect(result.periods[halvingMonth - 1].blockReward).toBeCloseTo(expectedBlend, 10);
+    expect(result.periods[halvingMonth].blockReward).toBe(1.5625);
+  });
+
+  it('a snapshot taken closer to the halving moves the reward drop earlier', () => {
+    const config = makeFarmConfig(10);
+    const params = makeParams({ months: 24, startingBtcPrice: 100000, finalBtcPrice: 100000 });
+    const later = generateForecast(config, params, { ...MARKET, blockHeight: 1_048_000 }, NOW);
+    expect(later.periods[0].blockReward).toBeLessThan(3.125);
+    expect(later.periods[1].blockReward).toBe(1.5625);
   });
 });
 
@@ -184,7 +177,7 @@ describe('Difficulty adjustments', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const firstDifficulty = result.periods[0].difficulty;
     const lastDifficulty = result.periods[result.periods.length - 1].difficulty;
@@ -199,7 +192,7 @@ describe('Difficulty adjustments', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const diffs = result.periods.map(p => p.difficulty);
     // All difficulties should be nearly equal (small variation from month-fraction growth model)
@@ -207,7 +200,7 @@ describe('Difficulty adjustments', () => {
     expect(ratio).toBeCloseTo(1, 1);
   });
 
-  it('network hashrate at month N follows exponential growth model', () => {
+  it('network hashrate at month N grows exponentially from the injected snapshot', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({
       months: 12,
@@ -215,10 +208,10 @@ describe('Difficulty adjustments', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     // At month 12: growthFactor = (1.20)^(12/12) = 1.20
-    const expectedEh = CURRENT_NETWORK_HASHRATE_EH * 1.20;
+    const expectedEh = MARKET.networkHashrateEh * 1.20;
     const lastPeriodEh = result.periods[11].networkHashrateThs / 1e6;
     expect(lastPeriodEh).toBeCloseTo(expectedEh, 0);
   });
@@ -238,7 +231,7 @@ describe('ASIC hardware degradation', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     // Revenue at month 1 > revenue at month 24 (degradation effect)
     expect(result.periods[0].miningRevenueUsd).toBeGreaterThan(
@@ -255,7 +248,7 @@ describe('ASIC hardware degradation', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const first = result.periods[0].miningRevenueUsd;
     const last = result.periods[11].miningRevenueUsd;
@@ -289,8 +282,8 @@ describe('Pool fee calculations', () => {
       finalBtcPrice: 100000,
     });
 
-    const result2 = generateForecast(config2, params);
-    const result0 = generateForecast(config0, params);
+    const result2 = generateForecast(config2, params, MARKET, NOW);
+    const result0 = generateForecast(config0, params, MARKET, NOW);
 
     const btcWith2 = result2.summary.totalBtcMined;
     const btcWith0 = result0.summary.totalBtcMined;
@@ -313,8 +306,8 @@ describe('Pool fee calculations', () => {
       finalBtcPrice: 100000,
     });
 
-    const r5 = generateForecast(config5, params);
-    const r1 = generateForecast(config1, params);
+    const r5 = generateForecast(config5, params, MARKET, NOW);
+    const r1 = generateForecast(config1, params, MARKET, NOW);
 
     expect(r5.summary.totalBtcMined).toBeLessThan(r1.summary.totalBtcMined);
   });
@@ -338,20 +331,20 @@ describe('BTC revenue projections', () => {
       finalBtcPrice: 100000,
     });
 
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
     const period1 = result.periods[0];
 
     // Farm hashrate: 10 × 234 = 2340 TH/s = 0.00234 EH/s
     // Network: 750 EH/s (approx after 1 month growth, but growth = 0)
     // Actually month 1 still has growth factor applied: (1+0)^(1/12) = 1
     // Pool share: 0.00234 / 750 = 0.00000312
-    // Monthly blocks: 144 × 30 × 0.00000312 = 0.013478
-    // BTC mined: 0.013478 × 3.125 = 0.04212 BTC (0% fee)
+    // Monthly blocks: 144 × 30.4375 × 0.00000312
+    // BTC mined: monthly blocks × 3.125 (MARKET has 0 fees, 0% pool fee)
     const farmEh = 2340 / 1e6;
     const growthFactor = Math.pow(1, 1 / 12); // 0% growth
-    const networkEh = CURRENT_NETWORK_HASHRATE_EH * growthFactor;
+    const networkEh = MARKET.networkHashrateEh * growthFactor;
     const share = farmEh / networkEh;
-    const monthlyBlocks = 144 * 30 * share;
+    const monthlyBlocks = 144 * 30.4375 * share;
     const expectedBtc = monthlyBlocks * 3.125;
 
     expect(period1.btcMined).toBeCloseTo(expectedBtc, 6);
@@ -374,8 +367,8 @@ describe('BTC revenue projections', () => {
       asicDegradationPercent: 0,
     });
 
-    const r50k = generateForecast(config, params50k);
-    const r100k = generateForecast(config, params100k);
+    const r50k = generateForecast(config, params50k, MARKET, NOW);
+    const r100k = generateForecast(config, params100k, MARKET, NOW);
 
     expect(r100k.summary.totalRevenue / r50k.summary.totalRevenue).toBeCloseTo(2, 1);
   });
@@ -397,8 +390,8 @@ describe('BTC revenue projections', () => {
       asicDegradationPercent: 0,
     });
 
-    const r50k = generateForecast(config, params50k);
-    const r200k = generateForecast(config, params200k);
+    const r50k = generateForecast(config, params50k, MARKET, NOW);
+    const r200k = generateForecast(config, params200k, MARKET, NOW);
 
     expect(r50k.summary.totalBtcMined).toBeCloseTo(r200k.summary.totalBtcMined, 8);
   });
@@ -419,12 +412,12 @@ describe('Revenue modes', () => {
   });
 
   it('sell_all: no BTC balance accumulates', () => {
-    const result = generateForecast(config, { ...baseParams, revenueMode: 'sell_all' });
+    const result = generateForecast(config, { ...baseParams, revenueMode: 'sell_all' }, MARKET, NOW);
     expect(result.summary.finalBtcBalance).toBe(0);
   });
 
   it('hold_all: all BTC is held, profit is negative (paying OPEX out of pocket)', () => {
-    const result = generateForecast(config, { ...baseParams, revenueMode: 'hold_all' });
+    const result = generateForecast(config, { ...baseParams, revenueMode: 'hold_all' }, MARKET, NOW);
     expect(result.summary.finalBtcBalance).toBeGreaterThan(0);
     // Each period profit should be negative (= -opex)
     for (const p of result.periods) {
@@ -433,11 +426,11 @@ describe('Revenue modes', () => {
   });
 
   it('sell_opex: sells just enough BTC to cover OPEX, holds the rest', () => {
-    const result = generateForecast(config, { ...baseParams, revenueMode: 'sell_opex' });
+    const result = generateForecast(config, { ...baseParams, revenueMode: 'sell_opex' }, MARKET, NOW);
     // Should accumulate some BTC
     expect(result.summary.finalBtcBalance).toBeGreaterThan(0);
     // But less than hold_all
-    const holdAll = generateForecast(config, { ...baseParams, revenueMode: 'hold_all' });
+    const holdAll = generateForecast(config, { ...baseParams, revenueMode: 'hold_all' }, MARKET, NOW);
     expect(result.summary.finalBtcBalance).toBeLessThan(holdAll.summary.finalBtcBalance);
   });
 });
@@ -446,37 +439,46 @@ describe('Revenue modes', () => {
 // BTC PRICE INTERPOLATION
 // ════════════════════════════════════════════════════════════════════════
 
-describe('BTC price interpolation', () => {
-  it('linearly interpolates from start to final price', () => {
+describe('BTC price scenarios (choices, not predictions)', () => {
+  it('target: straight line from the starting price to finalBtcPrice at the last month', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({
       months: 12,
+      btcPriceModel: 'target',
       startingBtcPrice: 50000,
       finalBtcPrice: 110000,
       networkHashrateGrowthPercent: 0,
       asicDegradationPercent: 0,
     });
-    const result = generateForecast(config, params);
-
-    // At month 6 (t=6/12=0.5): price = 50000 + (110000-50000)*0.5 = 80000
-    expect(result.periods[5].btcPrice).toBeCloseTo(80000, -2);
-
-    // At month 12 (t=1): price = 110000
-    expect(result.periods[11].btcPrice).toBeCloseTo(110000, -2);
+    const result = generateForecast(config, params, MARKET, NOW);
+    expect(result.periods[5].btcPrice).toBeCloseTo(80000, 6);
+    expect(result.periods[11].btcPrice).toBeCloseTo(110000, 6);
   });
 
-  it('fixed price model keeps price constant', () => {
+  it('flat: keeps the starting price constant (and ignores finalBtcPrice)', () => {
     const config = makeFarmConfig(10);
-    const params = makeParams({
-      months: 12,
-      startingBtcPrice: 100000,
-      finalBtcPrice: 100000,
-    });
-    const result = generateForecast(config, params);
-
+    const params = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 300000 });
+    const result = generateForecast(config, params, MARKET, NOW);
     for (const p of result.periods) {
-      expect(p.btcPrice).toBeCloseTo(100000, 0);
+      expect(p.btcPrice).toBe(100000);
     }
+  });
+
+  it('growth: compounds annualGrowthPercent per year (bear −30%, bull +30%)', () => {
+    const config = makeFarmConfig(10);
+    const bull = generateForecast(config, makeParams({ months: 24, btcPriceModel: 'growth', annualGrowthPercent: 30 }), MARKET, NOW);
+    const bear = generateForecast(config, makeParams({ months: 24, btcPriceModel: 'growth', annualGrowthPercent: -30 }), MARKET, NOW);
+    expect(bull.periods[11].btcPrice).toBeCloseTo(100000 * 1.3, 6);
+    expect(bull.periods[23].btcPrice).toBeCloseTo(100000 * 1.3 ** 2, 6);
+    expect(bear.periods[23].btcPrice).toBeCloseTo(100000 * 0.7 ** 2, 6);
+  });
+
+  it('starts at the market price when startingBtcPrice is not overridden', () => {
+    const config = makeFarmConfig(10);
+    const { startingBtcPrice: _omit, ...params } = makeParams({ months: 12 });
+    const result = generateForecast(config, params, { ...MARKET, btcPriceUsd: 77777 }, NOW);
+    expect(result.periods[0].btcPrice).toBe(77777);
+    expect(scenarioBtcPrice({ ...params, btcPriceModel: 'growth', annualGrowthPercent: 10 }, 1000, 12)).toBeCloseTo(1100, 9);
   });
 });
 
@@ -488,7 +490,7 @@ describe('Break-even analysis', () => {
   it('breakEvenBtcPrice = totalCosts / totalBtcMined', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({ months: 24, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const expected = result.summary.totalCosts / result.summary.totalBtcMined;
     expect(result.summary.breakEvenBtcPrice).toBeCloseTo(expected, 0);
@@ -497,7 +499,7 @@ describe('Break-even analysis', () => {
   it('breakEvenBtcPriceWithCapex includes CAPEX', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({ months: 24, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const expected = (result.summary.totalCosts + result.totalCapex) / result.summary.totalBtcMined;
     expect(result.summary.breakEvenBtcPriceWithCapex).toBeCloseTo(expected, 0);
@@ -506,7 +508,7 @@ describe('Break-even analysis', () => {
   it('breakEvenBtcPriceWithCapex > breakEvenBtcPrice', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({ months: 24, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     expect(result.summary.breakEvenBtcPriceWithCapex).toBeGreaterThan(
       result.summary.breakEvenBtcPrice
@@ -527,7 +529,7 @@ describe('NPV and IRR', () => {
       finalBtcPrice: 100000,
       discountRatePercent: 10,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const undiscountedProfit = result.summary.totalProfit - result.totalCapex;
     expect(result.summary.npv).toBeLessThan(undiscountedProfit);
@@ -548,8 +550,8 @@ describe('NPV and IRR', () => {
       discountRatePercent: 20,
     });
 
-    const r5 = generateForecast(config, params5);
-    const r20 = generateForecast(config, params20);
+    const r5 = generateForecast(config, params5, MARKET, NOW);
+    const r20 = generateForecast(config, params20, MARKET, NOW);
 
     expect(r5.summary.npv).toBeGreaterThan(r20.summary.npv);
   });
@@ -561,11 +563,33 @@ describe('NPV and IRR', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 150000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     if (result.summary.totalProfit > result.totalCapex) {
       expect(result.summary.irr).toBeGreaterThan(0);
     }
+  });
+
+  it('IRR solves NPV(irr) = 0 for a farm that repays its CAPEX', () => {
+    const config = makeFarmConfig(10);
+    config.regional.electricityPriceKwh = 0.01;
+    const params = makeParams({ months: 72, networkHashrateGrowthPercent: 0, asicDegradationPercent: 0 });
+    const result = generateForecast(config, params, MARKET, NOW);
+    expect(result.summary.irr).not.toBeNull();
+    const npvAtIrr = generateForecast(config, { ...params, discountRatePercent: result.summary.irr! }, MARKET, NOW).summary.npv;
+    expect(Math.abs(npvAtIrr)).toBeLessThan(1);
+  });
+
+  it('IRR is null (not -99%) when the cash flows never repay the CAPEX', () => {
+    const config = makeFarmConfig(10);
+    config.regional.electricityPriceKwh = 0.5; // every month loses money
+    const result = generateForecast(config, makeParams({ months: 24 }), MARKET, NOW);
+    expect(result.summary.irr).toBeNull();
+  });
+
+  it('IRR is null for a farm with no CAPEX (no miners)', () => {
+    const result = generateForecast(makeFarmConfig(0), makeParams({ months: 12 }), MARKET, NOW);
+    expect(result.summary.irr).toBeNull();
   });
 });
 
@@ -583,7 +607,7 @@ describe('Energy inflation', () => {
       networkHashrateGrowthPercent: 0,
       asicDegradationPercent: 0,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     // Electricity cost at month 24 > month 1
     expect(result.periods[23].electricityCostUsd).toBeGreaterThan(
@@ -616,8 +640,8 @@ describe('Uptime effect on revenue', () => {
       asicDegradationPercent: 0,
     });
 
-    const r98 = generateForecast(config98, params);
-    const r80 = generateForecast(config80, params);
+    const r98 = generateForecast(config98, params, MARKET, NOW);
+    const r80 = generateForecast(config80, params, MARKET, NOW);
 
     expect(r80.summary.totalBtcMined / r98.summary.totalBtcMined).toBeCloseTo(80 / 98, 2);
   });
@@ -635,10 +659,10 @@ describe('Hashprice calculation', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     const farmThs = 2340;
-    const totalDays = 12 * 30;
+    const totalDays = 12 * 30.4375;
     const expected = result.summary.totalRevenue / (farmThs * totalDays);
     expect(result.summary.avgHashpriceUsd).toBeCloseTo(expected, 4);
   });
@@ -656,7 +680,7 @@ describe('Payback period', () => {
       startingBtcPrice: 200000,
       finalBtcPrice: 300000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     expect(result.summary.paybackMonths).not.toBeNull();
     if (result.summary.paybackMonths) {
@@ -672,7 +696,7 @@ describe('Payback period', () => {
       startingBtcPrice: 20000,
       finalBtcPrice: 20000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     // With $0.50/kWh and $20k BTC, payback is unlikely in 12 months
     expect(result.summary.paybackMonths).toBeNull();
@@ -689,14 +713,14 @@ describe('Forecast structure', () => {
     const params12 = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 100000 });
     const params36 = makeParams({ months: 36, startingBtcPrice: 100000, finalBtcPrice: 100000 });
 
-    expect(generateForecast(config, params12).periods.length).toBe(12);
-    expect(generateForecast(config, params36).periods.length).toBe(36);
+    expect(generateForecast(config, params12, MARKET, NOW).periods.length).toBe(12);
+    expect(generateForecast(config, params36, MARKET, NOW).periods.length).toBe(36);
   });
 
   it('totalCapex matches calculateFarmMetrics output', () => {
     const config = makeFarmConfig(10);
     const params = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     expect(result.totalCapex).toBeGreaterThan(0);
   });
@@ -708,7 +732,7 @@ describe('Forecast structure', () => {
       startingBtcPrice: 100000,
       finalBtcPrice: 100000,
     });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
     const lastPeriod = result.periods[11];
 
     const expectedRoi = (lastPeriod.cumulativeProfitUsd / result.totalCapex) * 100;
@@ -724,7 +748,7 @@ describe('Edge case: zero miners', () => {
   it('forecast with 0 miners produces zero revenue and zero BTC', () => {
     const config = makeFarmConfig(0);
     const params = makeParams({ months: 12, startingBtcPrice: 100000, finalBtcPrice: 100000 });
-    const result = generateForecast(config, params);
+    const result = generateForecast(config, params, MARKET, NOW);
 
     expect(result.summary.totalRevenue).toBe(0);
     expect(result.summary.totalBtcMined).toBe(0);
@@ -757,5 +781,20 @@ describe('Mining economics fundamentals', () => {
     const difficulty = (hashrate * 600) / Math.pow(2, 32);
     // Result is ~1.047e14 in JS float64 (theoretical: ~1.047e14)
     expect(difficulty).toBeGreaterThan(1e13);
+  });
+});
+
+describe('minerEconomics (comparison table / compare_miners)', () => {
+  it('derives daily revenue, power cost, break-even $/kWh, $/TH and payback consistently', async () => {
+    const { minerEconomics } = await import('@/lib/unitEconomics');
+    const market = { btcPriceUsd: 84714, networkHashrateEh: 964, blockReward: 3.125, avgFeesPerBlockBtc: 0.027 };
+    const e = minerEconomics({ hash_rate_ths: 270, power_watts: 3645, price_usd: 3454 }, market, { electricityPriceKwh: 0.05, uptimePercent: 100, poolFeePercent: 0 });
+    expect(e.revenuePerDayUsd).toBeCloseTo(hashpriceUsdPerPhDay(market) * 0.27, 6);
+    expect(e.powerCostPerDayUsd).toBeCloseTo(3.645 * 24 * 0.05, 9);
+    expect(e.breakEvenKwh).toBeCloseTo(e.revenuePerDayUsd / (3.645 * 24), 9);
+    expect(e.usdPerTh).toBeCloseTo(3454 / 270, 9);
+    expect(e.paybackDays).toBeCloseTo(3454 / e.profitPerDayUsd, 6);
+    const pricey = minerEconomics({ hash_rate_ths: 270, power_watts: 3645, price_usd: 3454 }, market, { electricityPriceKwh: 1, uptimePercent: 100, poolFeePercent: 0 });
+    expect(pricey.paybackDays).toBeNull();
   });
 });

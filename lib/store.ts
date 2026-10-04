@@ -1,13 +1,22 @@
 "use client";
 
 import { create } from 'zustand';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+import { recommendCoolingSelections } from '@/lib/cooling';
+import { DRY_COOLERS, AIR_FANS, MINERS } from '@/lib/catalog';
+import { defaultConfig } from '@/lib/defaults';
+import { DEFAULT_PRESET_ID, buildPresetConfig, getPreset, type PresetId } from '@/lib/presets';
 import type { FarmConfig, FarmMiner, ElectricalConfig, CoolingConfig, SolarConfig, RegionalConfig, PayoutScheme, LaborConfig, TemperatureConfig, InfrastructureType, ImportTaxConfig, MaintenanceLaborConfig, DryCoolerModel, AirFanModel } from '@/types';
 
 interface FarmStore {
   config: FarmConfig;
-  // Cached catalog data (fetched from API on mount)
+  // Catalogs used for cooling auto-sizing (the bundled data/*.json; injectable for tests)
   dryCoolerCatalog: DryCoolerModel[];
   airFanCatalog: AirFanModel[];
+  // True once the user hand-edits cooling selections: location / parasitic-load
+  // changes then keep their quantities. Changing the miners re-sizes from scratch.
+  coolingOverridden: boolean;
+  resetCoolingToAuto: () => void;
   setDryCoolerCatalog: (catalog: DryCoolerModel[]) => void;
   setAirFanCatalog: (catalog: AirFanModel[]) => void;
   addMiner: (miner: FarmMiner) => void;
@@ -28,157 +37,89 @@ interface FarmStore {
   updateImportTax: (importTax: Partial<ImportTaxConfig>) => void;
   updateMaintenanceLabor: (maintenanceLabor: Partial<MaintenanceLaborConfig>) => void;
   loadConfig: (config: FarmConfig) => void;
+  /** Replace the farm with a preset (miners resolved from the catalog, cooling auto-sized) */
+  applyPreset: (id: PresetId) => void;
+  /** Empty farm with default settings */
   reset: () => void;
 }
 
-const defaultConfig: FarmConfig = {
-  miners: [],
-  electrical: {
-    cableLength: 50,
-    cableGauge: 6,
-    copperPricePerKg: 9.5,
-  },
-  cooling: {
-    type: "air",
-    airCost: 5000,
-  },
-  solar: {
-    coveragePercent: 0,
-    installationCostPerKw: 1200,
-    maintenancePercentPerYear: 1,
-    injectionRatePercent: 100,
-    includeCommissioningInCapex: false,
-  },
-  regional: {
-    region: "CUSTOM",
-    electricityPriceKwh: 0.05,
-    taxAdderPercent: 0,
-    energyInflationPercent: 3,
-  },
-  parasiticLoadPercent: 5,
-  uptimePercent: 98,
-  poolFeePercent: 2.5,
-  maintenanceOpexPercent: 5,
-  payoutScheme: "fpps" as PayoutScheme,
-  labor: {
-    manHoursPerMiner: 1,
-    hourlyLaborCostUsd: 20,
-    cablesPerMinerUsd: 40,
-    manHoursPerTransformer: 8,
-    manHoursPerRack: 4,
-    manHoursPerContainer: 80,
-  },
-  temperature: {
-    location: null,
-    dryCoolerSelections: [],
-    airFanSelections: [],
-  },
-  infrastructureType: "racks" as InfrastructureType,
-  importTax: {
-    containers: 10,
-    racks: 10,
-    miners: 10,
-    fans: 10,
-    dryCoolers: 10,
-  },
-  maintenanceLabor: {
-    hourlyMaintenanceCostUsd: 35,
-  },
-};
 
 /**
- * Auto-configure cooling selections when miners change.
- * Uses cached catalog data from the store.
+ * Re-run cooling auto-sizing (lib/cooling.ts, the same path the engine and the
+ * Thermal tab use) unless the user has hand-edited the cooling selections.
  */
 function autoConfigureCooling(
   config: FarmConfig,
   dryCoolerCatalog: DryCoolerModel[],
   airFanCatalog: AirFanModel[],
+  coolingOverridden = false,
 ): FarmConfig {
+  if (coolingOverridden) return config;
   const temperature = config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] };
-
-  if (config.miners.length === 0) {
-    return {
-      ...config,
-      temperature: { ...temperature, dryCoolerSelections: [], airFanSelections: [] },
-    };
-  }
-
-  const hasHydro = config.miners.some(({ miner }) => miner.watercooled);
-  const hasAir = config.miners.some(({ miner }) => !miner.watercooled);
-
-  const minerPowerW = config.miners.reduce((t, { miner, quantity }) => t + miner.power_watts * quantity, 0);
-  const totalPowerKw = (minerPowerW * (1 + config.parasiticLoadPercent / 100)) / 1000;
-
-  let { dryCoolerSelections, airFanSelections } = temperature;
-
-  // Climate: use selected location or temperate defaults
-  const climate = temperature.location ?? { avgYearlyTempC: 25, maxTempC: 35, minTempC: 5, avgHumidityPercent: 60 };
-
-  // Dry cooler derating: ~3% per °C above 35°C
-  const deltaAbove35 = climate.maxTempC - 35;
-  const dryCoolerDerating = deltaAbove35 > 0
-    ? Math.max(0.5, 1 - deltaAbove35 * 0.03)
-    : Math.min(1.3, 1 + Math.abs(deltaAbove35) * 0.02);
-
-  // Auto-select dry coolers for hydro miners (account for derating)
-  if (hasHydro && totalPowerKw > 0 && dryCoolerCatalog.length > 0) {
-    const sorted = [...dryCoolerCatalog].sort(
-      (a, b) => Math.abs(a.kw_capacity_35c - totalPowerKw) - Math.abs(b.kw_capacity_35c - totalPowerKw)
-    );
-    const best = sorted[0];
-    if (best) {
-      const effectiveCapacity = best.kw_capacity_35c * dryCoolerDerating;
-      const qty = Math.max(1, Math.ceil(totalPowerKw / effectiveCapacity));
-      dryCoolerSelections = [{ model: best.model, quantity: qty }];
-    }
-  } else if (!hasHydro) {
-    dryCoolerSelections = [];
-  }
-
-  // Climate-adjusted ventilation: effective ΔT shrinks in hot climates
-  const effectiveDeltaT = Math.max(5, 50 - climate.maxTempC);
-  const baseM3hNeeded = (totalPowerKw * 1000 * 3600) / (1.2 * 1005 * effectiveDeltaT);
-  // Humidity penalty: +1% per % above 70%, capped at 15%
-  const humidityExcess = Math.max(0, climate.avgHumidityPercent - 70);
-  const humidityPenalty = 1 + Math.min(humidityExcess * 0.01, 0.15);
-  const m3hNeeded = baseM3hNeeded * humidityPenalty;
-
-  // Auto-select air fans for air-cooled miners
-  if (hasAir && totalPowerKw > 0 && airFanCatalog.length > 0) {
-    const bestFan = airFanCatalog[airFanCatalog.length - 1];
-    if (bestFan) {
-      const qty = Math.max(1, Math.ceil(m3hNeeded / bestFan.airflow_m3h));
-      airFanSelections = [{ model: bestFan.model, quantity: qty }];
-    }
-  } else if (!hasAir) {
-    airFanSelections = [];
-  }
-
   return {
     ...config,
-    temperature: { ...temperature, dryCoolerSelections, airFanSelections },
+    temperature: { ...temperature, ...recommendCoolingSelections(config, dryCoolerCatalog, airFanCatalog) },
   };
 }
 
-export const useFarmStore = create<FarmStore>((set, get) => ({
-  config: defaultConfig,
-  dryCoolerCatalog: [],
-  airFanCatalog: [],
+/** localStorage that never throws (private windows, blocked storage): the farm just isn't remembered. */
+export const safeStorage: StateStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  },
+};
 
-  // Catalog setters re-run auto-configure so that miners added before the
-  // async catalog fetch completes still get cooling selections populated
-  // once the catalog arrives. Without this re-run, the user would see an
-  // empty Temperature tab until they nudged a miner count.
+/** Persisted catalog miners are re-resolved by id so a saved farm never keeps stale specs or prices. */
+function refreshMiners(config: FarmConfig): FarmConfig {
+  return {
+    ...config,
+    miners: config.miners.map(({ miner, quantity }) => ({ miner: MINERS.find((m) => m.id === miner.id) ?? miner, quantity })),
+  };
+}
+
+export const FARM_STORAGE_KEY = 'mf-farm';
+const FARM_STORAGE_VERSION = 1;
+
+export const useFarmStore = create<FarmStore>()(persist((set, get) => ({
+  // A fresh visit starts from a realistic farm, not an empty one.
+  config: buildPresetConfig(getPreset(DEFAULT_PRESET_ID)),
+  dryCoolerCatalog: DRY_COOLERS,
+  airFanCatalog: AIR_FANS,
+  coolingOverridden: false,
+
   setDryCoolerCatalog: (catalog) =>
     set((state) => ({
       dryCoolerCatalog: catalog,
-      config: autoConfigureCooling(state.config, catalog, state.airFanCatalog),
+      config: autoConfigureCooling(state.config, catalog, state.airFanCatalog, state.coolingOverridden),
     })),
   setAirFanCatalog: (catalog) =>
     set((state) => ({
       airFanCatalog: catalog,
-      config: autoConfigureCooling(state.config, state.dryCoolerCatalog, catalog),
+      config: autoConfigureCooling(state.config, state.dryCoolerCatalog, catalog, state.coolingOverridden),
+    })),
+
+  resetCoolingToAuto: () =>
+    set((state) => ({
+      coolingOverridden: false,
+      config: autoConfigureCooling(state.config, state.dryCoolerCatalog, state.airFanCatalog),
     })),
 
   addMiner: (miner) =>
@@ -187,7 +128,7 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
         ...state.config,
         miners: [...state.config.miners, miner],
       };
-      return { config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
+      return { coolingOverridden: false, config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
     }),
 
   removeMiner: (minerId) =>
@@ -196,7 +137,7 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
         ...state.config,
         miners: state.config.miners.filter((m) => m.miner.id !== minerId),
       };
-      return { config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
+      return { coolingOverridden: false, config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
     }),
 
   updateMinerQuantity: (minerId, quantity) =>
@@ -208,7 +149,7 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
           m.miner.id === minerId ? { ...m, quantity: safeQuantity } : m
         ),
       };
-      return { config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
+      return { coolingOverridden: false, config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog) };
     }),
 
   updateElectrical: (electrical) =>
@@ -245,7 +186,12 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
 
   updateParasiticLoad: (percent) =>
     set((state) => ({
-      config: { ...state.config, parasiticLoadPercent: percent },
+      config: autoConfigureCooling(
+        { ...state.config, parasiticLoadPercent: percent },
+        state.dryCoolerCatalog,
+        state.airFanCatalog,
+        state.coolingOverridden,
+      ),
     })),
 
   updateUptime: (percent) =>
@@ -273,16 +219,24 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
       config: { ...state.config, labor: { ...state.config.labor, ...labor } },
     })),
 
+  // Selection edits are manual overrides; a location change re-sizes cooling
+  // for the new climate unless the user has overridden it.
   updateTemperature: (temperature) =>
-    set((state) => ({
-      config: {
+    set((state) => {
+      const manualEdit = 'dryCoolerSelections' in temperature || 'airFanSelections' in temperature;
+      const coolingOverridden = state.coolingOverridden || manualEdit;
+      const updated = {
         ...state.config,
         temperature: {
           ...(state.config.temperature ?? { location: null, dryCoolerSelections: [], airFanSelections: [] }),
           ...temperature,
         },
-      },
-    })),
+      };
+      return {
+        coolingOverridden,
+        config: autoConfigureCooling(updated, state.dryCoolerCatalog, state.airFanCatalog, coolingOverridden),
+      };
+    }),
 
   updateInfrastructureType: (type) =>
     set((state) => ({
@@ -302,7 +256,28 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
   loadConfig: (config) =>
     set(() => ({
       config,
+      coolingOverridden: false,
     })),
 
-  reset: () => set(() => ({ config: defaultConfig })),
+  applyPreset: (id) =>
+    set((state) => ({
+      config: buildPresetConfig(getPreset(id), { dryCoolers: state.dryCoolerCatalog, airFans: state.airFanCatalog }),
+      coolingOverridden: false,
+    })),
+
+  reset: () => set(() => ({ config: defaultConfig, coolingOverridden: false })),
+}), {
+  name: FARM_STORAGE_KEY,
+  version: FARM_STORAGE_VERSION,
+  storage: createJSONStorage(() => safeStorage),
+  partialize: (state) => ({ config: state.config, coolingOverridden: state.coolingOverridden }),
+  // Unknown older shapes are dropped rather than half-loaded
+  migrate: (persisted, version) => (version === FARM_STORAGE_VERSION ? (persisted as Partial<FarmStore>) : {}),
+  merge: (persisted, current) => {
+    const p = (persisted ?? {}) as Partial<Pick<FarmStore, 'config' | 'coolingOverridden'>>;
+    if (!p.config || !Array.isArray(p.config.miners)) return current;
+    return { ...current, config: refreshMiners({ ...defaultConfig, ...p.config }), coolingOverridden: !!p.coolingOverridden };
+  },
+  // Rehydrated after mount (see FarmPersistence) so the server and first client render agree
+  skipHydration: true,
 }));

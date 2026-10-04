@@ -1,26 +1,24 @@
-import type { FarmConfig, FarmMetrics, Miner, LocationData } from '@/types';
-import { DRY_COOLERS } from '@/lib/dryCoolerData';
-import { AIR_FANS } from '@/lib/airFanData';
+import type { FarmConfig, FarmMetrics, LocationData } from '@/types';
+import { DRY_COOLERS, AIR_FANS } from '@/lib/catalog';
+import {
+  DEFAULT_CLIMATE,
+  airFanUnitCostUsd,
+  coolingHeatLoadKw,
+  dryCoolerDeratingFactor,
+  dryCoolerUnitCostUsd,
+  requiredAirflowM3h,
+} from '@/lib/cooling';
 import { autoSelectTransformer } from '@/lib/transformerData';
 
 // Constants
-const HOURS_PER_MONTH = 730; // average
+/** Average Gregorian month (365.25 / 12). Revenue and electricity use the same month. */
+export const DAYS_PER_MONTH = 30.4375;
+const HOURS_PER_MONTH = DAYS_PER_MONTH * 24; // 730.5
 const WATTS_TO_BTU = 3.412; // BTU/h per Watt
 const VOLTAGE = 220; // Standard industrial voltage
 const SOLAR_PANEL_WATTS = 400;
 const SQM_PER_KW_INSTALLED = 10; // ground-mounted solar with inter-row spacing
 const SQM_TO_SQFT = 10.7639;
-
-// Default climate: temperate, non-extreme (roughly Central Europe / US Mid-Atlantic)
-const DEFAULT_CLIMATE: LocationData = {
-  lat: 40,
-  lng: -80,
-  city: "Default (temperate)",
-  avgYearlyTempC: 25,
-  maxTempC: 35,
-  minTempC: 5,
-  avgHumidityPercent: 60,
-};
 
 /**
  * Returns the user-selected location or a temperate fallback.
@@ -252,52 +250,21 @@ export function calculateLaborCapex(config: FarmConfig): { laborCost: number; ca
 }
 
 /**
- * Calculate ventilation airflow needed for air-cooled miners.
- * Base formula: Q = P / (ρ × Cp × ΔT) where ρ=1.2 kg/m³, Cp=1005 J/kg·K
- *
- * Climate adjustments:
- * - ΔT (air temperature rise across miners) shrinks in hot climates.
- *   Base ΔT = 15°C at 35°C ambient. For hotter sites, effective ΔT = max(5, 50 - maxTempC).
- *   This means hotter ambient → smaller ΔT → more airflow needed.
- * - High humidity (>70%) reduces convective cooling efficiency.
- *   Apply a penalty: +1% airflow per % humidity above 70, capped at 15%.
+ * Ventilation airflow needed for the farm's **air-cooled** heat load at the site
+ * climate (formula and climate adjustments in `requiredAirflowM3h`, lib/cooling.ts).
+ * Water-cooled miners reject their heat through dry coolers, so a hydro-only farm needs 0.
  */
 export function calculateVentilation(config: FarmConfig): { m3h: number; cfm: number } {
-  const powerKw = calculateTotalPower(config);
-  const climate = getEffectiveClimate(config);
-
-  // Effective ΔT: at 35°C ambient → 15°C rise. At 45°C → 5°C rise (minimum).
-  const effectiveDeltaT = Math.max(5, 50 - climate.maxTempC);
-
-  // Base airflow: Q (m³/s) = P_W / (ρ × Cp × ΔT), convert to m³/h
-  // ρ=1.2, Cp=1005 → Q (m³/h) = P_kW × 1000 / (1.2 × 1005 × ΔT) × 3600
-  const baseM3h = (powerKw * 1000 * 3600) / (1.2 * 1005 * effectiveDeltaT);
-
-  // Humidity penalty: +1% per % above 70%, capped at 15%
-  const humidityExcess = Math.max(0, climate.avgHumidityPercent - 70);
-  const humidityPenalty = 1 + Math.min(humidityExcess * 0.01, 0.15);
-
-  const m3h = baseM3h * humidityPenalty;
-  const cfm = m3h * 0.5886;
-  return { m3h, cfm };
+  const m3h = requiredAirflowM3h(coolingHeatLoadKw(config, 'air'), getEffectiveClimate(config));
+  return { m3h, cfm: m3h * 0.5886 };
 }
 
 /**
- * Dry cooler derating factor based on ambient temperature.
- * Capacity is rated at 35°C. Above that, capacity drops ~3% per °C.
- * Below 35°C, capacity improves ~2% per °C (less aggressive — manufacturers
- * don't guarantee linear gains below rating).
- * Returns a multiplier: 1.0 at 35°C, 0.7 at 45°C, 1.1 at 30°C, etc.
+ * Dry cooler derating factor at the site's max temperature (see
+ * `dryCoolerDeratingFactor`, lib/cooling.ts): 1.0 at 35°C, 0.7 at 45°C, 1.1 at 30°C.
  */
 export function getDryCoolerDeratingFactor(config: FarmConfig): number {
-  const climate = getEffectiveClimate(config);
-  const deltaAbove35 = climate.maxTempC - 35;
-  if (deltaAbove35 > 0) {
-    // 3% loss per °C above 35, floor at 50% capacity
-    return Math.max(0.5, 1 - deltaAbove35 * 0.03);
-  }
-  // 2% gain per °C below 35, cap at 130%
-  return Math.min(1.3, 1 + Math.abs(deltaAbove35) * 0.02);
+  return dryCoolerDeratingFactor(getEffectiveClimate(config).maxTempC);
 }
 
 /**
@@ -325,14 +292,14 @@ export function calculateDryCoolerCapex(config: FarmConfig): number {
   return selections.reduce((total, sel) => {
     const model = DRY_COOLERS.find((m) => m.model === sel.model);
     if (!model || sel.quantity <= 0) return total;
-    const unitCost = model.estimated_cost_usd + model.man_hours_deploy * hourlyRate + model.plumbing_fluid_cost_usd;
-    return total + sel.quantity * unitCost;
+    return total + sel.quantity * dryCoolerUnitCostUsd(model, hourlyRate);
   }, 0);
 }
 
 /**
  * Total electrical power drawn by selected air fans in kW.
- * Added to the farm's parasitic / total power draw.
+ * Reported only: fan draw is covered by the farm's parasitic load percentage
+ * (cooling, networking), so it is not added to total power a second time.
  */
 export function calculateAirFanPowerKw(config: FarmConfig): number {
   const selections = config.temperature?.airFanSelections;
@@ -353,8 +320,7 @@ export function calculateAirFanCapex(config: FarmConfig): number {
   return selections.reduce((total, sel) => {
     const model = AIR_FANS.find((m) => m.model === sel.model);
     if (!model || sel.quantity <= 0) return total;
-    const unitCost = model.cost_usd + model.man_hours_deploy * hourlyRate;
-    return total + sel.quantity * unitCost;
+    return total + sel.quantity * airFanUnitCostUsd(model, hourlyRate);
   }, 0);
 }
 
@@ -389,28 +355,47 @@ export function calculateMaintenanceLaborOpex(config: FarmConfig): number {
   return hours * config.maintenanceLabor.hourlyMaintenanceCostUsd;
 }
 
+export interface MonthlyOpexBreakdown {
+  /** Grid electricity after solar offset, including the tax adder */
+  electricity: number;
+  /** Equipment maintenance: maintenanceOpexPercent of CAPEX per year, monthly */
+  maintenance: number;
+  solarMaintenance: number;
+  maintenanceLabor: number;
+  total: number;
+}
+
 /**
- * Calculate monthly OPEX
+ * Monthly OPEX, itemized. The dashboard and the forecast both use this, so
+ * month 1 of a forecast (before energy inflation) matches `monthlyOpex`.
  */
-export function calculateMonthlyOpex(config: FarmConfig, totalCapex: number): number {
+export function calculateMonthlyOpexBreakdown(config: FarmConfig, totalCapex: number): MonthlyOpexBreakdown {
   const monthlyKwh = calculateMonthlyKwh(config);
   const { electricityPriceKwh, taxAdderPercent } = config.regional;
 
   // Electricity cost (injection rate reduces effective solar offset)
   const effectiveSolarCoverage = calculateEffectiveSolarCoverage(config) / 100;
   const gridKwh = monthlyKwh * (1 - effectiveSolarCoverage);
-  const electricityCost = gridKwh * electricityPriceKwh * (1 + taxAdderPercent / 100);
+  const electricity = gridKwh * electricityPriceKwh * (1 + taxAdderPercent / 100);
 
-  // Maintenance cost (annual divided by 12)
-  const maintenanceCost = (totalCapex * (config.maintenanceOpexPercent / 100)) / 12;
-
-  // Solar maintenance
+  const maintenance = (totalCapex * (config.maintenanceOpexPercent / 100)) / 12;
   const solarMaintenance = calculateMonthlySolarMaintenance(config);
+  const maintenanceLabor = calculateMaintenanceLaborOpex(config);
 
-  // Maintenance labor
-  const maintenanceLaborOpex = calculateMaintenanceLaborOpex(config);
+  return {
+    electricity,
+    maintenance,
+    solarMaintenance,
+    maintenanceLabor,
+    total: electricity + maintenance + solarMaintenance + maintenanceLabor,
+  };
+}
 
-  return electricityCost + maintenanceCost + solarMaintenance + maintenanceLaborOpex;
+/**
+ * Calculate monthly OPEX
+ */
+export function calculateMonthlyOpex(config: FarmConfig, totalCapex: number): number {
+  return calculateMonthlyOpexBreakdown(config, totalCapex).total;
 }
 
 /**

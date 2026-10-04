@@ -2,7 +2,6 @@
 
 import { Layers } from "lucide-react";
 import Card from "./ui/Card";
-import CardIllustration from "./ui/CardIllustration";
 import Slider from "./ui/Slider";
 import Button from "./ui/Button";
 import Tooltip from "./ui/Tooltip";
@@ -18,10 +17,10 @@ const PAYOUT_SCHEME_DEFAULT_FEES: Record<PayoutScheme, number> = {
 
 const payoutSchemeTooltip = (
   <div className="space-y-1.5">
-    <p><strong className="text-blueprint-deep">PPS</strong>: Fixed payout per valid share. Pool absorbs variance. ~2% fee.</p>
-    <p><strong className="text-blueprint-deep">PPLNS</strong>: Payout based on your share of recent work. Lower fee (~1%), rewards vary with luck.</p>
-    <p><strong className="text-blueprint-deep">FPPS</strong>: Like PPS but includes transaction fees in payouts. Best for steady income. ~2.5% fee.</p>
-    <p><strong className="text-blueprint-deep">PPS+</strong>: Base block reward via PPS + proportional tx fees. Moderate fee and variance.</p>
+    <p><strong className="text-fg">PPS</strong>: Fixed payout per valid share. Pool absorbs variance. ~2% fee.</p>
+    <p><strong className="text-fg">PPLNS</strong>: Payout based on your share of recent work. Lower fee (~1%), rewards vary with luck.</p>
+    <p><strong className="text-fg">FPPS</strong>: Like PPS but includes transaction fees in payouts. Best for steady income. ~2.5% fee.</p>
+    <p><strong className="text-fg">PPS+</strong>: Base block reward via PPS + proportional tx fees. Moderate fee and variance.</p>
   </div>
 );
 
@@ -42,15 +41,15 @@ export default function MiningPoolParams() {
 
   return (
     <Card>
-      <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <Layers className="h-5 w-5 text-blueprint-deep" />
+      <h2 className="text-lg font-bold text-fg mb-4 flex items-center gap-2">
+        <Layers className="h-5 w-5 text-fg" />
         Mining Pool Parameters
       </h2>
 
       <div className="space-y-4">
         {/* Payout Scheme */}
         <div>
-          <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+          <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
             Payout Scheme
             <Tooltip content={payoutSchemeTooltip} />
           </label>

@@ -9,10 +9,8 @@ Thanks for your interest in contributing! MineForge is an open-source Bitcoin mi
 ```bash
 git clone https://github.com/<your-username>/bitcoinmining.git
 cd bitcoinmining
-npm install
-cp .env.example .env.local
-# Fill in your Supabase credentials
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ### 2. Create a Branch
@@ -34,7 +32,7 @@ Use descriptive branch names:
 - Keep components focused and composable
 - Add types to `types/index.ts` for shared interfaces
 - Use the Zustand store (`lib/store.ts`) for state management
-- Test your changes locally with `npm run build`
+- Run `pnpm lint && pnpm typecheck && pnpm test && pnpm build` before pushing
 
 ### 4. Commit
 
@@ -43,7 +41,7 @@ Write clear, concise commit messages:
 ```
 feat: add mining pool fee selector
 fix: correct heat output calculation for water-cooled miners
-docs: add Supabase setup instructions
+docs: document the dry-cooler derating formula
 ```
 
 ### 5. Open a Pull Request
@@ -51,7 +49,7 @@ docs: add Supabase setup instructions
 - Push your branch and open a PR against `main`
 - Describe what you changed and why
 - Include screenshots for UI changes
-- Make sure the build passes (`npm run build`)
+- Make sure CI passes (lint, typecheck, tests, build)
 
 ## Code Style
 
@@ -63,7 +61,7 @@ docs: add Supabase setup instructions
 
 ## What We're Looking For
 
-- New ASIC miner data (verify specs from manufacturer sites)
+- New ASIC miner data and quarterly price refreshes (see [`data/README.md`](data/README.md) for fields, sources and rules)
 - Calculation accuracy improvements
 - UI/UX enhancements
 - Performance optimizations

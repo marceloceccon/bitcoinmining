@@ -3,10 +3,10 @@
   "info": {
     "title": "Bitcoin Mining Farm Calculator API",
     "version": "1.0.0",
-    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute for external callers.",
+    "description": "Free API for calculating Bitcoin mining farm profitability, CAPEX, OPEX, and multi-year revenue forecasts. Designed for developers, AI agents, and mining operators. Rate limited to 60 requests/minute per IP for external callers (best-effort, per serverless instance). Prefer an AI agent? The same engine is an MCP server: https://www.bitcoinminingfarmcalculator.com/mcp",
     "contact": {
       "name": "Bitcoin Mining Farm Calculator",
-      "url": "https://bitcoinminingfarmcalculator.com"
+      "url": "https://www.bitcoinminingfarmcalculator.com"
     },
     "license": {
       "name": "MIT",
@@ -15,7 +15,7 @@
   },
   "servers": [
     {
-      "url": "https://bitcoinminingfarmcalculator.com/api",
+      "url": "https://www.bitcoinminingfarmcalculator.com/api",
       "description": "Production server"
     },
     {
@@ -44,13 +44,13 @@
     },
     "codes": {
       "400": {
-        "description": "Bad Request — invalid or missing request body",
+        "description": "Bad Request \u2014 invalid or missing request body",
         "variables": {
           "ERROR_MESSAGE": "Invalid request parameters"
         }
       },
       "429": {
-        "description": "Too Many Requests — rate limit exceeded (60 req/min for external callers)",
+        "description": "Too Many Requests \u2014 rate limit exceeded (60 req/min per IP for external callers). See the Retry-After header.",
         "variables": {
           "ERROR_MESSAGE": "Too many requests"
         }
