@@ -100,7 +100,7 @@ Present all of these together at G0. The recommendation comes first in each row.
 - D7: follow recomendation
 - D8: follow recommendation
 - G0 (2026-10-03): D1–D8 confirmed as recommended (see above). Execution started with no further pause.
-- G1 direction: 
+- G1 direction (2026-10-04): **A · Control Room**: dark graphite default plus a light blueprint-paper mode. No tweaks requested.
 - G2 data approval: Do it automatically, this data can be reviewed → applied 2026-10-04 (90 models; see `tasks/pr/p2-data.md`)
 - G3 registry:
 
@@ -315,7 +315,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - **B. "Engineering Datasheet".** Light, Swiss, print-like spec-sheet typography, dense tables, restrained motion. The most "B2B credible", the least showy.
   - **C. "Thermal".** Dark, with thermal-camera gradients as the visual language, tying everything to the cooling showcase. The most striking, with the highest risk of looking like a theme.
   - Published as one private Artifact with a direction switcher: https://claude.ai/artifact/U8EsN4soXeDR8Y8BcSCRdi (source: `docs/design/directions.html`; brief: `docs/design/brief.md`). All three use the engine's real Small Farm output.
-- [ ] 🚦 **P3.3 MUST — G1:** the user picks a direction. Record it in §3.
+- [x] 🚦 **P3.3 MUST — G1:** the user picks a direction. Record it in §3.
 
 ### P4 — Visual revamp and motion (branch `revamp/p4-ui`; split it into several PRs if it gets large)
 
