@@ -451,26 +451,29 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
 
 ### P6 — Launch and portfolio packaging (branch `revamp/p6-launch`)
 
-- [ ] **P6.1 MUST — Rewrite the README** to lead with the engine: thermal sizing, electrical sizing, a tested engine shared by UI + REST + MCP, and the methodology doc. Include a hero GIF/video, the MCP quick-start and the API table. Move the tech stack down.
-- [ ] **P6.2 MUST — Demo assets.** Regenerate `public/screenshot.png` and `docs/screenshot.png` (Trap 9). Record a 30-second clip:
+- [x] **P6.1 MUST — Rewrite the README** to lead with the engine: thermal sizing, electrical sizing, a tested engine shared by UI + REST + MCP, and the methodology doc. Include a hero GIF/video, the MCP quick-start and the API table. Move the tech stack down.
+- [x] **P6.2 MUST — Demo assets.** Regenerate `public/screenshot.png` and `docs/screenshot.png` (Trap 9). Record a 30-second clip:
   - preset → schematic morphs;
   - pin in Texas vs Norway → cooler count changes;
   - Projections break-even vs live price.
 
   Store it as an optimized MP4/WebM plus a GIF for the README.
-- [ ] **P6.3 SHOULD — Case study** `docs/case-study.md`: before/after screenshots (P0.1, P4.12), the credibility bugs found and fixed (hashrate constant, S2F, OPEX finding, rate limiter), and the architecture decisions (D1, the MCP design). This is the portfolio narrative.
-- [ ] **P6.4 MUST — SEO.**
+  - `docs/media/demo.{mp4,webm,gif}` (31 s; GIF is 720 px, 4.6 MB) recorded by `docs/media/record-demo.mjs` (Playwright, with live Nominatim and Open-Meteo). Converted with a static ffmpeg kept outside the repo.
+- [x] **P6.3 SHOULD — Case study** `docs/case-study.md`: before/after screenshots (P0.1, P4.12), the credibility bugs found and fixed (hashrate constant, S2F, OPEX finding, rate limiter), and the architecture decisions (D1, the MCP design). This is the portfolio narrative.
+- [x] **P6.4 MUST — SEO.**
   - The sitemap includes `/`, `/methodology`, `/mcp`, `/api-docs`.
   - Per-page metadata.
   - JSON-LD updated: S2F removed; the FAQ matches the new content.
   - Validate with Google's Rich Results test, and ask the user to submit the sitemap in Search Console.
-- [ ] **P6.5 SHOULD — Launch drafts** in `tasks/launch/`. **The user posts these; the agent only drafts them.**
+  - FAQPage JSON-LD now appears only on `/methodology`, where the FAQ is visible. Canonicals and the sitemap are verified locally. **Still needs the user:** the Google Rich Results test on the preview, and submitting the sitemap in Search Console.
+- [x] **P6.5 SHOULD — Launch drafts** in `tasks/launch/`. **The user posts these; the agent only drafts them.**
   - r/BitcoinMining: lead with thermal sizing plus the free tool; be explicit that prices are as of Oct 2026.
   - Show HN: lead with "a mining farm planner your AI agent can call via MCP".
   - X / Nostr thread.
   - MCP directories (official registry via G3, plus PRs to awesome-mcp-servers lists).
   - LinkedIn post for the portfolio audience.
 
+  - In `tasks/launch/` (5 drafts plus a README with posting order).
 ### P7 — Final verification and review
 
 - [ ] **P7.1 MUST** Full Definition of Done on `main` after the last merge: lint, typecheck, unit, e2e and build all pass, and CI is green.
@@ -479,7 +482,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - `/api/mcp` `tools/list` via the Inspector CLI;
   - the apex returns 308 → www;
   - `/llms.txt`, `/sitemap.xml` and the canonical tag are correct.
-- [ ] **P7.3 MUST** Cross-check: for 1 × S21 XP at $0.05/kWh, compare the site's day-1 revenue with Hashrate Index hashprice × 0.27 PH. They should agree within ±3%. Record it in §9.
+- [x] **P7.3 MUST** Cross-check: for 1 × S21 XP at $0.05/kWh, compare the site's day-1 revenue with Hashrate Index hashprice × 0.27 PH. They should agree within ±3%. Record it in §9.
 - [ ] **P7.4 MUST** Lighthouse scores vs the §1 targets; record them in §9.
 - [ ] **P7.5 MUST** Update `../tasks/lessons.md` with anything learned, and fill in §9.
 
@@ -694,9 +697,12 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 ### Verification
 - Build hygiene (found in P1): a footer commit hash that differed between Next build workers caused intermittent React #418 hydration errors. Fixed in `next.config.js`.
 - P5.8 MCP Inspector run (live data, 2026-10-04), "plan a 1 MW air-cooled farm in Paraguay at $0.04/kWh": `compare_miners` ranked S23, A16XP and SealMiner A3 Pro Air as the most profitable air units/day. `calculate_farm` (261 × S21 XP, Asunción) gave 70.47 PH/s, 999 kW, 1,199 kVA, CAPEX $1,136,712, OPEX $37,012/mo, 6 × 56″ fans (ERA5: design max 40.5 °C, 71% humidity). `forecast_farm` (48 mo, flat $84,830) gave break-even BTC $62,097 (incl. CAPEX $99,954), payback not within 48 mo, NPV −$487k. Real-client (Claude) transcript still to do.
-- P7.3 revenue cross-check vs Hashrate Index:
+- P7.3 revenue cross-check vs Hashrate Index (2026-10-04 ~02:55 UTC): HRI hashprice $40.48/PH/day (979 EH/s, BTC $84,794); ours $40.04/PH/day incl. fees (mempool.space: 960 EH/s, BTC $84,790, 0.0242 BTC fees/block). 1 × S21 XP (0.27 PH) day-1 gross revenue: ours $10.81 vs HRI $10.93, **−1.08%, within ±3%**. Most of the gap is the hashrate estimate; our formula at HRI's own hashrate and price gives $39.29 (−2.95%), which points to a higher fee average on HRI's side.
 - P4.12 Lighthouse (local production build, mobile): Perf 98 / A11y 100 / BP 96 (local Vercel Analytics 404 only) / SEO 100; LCP 2.3 s, TBT 20 ms, CLS 0.001.
 - P7.4 Lighthouse (final):
 
 ### Retrospective
--
+- Pinning the engine with golden fixtures before touching it made every later change cheap to review. Each moved number has a one-line cause in its commit.
+- The "unexplained OPEX" didn't exist, but itemizing it with a test exposed a real forecast/dashboard mismatch. Investigations should end in a test either way.
+- The e2e console-error check found two real bugs that unit tests couldn't: the UI storing 429 bodies as data, and an intermittent hydration mismatch from Next build workers.
+- Running every tab through axe in light and dark caught the contrast and label issues that a single Lighthouse run of the landing view missed.
