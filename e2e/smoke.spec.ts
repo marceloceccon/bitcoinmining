@@ -1,12 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 
 const TABS = [
-  { label: 'Miners', heading: 'Live Metrics' },
+  { label: 'Build', heading: 'Miner Database' },
   { label: 'Energy', heading: 'Regional Settings' },
-  { label: 'Deploy & Labor', heading: 'Live Metrics' },
+  { label: 'Deploy & Labor', heading: 'Deployment Labor Costs' },
   { label: 'Thermal', heading: 'Site Location & Climate' },
   { label: 'Projections', heading: 'Forecast Parameters' },
-  { label: 'About', heading: 'About Bitcoin Mining Farm Calculator' },
 ];
 
 const PRESETS = ['Home Miner', 'Garage Setup', 'Small Farm', 'Industrial'];
@@ -38,7 +37,12 @@ function presetButton(page: Page, name: string) {
 }
 
 function tab(page: Page, label: string) {
-  return page.locator('nav#calculator').getByRole('button', { name: label });
+  return page.getByRole('tab', { name: label });
+}
+
+/** The headline figures above the workbench (visible at every width). */
+function summary(page: Page) {
+  return page.getByRole('region', { name: 'Farm summary' });
 }
 
 test('loads without console errors', async ({ page }) => {
@@ -46,7 +50,7 @@ test('loads without console errors', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   // A fresh visit opens on the Small Farm preset, not an empty farm.
-  await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
+  await expect(summary(page)).toContainText('27.00 PH/s');
   await page.waitForLoadState('networkidle');
   expect(errors).toEqual([]);
 });
@@ -56,8 +60,8 @@ for (const preset of PRESETS) {
     const errors = collectErrors(page);
     await page.goto('/');
     await presetButton(page, preset).click();
-    await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
-    await expect(page.getByText('Add miners to see farm calculations')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Farm Configuration' })).toBeVisible();
+    await expect(summary(page)).not.toContainText('0.00 TH/s');
     expect(errors).toEqual([]);
   });
 }
@@ -91,9 +95,26 @@ test('calculations run in the browser: the UI only fetches the market snapshot',
   });
   await page.goto('/');
   await presetButton(page, 'Industrial').click();
-  await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Farm Configuration' })).toBeVisible();
   await tab(page, 'Projections').click();
   await expect(page.getByRole('heading', { name: 'Forecast Parameters' })).toBeVisible();
   await page.waitForLoadState('networkidle');
   expect([...new Set(apiCalls)]).toEqual(['GET /api/network']);
+});
+
+test('tabs are keyboard-operable and deep-linkable', async ({ page }) => {
+  await page.goto('/?tab=forecast');
+  await expect(tab(page, 'Projections')).toHaveAttribute('aria-selected', 'true');
+  await tab(page, 'Projections').focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(tab(page, 'Thermal')).toHaveAttribute('aria-selected', 'true');
+  await expect(page).toHaveURL(/\?tab=temperature/);
+  await expect(page.getByRole('heading', { name: 'Site Location & Climate' })).toBeVisible();
+});
+
+test('the methodology page renders', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/methodology');
+  await expect(page.getByRole('heading', { level: 1, name: 'How MineForge works' })).toBeVisible();
+  expect(errors).toEqual([]);
 });

@@ -32,11 +32,11 @@ export default function MetricsDashboard() {
     return (
       <Card>
         <div className="text-center py-12">
-          <div className="text-4xl mb-4 text-slate-300">--</div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          <div className="text-4xl mb-4 text-faint">--</div>
+          <h3 className="text-lg font-semibold text-fg mb-2">
             No Metrics Yet
           </h3>
-          <p className="text-slate-500">
+          <p className="text-muted">
             Add miners to see farm calculations
           </p>
         </div>
@@ -49,31 +49,31 @@ export default function MetricsDashboard() {
       icon: Zap,
       label: "Total Hash Rate",
       value: formatHashRate(metrics.totalHashRateThs),
-      color: "text-blueprint-deep",
+      color: "text-fg",
     },
     {
       icon: Gauge,
       label: "Power Draw",
       value: formatPower(metrics.totalPowerKw),
-      color: "text-amber-600",
+      color: "text-warn",
     },
     {
       icon: Zap,
       label: "Monthly kWh",
       value: formatNumber(metrics.monthlyKwh),
-      color: "text-blue-600",
+      color: "text-cool",
     },
     {
       icon: Flame,
       label: "Heat Output",
       value: `${formatNumber(metrics.heatOutputBtuPerHour)} BTU/h`,
-      color: "text-red-600",
+      color: "text-bad",
     },
     {
       icon: Gauge,
       label: "Electrical Current",
       value: `${metrics.electricalCurrentAmps.toFixed(1)} A @ 220V`,
-      color: "text-violet-600",
+      color: "text-muted",
     },
     {
       icon: Factory,
@@ -81,7 +81,7 @@ export default function MetricsDashboard() {
       value: metrics.transformerKva < NO_TRANSFORMER_THRESHOLD_KVA
         ? `${metrics.transformerKva.toFixed(0)} kVA (not needed)`
         : `${metrics.transformerKva.toFixed(0)} kVA`,
-      color: "text-emerald-600",
+      color: "text-good",
     },
   ];
 
@@ -130,20 +130,20 @@ export default function MetricsDashboard() {
     <div className="space-y-6">
       {/* Metrics Grid */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Live Metrics</h2>
+        <h2 className="text-lg font-bold text-fg mb-4">Live Metrics</h2>
         <div className="space-y-2">
           {metricItems.map((item) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.label}
-                className="flex items-center justify-between p-3 glass-inner"
+                className="flex items-center justify-between p-3 inset"
               >
                 <div className="flex items-center gap-3">
                   <Icon className={`h-4 w-4 ${item.color}`} />
-                  <span className="text-sm text-slate-500">{item.label}</span>
+                  <span className="text-sm text-muted">{item.label}</span>
                 </div>
-                <span className="font-mono font-semibold text-slate-900 text-sm tabular-nums">{item.value}</span>
+                <span className="font-mono font-semibold text-fg text-sm tabular-nums">{item.value}</span>
               </div>
             );
           })}
@@ -152,16 +152,16 @@ export default function MetricsDashboard() {
 
       {/* Cost Breakdown */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Cost Breakdown</h2>
+        <h2 className="text-lg font-bold text-fg mb-4">Cost Breakdown</h2>
         <div className="space-y-1">
           {costBreakdown.map((item) => (
             <div key={item.label} className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-              <span className="text-slate-500">{item.label}</span>
-              <span className="font-mono font-medium text-slate-700 tabular-nums">{formatUsd(item.value)}</span>
+              <span className="text-muted">{item.label}</span>
+              <span className="font-mono font-medium text-fg-2 tabular-nums">{formatUsd(item.value)}</span>
             </div>
           ))}
           {pieData.length > 1 && (
-            <div className="py-3 mt-3 border-t border-slate-200/50">
+            <div className="py-3 mt-3 border-t border-line">
               <div className="h-48 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -187,17 +187,17 @@ export default function MetricsDashboard() {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
-                    <div className="text-xs text-slate-400">CAPEX</div>
-                    <div className="text-sm font-bold text-slate-900 font-mono tabular-nums">{formatUsd(metrics.totalCapex)}</div>
+                    <div className="text-xs text-faint">CAPEX</div>
+                    <div className="text-sm font-bold text-fg font-mono tabular-nums">{formatUsd(metrics.totalCapex)}</div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="pt-3 mt-3 border-t border-slate-200/50 flex justify-between font-semibold">
-            <span className="text-slate-900">Total CAPEX</span>
-            <span className="text-blueprint-deep font-mono text-lg tabular-nums">
+          <div className="pt-3 mt-3 border-t border-line flex justify-between font-semibold">
+            <span className="text-fg">Total CAPEX</span>
+            <span className="text-fg font-mono text-lg tabular-nums">
               {formatUsd(metrics.totalCapex)}
             </span>
           </div>
@@ -206,56 +206,56 @@ export default function MetricsDashboard() {
 
       {/* Bitcoin Mined */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-1">
+        <h2 className="text-lg font-bold text-fg mb-4 flex items-center gap-1">
           Price of Bitcoin Mined
           <Tooltip content={`Estimated monthly BTC at current network conditions (${networkLabel}, ${blockReward} BTC subsidy + ${market.avgFeesPerBlockBtc.toFixed(3)} BTC fees per block). Does not account for future difficulty growth or ASIC degradation.`} />
         </h2>
-        <div className="text-center py-3 mb-3 glass-inner">
-          <div className="text-2xl font-bold text-amber-600 font-mono tabular-nums">
+        <div className="text-center py-3 mb-3 inset">
+          <div className="text-2xl font-bold text-warn font-mono tabular-nums">
             {formatBtc(monthlyBtc, 6)}
           </div>
-          <div className="text-sm text-slate-500 mt-1">BTC / month</div>
+          <div className="text-sm text-muted mt-1">BTC / month</div>
         </div>
         <div className="space-y-1 mb-3">
           <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-            <span className="text-slate-500">Yearly BTC Mined</span>
-            <span className="font-mono font-medium text-amber-600 tabular-nums">{formatBtc(monthlyBtc * 12, 6)}</span>
+            <span className="text-muted">Yearly BTC Mined</span>
+            <span className="font-mono font-medium text-warn tabular-nums">{formatBtc(monthlyBtc * 12, 6)}</span>
           </div>
           {marketHashprice > 0 && (
             <>
               <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-                <span className="text-slate-500 flex items-center gap-1">
+                <span className="text-muted flex items-center gap-1">
                   Market Hashprice
                   <Tooltip content="Daily revenue per PH/s at current network conditions. This is the industry benchmark miners use to evaluate profitability." />
                 </span>
-                <span className="font-mono font-medium text-slate-700 tabular-nums">${marketHashprice.toFixed(2)}/PH/day</span>
+                <span className="font-mono font-medium text-fg-2 tabular-nums">${marketHashprice.toFixed(2)}/PH/day</span>
               </div>
               {farmHashprice > 0 && (
                 <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-                  <span className="text-slate-500 flex items-center gap-1">
+                  <span className="text-muted flex items-center gap-1">
                     Your Hashprice
                     <Tooltip content="Your farm's effective daily revenue per PH/s, accounting for pool fees and uptime." />
                   </span>
-                  <span className="font-mono font-medium text-blueprint-deep tabular-nums">${farmHashprice.toFixed(2)}/PH/day</span>
+                  <span className="font-mono font-medium text-fg tabular-nums">${farmHashprice.toFixed(2)}/PH/day</span>
                 </div>
               )}
             </>
           )}
         </div>
-        <div className="pt-3 border-t border-slate-200/50">
+        <div className="pt-3 border-t border-line">
           <div className="flex justify-between font-semibold">
-            <span className="text-slate-900">Cost per BTC</span>
-            <span className="text-blueprint-deep font-mono text-lg tabular-nums">
+            <span className="text-fg">Cost per BTC</span>
+            <span className="text-fg font-mono text-lg tabular-nums">
               {formatUsd(costPerBtc)}
             </span>
           </div>
           {btcPriceUsd > 0 && costPerBtc > 0 && (
-            <div className={`mt-2 text-center text-sm font-semibold py-2 rounded-2xl ${
+            <div className={`mt-2 text-center text-sm font-semibold py-2 rounded ${
               isUnprofitable
-                ? "glass-danger text-red-700"
+                ? "note-bad text-bad"
                 : isMarginal
-                  ? "glass-warning text-amber-700"
-                  : "glass-success text-emerald-700"
+                  ? "note-warn text-warn"
+                  : "note-good text-good"
             }`}>
               {isUnprofitable
                 ? `Unprofitable at ${formatUsd(btcPriceUsd)}/BTC`
@@ -270,28 +270,28 @@ export default function MetricsDashboard() {
 
       {/* OPEX */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Monthly OPEX</h2>
+        <h2 className="text-lg font-bold text-fg mb-4">Monthly OPEX</h2>
         {(metrics.monthlySolarMaintenance > 0 || metrics.maintenanceLaborOpex > 0) && (
           <div className="space-y-1 mb-3">
             {metrics.monthlySolarMaintenance > 0 && (
               <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-                <span className="text-slate-500">Solar Maintenance</span>
-                <span className="font-mono font-medium text-slate-700 tabular-nums">{formatUsd(metrics.monthlySolarMaintenance)}</span>
+                <span className="text-muted">Solar Maintenance</span>
+                <span className="font-mono font-medium text-fg-2 tabular-nums">{formatUsd(metrics.monthlySolarMaintenance)}</span>
               </div>
             )}
             {metrics.maintenanceLaborOpex > 0 && (
               <div className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-                <span className="text-slate-500">Maintenance Labor</span>
-                <span className="font-mono font-medium text-slate-700 tabular-nums">{formatUsd(metrics.maintenanceLaborOpex)}</span>
+                <span className="text-muted">Maintenance Labor</span>
+                <span className="font-mono font-medium text-fg-2 tabular-nums">{formatUsd(metrics.maintenanceLaborOpex)}</span>
               </div>
             )}
           </div>
         )}
         <div className="text-center py-4">
-          <div className="text-3xl font-bold text-blueprint-deep font-mono tabular-nums">
+          <div className="text-3xl font-bold text-fg font-mono tabular-nums">
             {formatUsd(metrics.monthlyOpex)}
           </div>
-          <div className="text-sm text-slate-500 mt-2 font-mono tabular-nums">
+          <div className="text-sm text-muted mt-2 font-mono tabular-nums">
             = {formatUsd(metrics.monthlyOpex * 12)}/year
           </div>
         </div>
@@ -363,12 +363,12 @@ function NoiseCard({ config, dryCoolers, airFans }: { config: FarmConfig; dryCoo
     Math.abs(curr.db - totalNoise) < Math.abs(prev.db - totalNoise) ? curr : prev
   );
 
-  const noiseColor = totalNoise >= 85 ? "text-red-600" : totalNoise >= 75 ? "text-amber-600" : "text-emerald-600";
+  const noiseColor = totalNoise >= 85 ? "text-bad" : totalNoise >= 75 ? "text-warn" : "text-good";
 
   return (
     <Card>
-      <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <Volume2 className="h-4 w-4 text-slate-600" />
+      <h2 className="text-lg font-bold text-fg mb-4 flex items-center gap-2">
+        <Volume2 className="h-4 w-4 text-fg-2" />
         Noise Level
         <Tooltip content="Estimated combined noise from all miners (~75 dB each), fans, and dry coolers using logarithmic dB addition. Actual levels depend on enclosure and distance." />
       </h2>
@@ -376,32 +376,32 @@ function NoiseCard({ config, dryCoolers, airFans }: { config: FarmConfig; dryCoo
         <div className={`text-3xl font-bold font-mono tabular-nums ${noiseColor}`}>
           {totalNoise.toFixed(0)} dB
         </div>
-        <div className="text-sm text-slate-500 mt-1">
+        <div className="text-sm text-muted mt-1">
           Similar to: {closestRef.label} ({closestRef.db} dB)
         </div>
       </div>
       <div className="space-y-1 text-sm">
         {minerNoise > 0 && (
           <div className="flex justify-between px-2 py-1 rounded row-hover">
-            <span className="text-slate-500">Miners ({totalMiners} units)</span>
-            <span className="font-mono text-slate-700 tabular-nums">{minerNoise.toFixed(0)} dB</span>
+            <span className="text-muted">Miners ({totalMiners} units)</span>
+            <span className="font-mono text-fg-2 tabular-nums">{minerNoise.toFixed(0)} dB</span>
           </div>
         )}
         {fanNoise > 0 && (
           <div className="flex justify-between px-2 py-1 rounded row-hover">
-            <span className="text-slate-500">Air Fans ({totalFans} units)</span>
-            <span className="font-mono text-slate-700 tabular-nums">{fanNoise.toFixed(0)} dB</span>
+            <span className="text-muted">Air Fans ({totalFans} units)</span>
+            <span className="font-mono text-fg-2 tabular-nums">{fanNoise.toFixed(0)} dB</span>
           </div>
         )}
         {coolerNoise > 0 && (
           <div className="flex justify-between px-2 py-1 rounded row-hover">
-            <span className="text-slate-500">Dry Coolers ({totalCoolers} units)</span>
-            <span className="font-mono text-slate-700 tabular-nums">{coolerNoise.toFixed(0)} dB</span>
+            <span className="text-muted">Dry Coolers ({totalCoolers} units)</span>
+            <span className="font-mono text-fg-2 tabular-nums">{coolerNoise.toFixed(0)} dB</span>
           </div>
         )}
       </div>
       {totalNoise >= 85 && (
-        <div className="mt-3 p-2 glass-danger rounded-2xl text-xs text-red-700">
+        <div className="mt-3 p-2 note-bad rounded text-xs text-bad">
           Above OSHA 85 dB 8-hour limit. Hearing protection required.
         </div>
       )}
@@ -430,40 +430,40 @@ function BreakerCard({ totalPowerKw, totalAmps, transformerKva }: { totalPowerKw
 
   return (
     <Card>
-      <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-        <CircuitBoard className="h-4 w-4 text-slate-600" />
+      <h2 className="text-lg font-bold text-fg mb-4 flex items-center gap-2">
+        <CircuitBoard className="h-4 w-4 text-fg-2" />
         Electrical Panel
         <Tooltip content="Estimated panel sizing based on NEC 80% continuous load rule. Uses 220V single/three-phase and 30A branch breakers. Verify with a licensed electrician." />
       </h2>
       <div className="space-y-1 text-sm">
         <div className="flex justify-between px-2 py-1.5 rounded row-hover">
-          <span className="text-slate-500">Total Load</span>
-          <span className="font-mono font-medium text-slate-700 tabular-nums">{totalAmps.toFixed(0)} A @ {VOLTAGE}V</span>
+          <span className="text-muted">Total Load</span>
+          <span className="font-mono font-medium text-fg-2 tabular-nums">{totalAmps.toFixed(0)} A @ {VOLTAGE}V</span>
         </div>
         <div className="flex justify-between px-2 py-1.5 rounded row-hover">
-          <span className="text-slate-500 flex items-center gap-1">
+          <span className="text-muted flex items-center gap-1">
             Main Breaker
             <Tooltip content="Minimum main breaker size per NEC 80% rule: continuous load / 0.8. Round up to nearest standard size." />
           </span>
-          <span className="font-mono font-medium text-slate-700 tabular-nums">{mainBreakerSize} A</span>
+          <span className="font-mono font-medium text-fg-2 tabular-nums">{mainBreakerSize} A</span>
         </div>
         <div className="flex justify-between px-2 py-1.5 rounded row-hover">
-          <span className="text-slate-500 flex items-center gap-1">
+          <span className="text-muted flex items-center gap-1">
             Branch Circuits (30A)
             <Tooltip content="Number of 30A branch circuits needed. Each circuit supports 24A continuous (80% of 30A) at 220V = 5.28 kW per circuit." />
           </span>
-          <span className="font-mono font-medium text-slate-700 tabular-nums">{circuitsNeeded} circuits</span>
+          <span className="font-mono font-medium text-fg-2 tabular-nums">{circuitsNeeded} circuits</span>
         </div>
         <div className="flex justify-between px-2 py-1.5 rounded row-hover">
-          <span className="text-slate-500">Panel Size</span>
-          <span className="font-mono font-medium text-slate-700 tabular-nums">
+          <span className="text-muted">Panel Size</span>
+          <span className="font-mono font-medium text-fg-2 tabular-nums">
             {panelCount > 1 ? `${panelCount}x ` : ""}{panelSize}-slot
           </span>
         </div>
         {transformerKva >= 75 && (
           <div className="flex justify-between px-2 py-1.5 rounded row-hover">
-            <span className="text-slate-500">Recommended</span>
-            <span className="font-mono font-medium text-slate-700 tabular-nums">3-phase 480V service</span>
+            <span className="text-muted">Recommended</span>
+            <span className="font-mono font-medium text-fg-2 tabular-nums">3-phase 480V service</span>
           </div>
         )}
       </div>

@@ -154,25 +154,25 @@ export default function TemperatureControl() {
     <div className="space-y-6">
       {/* Location Card */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
-          <Thermometer className="h-5 w-5 text-blueprint-deep" />
+        <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
+          <Thermometer className="h-5 w-5 text-fg" />
           Site Location & Climate
         </h2>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-muted mb-5">
           Climate data affects cooling sizing and dry cooler derating. All fields are editable after map pick.
         </p>
 
         <button
           onClick={() => setShowMap(true)}
-          className="mb-6 px-5 py-2.5 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 transition-all shadow-md"
+          className="mb-6 px-5 py-2.5 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 transition-all"
         >
           Choose Location
         </button>
 
         {coolingOverridden && config.miners.length > 0 && (
-          <p className="mb-5 text-sm text-slate-500">
+          <p className="mb-5 text-sm text-muted">
             Cooling quantities were edited by hand, so they no longer follow the climate.{" "}
-            <button onClick={resetCoolingToAuto} className="font-semibold text-blueprint-deep hover:underline">
+            <button onClick={resetCoolingToAuto} className="font-semibold text-fg hover:underline">
               Re-size automatically
             </button>
           </p>
@@ -181,7 +181,7 @@ export default function TemperatureControl() {
         {location ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 City / Location
                 <Tooltip content="Nearest city or region name resolved from map click. Editable." />
               </label>
@@ -192,7 +192,7 @@ export default function TemperatureControl() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Avg Yearly Temp
                 <Tooltip content="Annual mean temperature (average of daily max+min) for the selected site. Sourced from ERA5 reanalysis via Open-Meteo. Used to derate dry cooler capacity above 35 C baseline." />
               </label>
@@ -203,12 +203,12 @@ export default function TemperatureControl() {
                   value={location.avgYearlyTempC}
                   onChange={(e) => handleLocationFieldChange("avgYearlyTempC", parseFloat(e.target.value) || 0)}
                 />
-                <span className="text-sm text-slate-400 whitespace-nowrap font-mono tabular-nums">{cToF(location.avgYearlyTempC)} F</span>
+                <span className="text-sm text-faint whitespace-nowrap font-mono tabular-nums">{cToF(location.avgYearlyTempC)} F</span>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Max Temp
                 <Tooltip content="Hottest day recorded during the reference year. Design your cooling for worst-case ambient — dry cooler capacity drops ~3% per C above 35 C." />
               </label>
@@ -219,12 +219,12 @@ export default function TemperatureControl() {
                   value={location.maxTempC}
                   onChange={(e) => handleLocationFieldChange("maxTempC", parseFloat(e.target.value) || 0)}
                 />
-                <span className="text-sm text-slate-400 whitespace-nowrap font-mono tabular-nums">{cToF(location.maxTempC)} F</span>
+                <span className="text-sm text-faint whitespace-nowrap font-mono tabular-nums">{cToF(location.maxTempC)} F</span>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Min Temp
                 <Tooltip content="Coldest day recorded. Relevant for glycol/antifreeze mix sizing in hydro loops." />
               </label>
@@ -235,12 +235,12 @@ export default function TemperatureControl() {
                   value={location.minTempC}
                   onChange={(e) => handleLocationFieldChange("minTempC", parseFloat(e.target.value) || 0)}
                 />
-                <span className="text-sm text-slate-400 whitespace-nowrap font-mono tabular-nums">{cToF(location.minTempC)} F</span>
+                <span className="text-sm text-faint whitespace-nowrap font-mono tabular-nums">{cToF(location.minTempC)} F</span>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Avg Humidity
                 <Tooltip content="Annual mean relative humidity. High humidity (>80%) increases thermal stress on air-cooled ASICs and affects corrosion risk. Source: ERA5 hourly mean." />
               </label>
@@ -253,30 +253,30 @@ export default function TemperatureControl() {
                   value={location.avgHumidityPercent}
                   onChange={(e) => handleLocationFieldChange("avgHumidityPercent", parseFloat(e.target.value) || 0)}
                 />
-                <span className="text-sm text-slate-400 font-mono">%</span>
+                <span className="text-sm text-faint font-mono">%</span>
               </div>
             </div>
           </div>
         ) : (
-          <p className="text-sm text-slate-400">No location set. Click &quot;Choose Location&quot; to pick from the map.</p>
+          <p className="text-sm text-faint">No location set. Click &quot;Choose Location&quot; to pick from the map.</p>
         )}
       </Card>
 
       {/* Air Cooling Ventilation Card */}
       {isAir && config.miners.length > 0 && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <Wind className="h-5 w-5 text-blueprint-deep" />
+          <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
+            <Wind className="h-5 w-5 text-fg" />
             Air Ventilation Requirement
           </h2>
-          <p className="text-sm text-slate-500 mb-5">
+          <p className="text-sm text-muted mb-5">
             Minimum airflow to exhaust heat from air-cooled miners.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 glass-inner rounded-2xl">
+            <div className="p-4 inset rounded">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-slate-500">Airflow needed</span>
+                <span className="text-sm text-muted">Airflow needed</span>
                 <Tooltip content={
                   <div className="space-y-1">
                     <p><strong>Formula:</strong></p>
@@ -288,22 +288,22 @@ export default function TemperatureControl() {
                   </div>
                 } />
               </div>
-              <div className="text-2xl font-bold font-mono text-blueprint-deep tabular-nums">
+              <div className="text-2xl font-bold font-mono text-fg tabular-nums">
                 {formatNumber(Math.round(ventilation.m3h))} m3/h
               </div>
             </div>
-            <div className="p-4 glass-inner rounded-2xl">
+            <div className="p-4 inset rounded">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-slate-500">Airflow needed</span>
+                <span className="text-sm text-muted">Airflow needed</span>
                 <Tooltip content="1 m3/h = 0.5886 CFM. CFM (Cubic Feet per Minute) is the standard used by HVAC vendors in North America." />
               </div>
-              <div className="text-2xl font-bold font-mono text-amber-600 tabular-nums">
+              <div className="text-2xl font-bold font-mono text-warn tabular-nums">
                 {formatNumber(Math.round(ventilation.cfm))} CFM
               </div>
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 mt-3">
+          <p className="text-xs text-faint mt-3">
             Based on {formatNumber(airHeatKw, 1)} kW air-cooled heat load (miners + {config.parasiticLoadPercent}% parasitic).
             Assumes 15 C air temperature rise across the miners. Add 20-30% margin for actual system design.
           </p>
@@ -313,11 +313,11 @@ export default function TemperatureControl() {
       {/* Air Cooling Fans Card */}
       {isAir && config.miners.length > 0 && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <Fan className="h-5 w-5 text-blueprint-deep" />
+          <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
+            <Fan className="h-5 w-5 text-fg" />
             Air Cooling Fans
           </h2>
-          <p className="text-sm text-slate-500 mb-5">
+          <p className="text-sm text-muted mb-5">
             Select industrial wall/exhaust fans to meet the ventilation requirement. Quantity auto-suggests based on required airflow.
             Cost includes hardware + deployment labor (at the hourly rate from the Labor tab).
           </p>
@@ -325,12 +325,12 @@ export default function TemperatureControl() {
           {/* Model selector */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="flex-1 min-w-48">
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Fan model
                 <Tooltip content="Select an industrial axial fan model. Airflow is rated at free-delivery (no static back-pressure). Real installations typically achieve 80-90% of rated flow — add margin." />
               </label>
               <select
-                className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-3 py-2 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
+                className="w-full bg-surface border border-line rounded px-3 py-2 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
                 value={selectedFanModel}
                 onChange={(e) => setSelectedFanModel(e.target.value)}
               >
@@ -345,7 +345,7 @@ export default function TemperatureControl() {
               <button
                 onClick={() => handleAddFan(selectedFanModel)}
                 disabled={addedFanModels.has(selectedFanModel)}
-                className="px-4 py-2 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
+                className="px-4 py-2 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 + Add
               </button>
@@ -354,33 +354,33 @@ export default function TemperatureControl() {
 
           {/* Preview specs of selected model */}
           {previewFanModel && (
-            <div className="mb-5 p-3 glass-inner rounded-2xl text-xs text-slate-500 grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div><span className="text-slate-700 font-medium">Diameter:</span> {previewFanModel.diameter_mm} mm</div>
-              <div><span className="text-slate-700 font-medium">Airflow:</span> {formatNumber(previewFanModel.airflow_m3h)} m3/h</div>
-              <div><span className="text-slate-700 font-medium">Power:</span> {previewFanModel.power_w} W</div>
-              <div><span className="text-slate-700 font-medium">Noise:</span> {previewFanModel.noise_db} dB</div>
-              <div><span className="text-slate-700 font-medium">Speed:</span> {previewFanModel.rpm} RPM · {previewFanModel.hz} Hz</div>
-              <div><span className="text-slate-700 font-medium">Dims (mm):</span> {previewFanModel.width_mm}x{previewFanModel.height_mm}</div>
-              <div><span className="text-slate-700 font-medium">Hardware cost:</span> {formatUsd(previewFanModel.cost_usd)}</div>
-              <div><span className="text-slate-700 font-medium">Deploy:</span> {previewFanModel.man_hours_deploy} h/unit</div>
+            <div className="mb-5 p-3 inset rounded text-xs text-muted grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div><span className="text-fg-2 font-medium">Diameter:</span> {previewFanModel.diameter_mm} mm</div>
+              <div><span className="text-fg-2 font-medium">Airflow:</span> {formatNumber(previewFanModel.airflow_m3h)} m3/h</div>
+              <div><span className="text-fg-2 font-medium">Power:</span> {previewFanModel.power_w} W</div>
+              <div><span className="text-fg-2 font-medium">Noise:</span> {previewFanModel.noise_db} dB</div>
+              <div><span className="text-fg-2 font-medium">Speed:</span> {previewFanModel.rpm} RPM · {previewFanModel.hz} Hz</div>
+              <div><span className="text-fg-2 font-medium">Dims (mm):</span> {previewFanModel.width_mm}x{previewFanModel.height_mm}</div>
+              <div><span className="text-fg-2 font-medium">Hardware cost:</span> {formatUsd(previewFanModel.cost_usd)}</div>
+              <div><span className="text-fg-2 font-medium">Deploy:</span> {previewFanModel.man_hours_deploy} h/unit</div>
             </div>
           )}
 
           {/* Selected fans list */}
           {airFanRows.length > 0 ? (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Selected Fans</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-faint">Selected Fans</p>
               {airFanRows.map((row) => (
-                <div key={row.model.model} className="flex flex-wrap items-center gap-3 p-3 glass-inner rounded-2xl text-sm">
+                <div key={row.model.model} className="flex flex-wrap items-center gap-3 p-3 inset rounded text-sm">
                   <div className="flex-1 min-w-32">
-                    <p className="font-medium text-slate-900">{row.model.model}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-medium text-fg">{row.model.model}</p>
+                    <p className="text-xs text-muted">
                       {formatNumber(row.model.airflow_m3h)} m3/h · {row.model.power_w} W · {row.model.noise_db} dB
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500 flex items-center gap-1">
+                    <label className="text-xs text-muted flex items-center gap-1">
                       Qty
                       <Tooltip content={`Auto-suggested: ceil(${formatNumber(Math.round(ventilation.m3h))} m3/h / ${formatNumber(row.model.airflow_m3h)} m3/h) = ${Math.ceil(ventilation.m3h / row.model.airflow_m3h)} units to meet required airflow.`} />
                     </label>
@@ -390,18 +390,18 @@ export default function TemperatureControl() {
                       step="1"
                       value={row.quantity}
                       onChange={(e) => handleFanQtyChange(row.model.model, parseInt(e.target.value) || 1)}
-                      className="w-16 bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 transition-all"
+                      className="w-16 bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 transition-all"
                     />
                   </div>
 
                   <div className="text-right min-w-28">
-                    <p className="font-mono font-medium text-blueprint-deep tabular-nums">{formatUsd(row.totalCost)}</p>
-                    <p className="text-xs text-slate-400 font-mono tabular-nums">{formatUsd(row.unitCost)}/unit</p>
+                    <p className="font-mono font-medium text-fg tabular-nums">{formatUsd(row.totalCost)}</p>
+                    <p className="text-xs text-faint font-mono tabular-nums">{formatUsd(row.unitCost)}/unit</p>
                   </div>
 
                   <button
                     onClick={() => handleRemoveFan(row.model.model)}
-                    className="text-slate-400 hover:text-red-500 transition-colors text-sm"
+                    className="text-faint hover:text-bad transition-colors text-sm"
                     title="Remove"
                   >
                     x
@@ -410,49 +410,49 @@ export default function TemperatureControl() {
               ))}
 
               {/* Totals */}
-              <div className="mt-2 pt-3 border-t border-slate-200/50 text-sm space-y-1.5">
+              <div className="mt-2 pt-3 border-t border-line text-sm space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 flex items-center gap-1">
+                  <span className="text-muted flex items-center gap-1">
                     Airflow supplied
                     <Tooltip content="Sum of (quantity x model airflow) for all selected fans. Must exceed the ventilation requirement calculated from your farm heat load. A 20-30% margin above the minimum is recommended." />
                   </span>
-                  <span className={`font-mono font-medium tabular-nums ${airflowSufficient ? "text-emerald-600" : "text-red-600"}`}>
+                  <span className={`font-mono font-medium tabular-nums ${airflowSufficient ? "text-good" : "text-bad"}`}>
                     {formatNumber(Math.round(totalFanAirflow))} m3/h
                     {airflowSufficient ? " OK" : ` — need ${formatNumber(Math.round(ventilation.m3h))}`}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Total fan power draw
                     <Tooltip content="Electrical power consumed by all fans combined. This is added to your farm's total power draw and monthly electricity cost." />
                   </span>
                   <span className="font-mono tabular-nums">{formatNumber(totalFanPowerW / 1000, 2)} kW</span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Max noise level
                     <Tooltip content="Highest dB rating across selected fan models at full speed. Industrial facilities typically require <85 dB at 1 m distance." />
                   </span>
                   <span className="font-mono tabular-nums">{totalFanNoise} dB</span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Total deployment labor
                     <Tooltip content="Sum of (quantity x man_hours_deploy) for all selected fans. These hours are factored into the total labor CAPEX shown in the Deploy & Labor tab." />
                   </span>
                   <span className="font-mono tabular-nums">{formatNumber(totalFanManHours, 1)} h</span>
                 </div>
-                <div className="flex justify-between font-semibold pt-1 border-t border-slate-200/50">
-                  <span className="text-slate-900 flex items-center gap-1">
+                <div className="flex justify-between font-semibold pt-1 border-t border-line">
+                  <span className="text-fg flex items-center gap-1">
                     Total Fan CAPEX
                     <Tooltip content="Hardware cost + deployment labor (man_hours x hourly rate from the Labor tab). Added to your farm's total CAPEX." />
                   </span>
-                  <span className="text-blueprint-deep font-mono text-lg tabular-nums">{formatUsd(totalFanCapex)}</span>
+                  <span className="text-fg font-mono text-lg tabular-nums">{formatUsd(totalFanCapex)}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-faint">
               No fans added yet. Select a model above and click Add.
             </p>
           )}
@@ -462,11 +462,11 @@ export default function TemperatureControl() {
       {/* Hydro Dry Cooler Card */}
       {isHydro && config.miners.length > 0 && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <Droplets className="h-5 w-5 text-blueprint-deep" />
+          <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
+            <Droplets className="h-5 w-5 text-fg" />
             Dry Cooler Sizing
           </h2>
-          <p className="text-sm text-slate-500 mb-5">
+          <p className="text-sm text-muted mb-5">
             Select dry cooler models for your hydro loop. Quantity auto-suggests based on the hydro heat load ({formatNumber(hydroHeatKw, 1)} kW) after climate derating.
             Costs include hardware + deployment labor + plumbing/fluid.
           </p>
@@ -474,12 +474,12 @@ export default function TemperatureControl() {
           {/* Model selector */}
           <div className="flex flex-wrap gap-3 mb-6">
             <div className="flex-1 min-w-48">
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 Add model
                 <Tooltip content="kW capacity rated at 35 C ambient. Pick a model, then add it. Quantity auto-fills based on your farm's heat load." />
               </label>
               <select
-                className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-3 py-2 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 focus:border-blueprint-mid/50 transition-all"
+                className="w-full bg-surface border border-line rounded px-3 py-2 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
               >
@@ -495,7 +495,7 @@ export default function TemperatureControl() {
               <button
                 onClick={() => handleAddDryCooler(selectedModel)}
                 disabled={addedModels.has(selectedModel)}
-                className="px-4 py-2 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
+                className="px-4 py-2 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
                 + Add
               </button>
@@ -504,33 +504,33 @@ export default function TemperatureControl() {
 
           {/* Preview selected model specs */}
           {previewModel && (
-            <div className="mb-5 p-3 glass-inner rounded-2xl text-xs text-slate-500 grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div><span className="text-slate-700 font-medium">Airflow:</span> {formatNumber(previewModel.air_flow_m3h)} m3/h</div>
-              <div><span className="text-slate-700 font-medium">Fan power:</span> {previewModel.fan_motor_w} W / {previewModel.fan_motor_a} A</div>
-              <div><span className="text-slate-700 font-medium">Noise:</span> {previewModel.sound_dba} dBA</div>
-              <div><span className="text-slate-700 font-medium">Dims (mm):</span> {previewModel.length_mm}x{previewModel.width_mm}x{previewModel.height_mm}</div>
-              <div><span className="text-slate-700 font-medium">Water flow:</span> {previewModel.water_flow_m3h} m3/h</div>
-              <div><span className="text-slate-700 font-medium">Pressure drop:</span> {previewModel.pressure_drop_kpa} kPa</div>
-              <div><span className="text-slate-700 font-medium">Inlet:</span> {previewModel.inlet_mm}</div>
-              <div><span className="text-slate-700 font-medium">Weight:</span> {previewModel.weight_kg} kg</div>
+            <div className="mb-5 p-3 inset rounded text-xs text-muted grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div><span className="text-fg-2 font-medium">Airflow:</span> {formatNumber(previewModel.air_flow_m3h)} m3/h</div>
+              <div><span className="text-fg-2 font-medium">Fan power:</span> {previewModel.fan_motor_w} W / {previewModel.fan_motor_a} A</div>
+              <div><span className="text-fg-2 font-medium">Noise:</span> {previewModel.sound_dba} dBA</div>
+              <div><span className="text-fg-2 font-medium">Dims (mm):</span> {previewModel.length_mm}x{previewModel.width_mm}x{previewModel.height_mm}</div>
+              <div><span className="text-fg-2 font-medium">Water flow:</span> {previewModel.water_flow_m3h} m3/h</div>
+              <div><span className="text-fg-2 font-medium">Pressure drop:</span> {previewModel.pressure_drop_kpa} kPa</div>
+              <div><span className="text-fg-2 font-medium">Inlet:</span> {previewModel.inlet_mm}</div>
+              <div><span className="text-fg-2 font-medium">Weight:</span> {previewModel.weight_kg} kg</div>
             </div>
           )}
 
           {/* Selected models table */}
           {dryCoolerCapexRows.length > 0 ? (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Selected Models</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-faint">Selected Models</p>
               {dryCoolerCapexRows.map((row) => (
-                <div key={row.model.model} className="flex flex-wrap items-center gap-3 p-3 glass-inner rounded-2xl text-sm">
+                <div key={row.model.model} className="flex flex-wrap items-center gap-3 p-3 inset rounded text-sm">
                   <div className="flex-1 min-w-32">
-                    <p className="font-medium text-slate-900">{row.model.model}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="font-medium text-fg">{row.model.model}</p>
+                    <p className="text-xs text-muted">
                       {row.model.kw_capacity_35c} kW · {row.model.sound_dba} dBA · {row.model.fan_motor_w} W fan
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <label className="text-xs text-slate-500 flex items-center gap-1">
+                    <label className="text-xs text-muted flex items-center gap-1">
                       Qty
                       <Tooltip content={`Auto-suggested: ceil(${formatNumber(hydroHeatKw, 1)} kW / (${row.model.kw_capacity_35c} kW × ${dryCoolerDerating.toFixed(2)} derating)) = ${dryCoolerQuantity(hydroHeatKw, row.model, dryCoolerDerating)} units. Override as needed.`} />
                     </label>
@@ -540,18 +540,18 @@ export default function TemperatureControl() {
                       step="1"
                       value={row.quantity}
                       onChange={(e) => handleQtyChange(row.model.model, parseInt(e.target.value) || 1)}
-                      className="w-16 bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20 transition-all"
+                      className="w-16 bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 transition-all"
                     />
                   </div>
 
                   <div className="text-right min-w-28">
-                    <p className="font-mono font-medium text-blueprint-deep tabular-nums">{formatUsd(row.totalCost)}</p>
-                    <p className="text-xs text-slate-400 font-mono tabular-nums">{formatUsd(row.unitCost)}/unit</p>
+                    <p className="font-mono font-medium text-fg tabular-nums">{formatUsd(row.totalCost)}</p>
+                    <p className="text-xs text-faint font-mono tabular-nums">{formatUsd(row.unitCost)}/unit</p>
                   </div>
 
                   <button
                     onClick={() => handleRemoveDryCooler(row.model.model)}
-                    className="text-slate-400 hover:text-red-500 transition-colors text-sm"
+                    className="text-faint hover:text-bad transition-colors text-sm"
                     title="Remove"
                   >
                     x
@@ -560,44 +560,44 @@ export default function TemperatureControl() {
               ))}
 
               {/* Totals */}
-              <div className="mt-2 pt-3 border-t border-slate-200/50 text-sm space-y-1">
-                <div className="flex justify-between text-slate-500">
+              <div className="mt-2 pt-3 border-t border-line text-sm space-y-1">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Effective cooling capacity
                     <Tooltip content={`Rated capacity (${formatNumber(totalDryCoolerKwRated, 1)} kW @ 35°C) adjusted for site climate. Derating factor: ${(dryCoolerDerating * 100).toFixed(0)}% based on ${calcData?.climate.maxTempC ?? 35}°C max ambient.`} />
                   </span>
                   <span className="font-mono tabular-nums">
                     {formatNumber(totalDryCoolerKw, 1)} kW
-                    {dryCoolerDerating < 1 && <span className="text-amber-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
-                    {dryCoolerDerating > 1 && <span className="text-emerald-600 ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
+                    {dryCoolerDerating < 1 && <span className="text-warn ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
+                    {dryCoolerDerating > 1 && <span className="text-good ml-1">({(dryCoolerDerating * 100).toFixed(0)}%)</span>}
                     {" "}{totalDryCoolerKw < hydroHeatKw ? "— undersized" : "OK"}
                   </span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Max noise level
                     <Tooltip content="Highest dBA rating across selected models at full fan speed. Industrial sites: <70 dBA typical limit." />
                   </span>
                   <span className="font-mono tabular-nums">{totalDryCoolerNoise} dBA</span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted">
                   <span className="flex items-center gap-1">
                     Total fan power
                     <Tooltip content="Total electrical power consumed by all dry cooler fans. Included in your farm's parasitic load estimate." />
                   </span>
                   <span className="font-mono tabular-nums">{formatNumber(totalDryCoolerFanW / 1000, 2)} kW</span>
                 </div>
-                <div className="flex justify-between font-semibold pt-1 border-t border-slate-200/50">
-                  <span className="text-slate-900 flex items-center gap-1">
+                <div className="flex justify-between font-semibold pt-1 border-t border-line">
+                  <span className="text-fg flex items-center gap-1">
                     Total Dry Cooler CAPEX
                     <Tooltip content="Hardware cost + deployment labor (man_hours x hourly rate from Labor tab) + plumbing & coolant fluid." />
                   </span>
-                  <span className="text-blueprint-deep font-mono text-lg tabular-nums">{formatUsd(totalDryCoolerCapex)}</span>
+                  <span className="text-fg font-mono text-lg tabular-nums">{formatUsd(totalDryCoolerCapex)}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-400">No dry coolers added. Select a model above and click Add.</p>
+            <p className="text-sm text-faint">No dry coolers added. Select a model above and click Add.</p>
           )}
         </Card>
       )}

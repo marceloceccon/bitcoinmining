@@ -108,18 +108,18 @@ export default function LaborCosts() {
     <div className="space-y-6">
       {/* Input Card */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
           <HardHat className="h-5 w-5" />
           Deployment Labor Costs
         </h2>
-        <p className="text-sm text-slate-500 mb-6">
+        <p className="text-sm text-muted mb-6">
           One-time deployment labor and per-unit materials added to total CAPEX.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {fields.map(({ key, label, step, tooltip }) => (
             <div key={key}>
-              <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 {label}
                 <Tooltip content={tooltip} />
               </label>
@@ -137,17 +137,17 @@ export default function LaborCosts() {
 
       {/* Maintenance Labor Costs */}
       <Card>
-        <h2 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+        <h2 className="text-lg font-bold text-fg mb-1 flex items-center gap-2">
           <Wrench className="h-5 w-5" />
           Maintenance Labor Costs
         </h2>
-        <p className="text-sm text-slate-500 mb-6">
+        <p className="text-sm text-muted mb-6">
           Recurring monthly labor for farm upkeep, added to OPEX.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-1">
+            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
               Hourly maintenance cost (USD)
               <Tooltip content="Hourly rate for on-site maintenance technicians who perform routine inspections, swap failed units, clean filters, and handle day-to-day farm upkeep. Typically $25–$60/hr." />
             </label>
@@ -174,8 +174,8 @@ export default function LaborCosts() {
           const monthlyCost = hours * maintenanceLabor.hourlyMaintenanceCostUsd;
 
           return (
-            <div className="mt-6 pt-5 border-t border-slate-200/50">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            <div className="mt-6 pt-5 border-t border-line">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">
                 Monthly Estimate
               </p>
               <div className="space-y-2 text-sm">
@@ -196,17 +196,17 @@ export default function LaborCosts() {
                     )}
                   </>
                 )}
-                <div className="pt-2 border-t border-slate-200/50 flex justify-between font-semibold">
-                  <span className="text-slate-900">Total monthly hours</span>
-                  <span className="font-mono text-slate-700">{formatNumber(hours)} h</span>
+                <div className="pt-2 border-t border-line flex justify-between font-semibold">
+                  <span className="text-fg">Total monthly hours</span>
+                  <span className="font-mono text-fg-2">{formatNumber(hours)} h</span>
                 </div>
                 <div className="flex justify-between font-semibold">
-                  <span className="text-slate-900">Monthly maintenance labor</span>
-                  <span className="text-blueprint-deep font-mono text-lg">
+                  <span className="text-fg">Monthly maintenance labor</span>
+                  <span className="text-fg font-mono text-lg">
                     {formatUsd(monthlyCost)}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs text-slate-500">
+                <div className="flex justify-between text-xs text-muted">
                   <span>Annual estimate</span>
                   <span className="font-mono">{formatUsd(monthlyCost * 12)}</span>
                 </div>
@@ -219,13 +219,13 @@ export default function LaborCosts() {
       {/* Summary Card */}
       {breakdown ? (
         <Card>
-          <h2 className="text-lg font-bold text-slate-900 mb-4">
+          <h2 className="text-lg font-bold text-fg mb-4">
             Deployment Cost Breakdown
           </h2>
 
           {/* Labor Hours Breakdown */}
           <div className="mb-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">
               Labor Hours
             </p>
             <div className="space-y-2 text-sm">
@@ -245,16 +245,16 @@ export default function LaborCosts() {
                 label={`${breakdown.containersNeeded} container${breakdown.containersNeeded !== 1 ? "s" : ""} × ${labor.manHoursPerContainer} h`}
                 value={`${formatNumber(breakdown.containerHours)} h`}
               />
-              <div className="pt-2 border-t border-slate-200/50 flex justify-between font-semibold">
-                <span className="text-slate-900">Total labor hours</span>
-                <span className="font-mono text-slate-700">{formatNumber(breakdown.totalLaborHours)} h</span>
+              <div className="pt-2 border-t border-line flex justify-between font-semibold">
+                <span className="text-fg">Total labor hours</span>
+                <span className="font-mono text-fg-2">{formatNumber(breakdown.totalLaborHours)} h</span>
               </div>
             </div>
           </div>
 
           {/* Cost Breakdown */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted mb-3">
               Cost Summary
             </p>
             <div className="space-y-2 text-sm">
@@ -266,9 +266,9 @@ export default function LaborCosts() {
                 label={`Cables & breakers (${breakdown.totalMiners} miners × $${labor.cablesPerMinerUsd})`}
                 value={formatUsd(breakdown.cablesAndBreakers)}
               />
-              <div className="pt-2 mt-1 border-t border-slate-200/50 flex justify-between font-semibold">
-                <span className="text-slate-900">Total deployment CAPEX</span>
-                <span className="text-blueprint-deep font-mono text-lg">
+              <div className="pt-2 mt-1 border-t border-line flex justify-between font-semibold">
+                <span className="text-fg">Total deployment CAPEX</span>
+                <span className="text-fg font-mono text-lg">
                   {formatUsd(breakdown.totalDeploymentCapex)}
                 </span>
               </div>
@@ -279,8 +279,8 @@ export default function LaborCosts() {
         <Card>
           <div className="text-center py-10">
             <div className="text-5xl mb-4">🔧</div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Miners Yet</h3>
-            <p className="text-slate-500">Add miners in the Build tab to see cost estimates.</p>
+            <h3 className="text-lg font-semibold text-fg mb-2">No Miners Yet</h3>
+            <p className="text-muted">Add miners in the Build tab to see cost estimates.</p>
           </div>
         </Card>
       )}
@@ -291,8 +291,8 @@ export default function LaborCosts() {
 function BreakdownRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-slate-500">{label}</span>
-      <span className="font-mono text-slate-700 font-medium">{value}</span>
+      <span className="text-muted">{label}</span>
+      <span className="font-mono text-fg-2 font-medium">{value}</span>
     </div>
   );
 }

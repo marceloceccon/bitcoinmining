@@ -10,10 +10,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         type={type}
         ref={ref}
         className={cn(
-          "flex h-10 w-full rounded-xl border border-slate-200/70 bg-white/50 px-3 py-2",
-          "text-sm text-slate-900 ring-offset-background file:border-0 file:bg-transparent",
-          "file:text-sm file:font-medium placeholder:text-slate-400",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blueprint-deep/20 focus-visible:border-blueprint-mid/50",
+          "flex h-10 w-full rounded border border-line bg-surface px-3 py-2",
+          "text-sm text-fg ring-offset-background file:border-0 file:bg-transparent",
+          "file:text-sm file:font-medium placeholder:text-faint",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg/20 focus-visible:border-line-strong",
           "disabled:cursor-not-allowed disabled:opacity-50",
           "transition-all duration-200",
           className

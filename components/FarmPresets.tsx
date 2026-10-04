@@ -7,10 +7,10 @@ import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 import { PRESETS, resolvePresetMiners, type FarmPreset, type PresetId } from "@/lib/presets";
 
 const PRESET_STYLE: Record<PresetId, { icon: typeof Home; color: string }> = {
-  home: { icon: Home, color: "text-emerald-600" },
-  garage: { icon: Warehouse, color: "text-blue-600" },
-  "small-farm": { icon: Building2, color: "text-violet-600" },
-  industrial: { icon: Factory, color: "text-amber-600" },
+  home: { icon: Home, color: "text-good" },
+  garage: { icon: Warehouse, color: "text-cool" },
+  "small-farm": { icon: Building2, color: "text-muted" },
+  industrial: { icon: Factory, color: "text-warn" },
 };
 
 // Preview stats from the catalog rows the preset resolves to
@@ -32,10 +32,10 @@ export default function FarmPresets() {
 
   return (
     <Card>
-      <h2 className="text-lg font-bold text-slate-900 mb-1">
+      <h2 className="text-lg font-bold text-fg mb-1">
         {hasFarm ? "Farm Presets" : "Quick Start"}
       </h2>
-      <p className="text-sm text-slate-500 mb-4">
+      <p className="text-sm text-muted mb-4">
         {hasFarm
           ? "Replace your current config with a preset template."
           : "Choose a starting template, then customize everything."}
@@ -48,25 +48,25 @@ export default function FarmPresets() {
             <button
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
-              className="flex flex-col gap-2 p-4 rounded-2xl glass-inner text-left hover:shadow-md hover:scale-[1.02] transition-all duration-200"
+              className="flex flex-col gap-2 p-4 rounded inset text-left hover: transition-all duration-200"
             >
               <div className="flex items-center gap-2">
                 <Icon className={`h-5 w-5 ${color}`} />
-                <span className="font-semibold text-sm text-slate-900">{preset.name}</span>
+                <span className="font-semibold text-sm text-fg">{preset.name}</span>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed">{preset.description}</p>
-              <div className="mt-auto pt-2 border-t border-slate-200/50 text-xs font-mono tabular-nums space-y-0.5">
+              <p className="text-xs text-muted leading-relaxed">{preset.description}</p>
+              <div className="mt-auto pt-2 border-t border-line text-xs font-mono tabular-nums space-y-0.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Hashrate</span>
-                  <span className="text-slate-700">{formatHashRate(stats.hashrate)}</span>
+                  <span className="text-faint">Hashrate</span>
+                  <span className="text-fg-2">{formatHashRate(stats.hashrate)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Power</span>
-                  <span className="text-slate-700">{formatPower(stats.powerKw)}</span>
+                  <span className="text-faint">Power</span>
+                  <span className="text-fg-2">{formatPower(stats.powerKw)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Hardware</span>
-                  <span className="text-blueprint-deep">{formatUsd(stats.cost)}</span>
+                  <span className="text-faint">Hardware</span>
+                  <span className="text-fg">{formatUsd(stats.cost)}</span>
                 </div>
               </div>
             </button>

@@ -113,12 +113,12 @@ export default function FarmWarnings() {
       {warnings.map((w, i) => (
         <div
           key={i}
-          className={`flex items-start gap-2.5 px-4 py-3 rounded-2xl text-sm backdrop-blur-sm ${
+          className={`flex items-start gap-2.5 px-4 py-3 rounded text-sm  ${
             w.type === "error"
-              ? "glass-danger text-red-800"
+              ? "note-bad text-bad"
               : w.type === "warning"
-                ? "glass-warning text-amber-800"
-                : "glass-info text-blue-800"
+                ? "note-warn text-warn"
+                : "note-info text-cool"
           }`}
         >
           {w.type === "info" ? (

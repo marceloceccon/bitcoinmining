@@ -3,12 +3,12 @@
 
 export default function SeoContent() {
   return (
-    <section className="container mx-auto px-4 py-12 max-w-4xl">
-      <div className="space-y-8 text-sm text-slate-500 leading-relaxed glass-card p-8 lg:p-10">
+    <section>
+      <div className="space-y-8 text-sm text-fg-2 leading-relaxed panel p-6 lg:p-8">
 
         {/* How it works */}
         <div id="how-it-works">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-fg mb-4">
             How This Bitcoin Mining Farm Calculator Works
           </h2>
 
@@ -29,7 +29,7 @@ export default function SeoContent() {
 
         {/* What makes it different */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             What Makes This Different From Other Mining Calculators
           </h3>
 
@@ -44,42 +44,42 @@ export default function SeoContent() {
 
           <ul className="mt-3 space-y-2 list-disc list-inside">
             <li>
-              <strong className="text-slate-900">Hardware CAPEX</strong> &mdash; Select
+              <strong className="text-fg">Hardware CAPEX</strong> &mdash; Select
               from 50+ real ASIC miners (Antminer, Whatsminer, Avalon) with current
               market pricing. Mix different models in the same farm to optimize
               hashrate-per-watt.
             </li>
             <li>
-              <strong className="text-slate-900">Import taxes</strong> &mdash; Apply
+              <strong className="text-fg">Import taxes</strong> &mdash; Apply
               country-specific import duties that add 5&ndash;30% to hardware cost
               depending on jurisdiction. Includes pre-configured rates for 20+ countries.
             </li>
             <li>
-              <strong className="text-slate-900">Deployment labor</strong> &mdash;
+              <strong className="text-fg">Deployment labor</strong> &mdash;
               Calculate installation hours per miner, per rack, per container, and per
               transformer. Set your local hourly labor rate. The simulator computes total
               deployment cost including cables, breakers, and electrical infrastructure.
             </li>
             <li>
-              <strong className="text-slate-900">Energy modeling</strong> &mdash; Set
+              <strong className="text-fg">Energy modeling</strong> &mdash; Set
               electricity price per kWh by region, apply energy inflation rates
               (compounded monthly over your forecast horizon), and optionally model solar
               panel offset to reduce grid dependency.
             </li>
             <li>
-              <strong className="text-slate-900">Thermal management</strong> &mdash;
+              <strong className="text-fg">Thermal management</strong> &mdash;
               Size ventilation fans and dry coolers based on total heat output. Select
               from 26 real dry cooler models with accurate capacity ratings. The
               calculator accounts for local ambient temperature using ERA5 climate data
               for any location on earth.
             </li>
             <li>
-              <strong className="text-slate-900">Mining pool parameters</strong> &mdash;
+              <strong className="text-fg">Mining pool parameters</strong> &mdash;
               Choose PPS, FPPS, PPLNS, or PPS+ payout schemes with accurate default
               pool fee percentages for each. Pool fees directly impact revenue projections.
             </li>
             <li>
-              <strong className="text-slate-900">Multi-year ROI forecasting</strong>
+              <strong className="text-fg">Multi-year ROI forecasting</strong>
               &mdash; Project revenue, expenses, and cumulative profit over 12&ndash;60
               months. The forecast starts from live network hashrate, subsidy and fees,
               applies your hashrate-growth estimate and halvings by block height, and
@@ -90,7 +90,7 @@ export default function SeoContent() {
 
         {/* CAPEX components */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             CAPEX Components Explained
           </h3>
 
@@ -101,43 +101,43 @@ export default function SeoContent() {
 
           <ol className="mt-3 space-y-2 list-decimal list-inside">
             <li>
-              <strong className="text-slate-900">Miner hardware cost</strong> &mdash;
+              <strong className="text-fg">Miner hardware cost</strong> &mdash;
               Unit price times quantity for each ASIC model selected
             </li>
             <li>
-              <strong className="text-slate-900">Transformer cost</strong> &mdash;
+              <strong className="text-fg">Transformer cost</strong> &mdash;
               Electrical transformer sized for total farm power draw
             </li>
             <li>
-              <strong className="text-slate-900">Cabling cost</strong> &mdash;
+              <strong className="text-fg">Cabling cost</strong> &mdash;
               Per-miner cable and breaker budget
             </li>
             <li>
-              <strong className="text-slate-900">Rack cost</strong> &mdash; Mining
+              <strong className="text-fg">Rack cost</strong> &mdash; Mining
               racks calculated at 10 miners per rack
             </li>
             <li>
-              <strong className="text-slate-900">Container cost</strong> &mdash;
+              <strong className="text-fg">Container cost</strong> &mdash;
               Shipping containers at 100 miners per container
             </li>
             <li>
-              <strong className="text-slate-900">Cooling infrastructure</strong>
+              <strong className="text-fg">Cooling infrastructure</strong>
               &mdash; Fans, ducting, or dry cooler hardware and installation
             </li>
             <li>
-              <strong className="text-slate-900">Solar CAPEX</strong> &mdash; Panel
+              <strong className="text-fg">Solar CAPEX</strong> &mdash; Panel
               and inverter cost for optional solar offset
             </li>
             <li>
-              <strong className="text-slate-900">Deployment labor</strong> &mdash;
+              <strong className="text-fg">Deployment labor</strong> &mdash;
               Total installation hours times hourly rate
             </li>
             <li>
-              <strong className="text-slate-900">Cables and breakers</strong> &mdash;
+              <strong className="text-fg">Cables and breakers</strong> &mdash;
               Per-unit electrical infrastructure
             </li>
             <li>
-              <strong className="text-slate-900">Dry cooler CAPEX</strong> &mdash;
+              <strong className="text-fg">Dry cooler CAPEX</strong> &mdash;
               Hardware + plumbing + installation labor for liquid cooling
             </li>
           </ol>
@@ -151,7 +151,7 @@ export default function SeoContent() {
 
         {/* OPEX methodology */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             OPEX Modeling Methodology
           </h3>
 
@@ -173,7 +173,7 @@ export default function SeoContent() {
 
         {/* Price scenarios */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             BTC Price Scenarios, Not Predictions
           </h3>
 
@@ -194,7 +194,7 @@ export default function SeoContent() {
 
         {/* Who it's for */}
         <div>
-          <h3 className="text-xl font-semibold text-slate-900 mb-3">
+          <h3 className="text-xl font-semibold text-fg mb-3">
             Who This Tool Is For
           </h3>
 
@@ -209,13 +209,13 @@ export default function SeoContent() {
 
         {/* FAQ */}
         <div id="faq">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+          <h2 className="text-2xl font-bold text-fg mb-4">
             Frequently Asked Questions
           </h2>
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Is this Bitcoin mining calculator free?
               </h3>
               <p>
@@ -226,7 +226,7 @@ export default function SeoContent() {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 How accurate are the profitability projections?
               </h3>
               <p>
@@ -239,7 +239,7 @@ export default function SeoContent() {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Can I model a large-scale industrial mining farm?
               </h3>
               <p>
@@ -251,7 +251,7 @@ export default function SeoContent() {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 Does this calculator account for Bitcoin halving events?
               </h3>
               <p>
@@ -262,7 +262,7 @@ export default function SeoContent() {
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">
+              <h3 className="text-base font-semibold text-fg mb-1">
                 How is electricity cost modeled?
               </h3>
               <p>

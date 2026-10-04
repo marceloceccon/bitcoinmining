@@ -157,19 +157,19 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
 
   const modal = (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center glass-modal-overlay"
+      className="fixed inset-0 z-[9999] flex items-center justify-center dialog-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="dialog"
       aria-modal="true"
       aria-label="Choose Location"
     >
-      <div className="relative glass-modal w-full max-w-3xl mx-4 overflow-hidden flex flex-col animate-fade-in-scale">
+      <div className="relative dialog w-full max-w-3xl mx-4 overflow-hidden flex flex-col ">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200/50">
-          <h2 className="text-lg font-bold text-slate-900">Choose Location</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-line">
+          <h2 className="text-lg font-bold text-fg">Choose Location</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 transition-colors text-xl leading-none"
+            className="text-faint hover:text-fg-2 transition-colors text-xl leading-none"
           >
             x
           </button>
@@ -191,70 +191,70 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
             {markerPos && <Marker position={[markerPos.lat, markerPos.lng]} />}
           </MapContainer>
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-[1000]">
-              <span className="text-slate-700 text-sm animate-pulse">Fetching climate data...</span>
+            <div className="absolute inset-0 flex items-center justify-center bg-surface z-[1000]">
+              <span className="text-fg-2 text-sm animate-pulse">Fetching climate data...</span>
             </div>
           )}
         </div>
 
         {/* Bottom panel */}
         <div className="px-6 py-4 space-y-4">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-faint">
             Click anywhere on the map to auto-fill climate data for that location.
           </p>
 
           {error && (
-            <p className="text-red-600 text-sm">{error}</p>
+            <p className="text-bad text-sm">{error}</p>
           )}
 
           {pick && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">City</label>
+                <label className="text-xs text-muted">City</label>
                 <input
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
+                  className="w-full bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20"
                   value={pick.city}
                   onChange={(e) => setPick({ ...pick, city: e.target.value })}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">Avg Yearly Temp (C)</label>
+                <label className="text-xs text-muted">Avg Yearly Temp (C)</label>
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
+                  className="w-full bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20"
                   value={pick.avgYearlyTempC}
                   onChange={(e) => setPick({ ...pick, avgYearlyTempC: parseFloat(e.target.value) || 0 })}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">Max Temp (C)</label>
+                <label className="text-xs text-muted">Max Temp (C)</label>
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
+                  className="w-full bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20"
                   value={pick.maxTempC}
                   onChange={(e) => setPick({ ...pick, maxTempC: parseFloat(e.target.value) || 0 })}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">Min Temp (C)</label>
+                <label className="text-xs text-muted">Min Temp (C)</label>
                 <input
                   type="number"
                   step="0.1"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
+                  className="w-full bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20"
                   value={pick.minTempC}
                   onChange={(e) => setPick({ ...pick, minTempC: parseFloat(e.target.value) || 0 })}
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs text-slate-500">Avg Humidity (%)</label>
+                <label className="text-xs text-muted">Avg Humidity (%)</label>
                 <input
                   type="number"
                   step="1"
                   min="0"
                   max="100"
-                  className="w-full bg-white/50 border border-slate-200/60 rounded-xl px-2 py-1 text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blueprint-deep/20"
+                  className="w-full bg-surface border border-line rounded px-2 py-1 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20"
                   value={pick.avgHumidityPercent}
                   onChange={(e) => setPick({ ...pick, avgHumidityPercent: parseFloat(e.target.value) || 0 })}
                 />
@@ -265,7 +265,7 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
           <div className="flex justify-end gap-3 pt-1">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+              className="px-4 py-2 text-sm text-muted hover:text-fg-2 transition-colors"
             >
               Cancel
             </button>
@@ -274,7 +274,7 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
               onClick={() => {
                 if (pick) onConfirm({ lat: pick.lat, lng: pick.lng, city: pick.city, avgYearlyTempC: pick.avgYearlyTempC, maxTempC: pick.maxTempC, minTempC: pick.minTempC, avgHumidityPercent: pick.avgHumidityPercent });
               }}
-              className="px-5 py-2 text-sm font-semibold bg-blueprint-deep text-white rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md"
+              className="px-5 py-2 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               Confirm Location
             </button>

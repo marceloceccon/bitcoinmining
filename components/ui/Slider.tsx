@@ -1,55 +1,55 @@
 "use client";
 
+import { InputHTMLAttributes, useId } from "react";
 import { cn } from "@/lib/utils";
-import { InputHTMLAttributes } from "react";
 import Tooltip from "./Tooltip";
 
-interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
+interface SliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
   label?: string;
   unit?: string;
   showValue?: boolean;
   tooltip?: React.ReactNode;
 }
 
-export default function Slider({
-  className,
-  label,
-  unit,
-  showValue = true,
-  tooltip,
-  value,
-  ...props
-}: SliderProps) {
+/**
+ * Range input with a programmatic label, a visible value with units, and the
+ * same value announced to screen readers (aria-valuetext). Arrow keys, Page
+ * Up/Down and Home/End work natively.
+ */
+export default function Slider({ className, label, unit = "", showValue = true, tooltip, value, id, ...props }: SliderProps) {
+  const autoId = useId();
+  const inputId = id ?? autoId;
   return (
     <div className="space-y-2">
       {label && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1">
-            <label className="text-sm font-medium text-slate-700">{label}</label>
-            {tooltip && <Tooltip content={tooltip} />}
+            <label htmlFor={inputId} className="text-sm font-medium text-fg-2">
+              {label}
+            </label>
+            {tooltip && <Tooltip content={tooltip} label={`About ${label.toLowerCase()}`} />}
           </div>
           {showValue && (
-            <span className="text-sm font-mono text-slate-500 tabular-nums">
-              {value}{unit}
-            </span>
+            <output htmlFor={inputId} className="font-mono text-sm text-fg">
+              {value}
+              {unit}
+            </output>
           )}
         </div>
       )}
       <input
+        id={inputId}
         type="range"
         value={value}
+        aria-valuetext={value !== undefined ? `${value}${unit}` : undefined}
+        aria-label={label ? undefined : props["aria-label"]}
         className={cn(
-          "w-full h-2 bg-slate-200/60 rounded-full appearance-none cursor-pointer",
-          "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5",
-          "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blueprint-deep",
-          "[&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md",
-          "[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white",
-          "[&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:duration-150",
-          "[&::-webkit-slider-thumb]:hover:scale-110",
-          "[&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-full",
-          "[&::-moz-range-thumb]:bg-blueprint-deep [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white",
-          "[&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:shadow-md",
-          className
+          "h-1.5 w-full cursor-pointer appearance-none rounded-full bg-line",
+          "[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none",
+          "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-surface [&::-webkit-slider-thumb]:bg-fg",
+          "[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full",
+          "[&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-surface [&::-moz-range-thumb]:bg-fg",
+          className,
         )}
         {...props}
       />
