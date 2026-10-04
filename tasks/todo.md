@@ -300,12 +300,12 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
 
 ### P3 — Design direction (no production code; branch `revamp/p3-design` for `docs/design/*`, or mockups in the scratchpad)
 
-- [ ] **P3.1 MUST — Write the design brief** (½ page in `docs/design/brief.md`):
+- [x] **P3.1 MUST — Write the design brief** (½ page in `docs/design/brief.md`):
   - Audience: hiring managers / clients (portfolio) and miners (users).
   - Personality: precise, engineering-grade, trustworthy, alive with real data.
   - Non-goals: crypto-casino glow, ambient looping decoration, motion that doesn't explain something.
   - (Context: the project has already been through a "cyberpunk glassmorphism" phase and a light "blueprint glass" phase, see `tasks/archive/2026-04-todo.md`. Don't repeat either.)
-- [ ] **P3.2 MUST — 2–3 directions as static HTML mockups**, each showing the hero, a metric card row, one chart, the farm schematic and the mobile layout. Publish them as a private Artifact or in `docs/design/` so the user can view them. Candidates:
+- [x] **P3.2 MUST — 2–3 directions as static HTML mockups**, each showing the hero, a metric card row, one chart, the farm schematic and the mobile layout. Publish them as a private Artifact or in `docs/design/` so the user can view them. Candidates:
   - **A. "Control Room" (recommended).**
     - Dark graphite (#0B0D10-ish) is the default, with a light "blueprint paper" mode.
     - Faint engineering grid; hairline 1 px rules.
@@ -314,6 +314,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
     - Feels like SCADA software for a real facility.
   - **B. "Engineering Datasheet".** Light, Swiss, print-like spec-sheet typography, dense tables, restrained motion. The most "B2B credible", the least showy.
   - **C. "Thermal".** Dark, with thermal-camera gradients as the visual language, tying everything to the cooling showcase. The most striking, with the highest risk of looking like a theme.
+  - Published as one private Artifact with a direction switcher: https://claude.ai/artifact/U8EsN4soXeDR8Y8BcSCRdi (source: `docs/design/directions.html`; brief: `docs/design/brief.md`). All three use the engine's real Small Farm output.
 - [ ] 🚦 **P3.3 MUST — G1:** the user picks a direction. Record it in §3.
 
 ### P4 — Visual revamp and motion (branch `revamp/p4-ui`; split it into several PRs if it gets large)

@@ -1,0 +1,333 @@
+<title>MineForge Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Barlow:wght@400;500;600;700&family=Martian+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: page chrome (switcher + rationale) above one full-width mockup frame; each frame
+   carries its own fixed palette, because each direction is a deliberate visual world. */
+:root {
+  --bg: #f3f4f2; --fg: #1b1f1d; --muted: #5c645f; --line: #d4d8d3; --panel: #ffffff; --accent: #c2610c;
+  --ui: "Geist", system-ui, sans-serif; --mono: "Geist Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121513; --fg: #e6e9e6; --muted: #98a19b; --line: #2b302d; --panel: #1a1e1b; --accent: #f0943f; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #121513; --fg: #e6e9e6; --muted: #98a19b; --line: #2b302d; --panel: #1a1e1b; --accent: #f0943f; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--ui); padding: 24px 16px 48px }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 20px }
+.chrome h1 { font-size: 26px; line-height: 1.2; margin: 0 0 4px; text-wrap: balance; letter-spacing: -0.01em }
+.chrome p { margin: 0; color: var(--muted); max-width: 70ch }
+.picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px }
+.pick { text-align: left; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer; font: inherit; display: grid; gap: 2px }
+.pick b { font-size: 15px } .pick span { color: var(--muted); font-size: 13px }
+.pick[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent) }
+.pick:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.tag { display: inline-block; font: 600 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-left: 6px; vertical-align: 2px }
+.rationale { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; font-size: 13.5px }
+.rationale h3 { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px }
+.rationale ul { margin: 0; padding-left: 18px; color: var(--fg) } .rationale li { margin: 2px 0 }
+@media (max-width: 760px) { .picker, .rationale { grid-template-columns: 1fr } }
+
+/* ── Mockup frame: shared structure, themed per direction ───────────────── */
+.frame { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--m-bg); color: var(--m-fg); font-family: var(--m-ui) }
+.frame * { border-color: var(--m-line) }
+.m-ticker { display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: center; padding: 8px 20px; font: 500 12px/1.4 var(--m-mono); border-bottom: 1px solid var(--m-line); background: var(--m-strip); color: var(--m-muted) }
+.m-ticker b { color: var(--m-fg); font-weight: 500; font-variant-numeric: tabular-nums }
+.m-ticker .btc b { color: var(--m-btc) }
+.live { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--m-muted) }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--m-btc); animation: pulse 2.4s ease-in-out infinite }
+@keyframes pulse { 50% { opacity: .35 } }
+.m-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--m-line) }
+.m-brand { font-weight: 700; letter-spacing: -0.01em } .m-brand small { font-weight: 400; color: var(--m-muted); margin-left: 6px }
+.m-nav { margin-left: auto; display: flex; gap: 18px; font-size: 13px; color: var(--m-muted) } .m-nav span:first-child { color: var(--m-fg) }
+.m-hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 28px; padding: 28px 20px 22px; align-items: center }
+.m-hero h2 { font: var(--m-display); margin: 0 0 10px; text-wrap: balance }
+.m-hero p { margin: 0 0 16px; color: var(--m-muted); max-width: 46ch }
+.m-cta { display: flex; flex-wrap: wrap; gap: 8px }
+.m-btn { font: 600 13px/1 var(--m-ui); padding: 10px 14px; border-radius: var(--m-radius); border: 1px solid var(--m-line); background: transparent; color: var(--m-fg) }
+.m-btn.primary { background: var(--m-fg); color: var(--m-bg); border-color: var(--m-fg) }
+.schem { width: 100%; height: auto; display: block; max-width: 100% }
+.schem-wrap { position: relative; border: 1px solid var(--m-line); border-radius: var(--m-radius); background: var(--m-panel); padding: 10px }
+.schem-cap { display: flex; justify-content: space-between; font: 500 11px/1.4 var(--m-mono); color: var(--m-muted); padding: 2px 4px 6px; text-transform: uppercase; letter-spacing: .06em }
+.m-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--m-line); border-bottom: 1px solid var(--m-line) }
+.metric { padding: 14px 20px; border-right: 1px solid var(--m-line); display: grid; gap: 2px } .metric:last-child { border-right: 0 }
+.metric .k { font: 500 11px/1.3 var(--m-mono); text-transform: uppercase; letter-spacing: .07em; color: var(--m-muted) }
+.metric .v { font: var(--m-figure); font-variant-numeric: tabular-nums; letter-spacing: -0.01em }
+.metric .v small { font-size: .5em; color: var(--m-muted); margin-left: 4px; letter-spacing: 0 }
+.metric .d { font: 500 12px/1.3 var(--m-mono); color: var(--m-muted) } .metric .d.pos { color: var(--m-good) }
+.m-body { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: 0 }
+.m-chart { padding: 18px 20px; border-right: 1px solid var(--m-line); min-width: 0 }
+.m-chart h4, .m-side h4 { margin: 0 0 2px; font-size: 14px } .m-chart .sub, .m-side .sub { color: var(--m-muted); font-size: 12.5px; margin: 0 0 10px }
+.legend { display: flex; gap: 16px; font: 500 11.5px/1 var(--m-mono); color: var(--m-muted); margin-bottom: 6px } .legend i { display: inline-block; width: 10px; height: 3px; margin-right: 6px; vertical-align: middle }
+.chips { display: flex; gap: 6px; margin: 8px 0 2px; flex-wrap: wrap } .chip { font: 500 12px/1 var(--m-ui); padding: 6px 10px; border: 1px solid var(--m-line); border-radius: 999px; color: var(--m-muted) } .chip.on { color: var(--m-fg); border-color: var(--m-fg) }
+.m-side { padding: 18px 20px; display: grid; gap: 14px; align-content: start; min-width: 0 }
+.gauge { position: relative; height: 34px; border-radius: var(--m-radius); background: var(--m-strip); border: 1px solid var(--m-line) }
+.gauge .fill { position: absolute; inset: 0 auto 0 0; background: var(--m-good-bg) }
+.gauge .mark { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--m-btc) }
+.gauge .be { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--m-fg) }
+.glabels { display: flex; justify-content: space-between; font: 500 11.5px/1.3 var(--m-mono); color: var(--m-muted); margin-top: 6px; font-variant-numeric: tabular-nums }
+.big { font: var(--m-figure); font-size: 30px; font-variant-numeric: tabular-nums } .big small { font-size: 14px; color: var(--m-good); margin-left: 6px }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; margin: 0 }
+.kv dt { color: var(--m-muted) } .kv dd { margin: 0; font-family: var(--m-mono); font-variant-numeric: tabular-nums; text-align: right }
+.m-mobile { display: flex; gap: 24px; align-items: flex-start; padding: 20px; border-top: 1px solid var(--m-line); background: var(--m-strip); flex-wrap: wrap }
+.m-mobile .note { max-width: 40ch; font-size: 13px; color: var(--m-muted) } .m-mobile .note b { color: var(--m-fg); display: block; margin-bottom: 4px; font-size: 14px }
+.phone { width: 270px; max-width: 100%; border: 1px solid var(--m-line); border-radius: 22px; background: var(--m-bg); overflow: hidden; font-size: 11px; position: relative }
+.phone .p-top { padding: 8px 12px; font: 500 9.5px/1.3 var(--m-mono); color: var(--m-muted); border-bottom: 1px solid var(--m-line); display: flex; justify-content: space-between; background: var(--m-strip) } .phone .p-top b { color: var(--m-btc); font-weight: 500 }
+.phone .p-body { padding: 12px; display: grid; gap: 10px; min-height: 300px; padding-bottom: 64px }
+.phone h5 { margin: 0; font: var(--m-display); font-size: 17px; line-height: 1.2 }
+.phone .p-tabs { display: flex; gap: 10px; font-size: 10.5px; color: var(--m-muted); border-bottom: 1px solid var(--m-line); padding-bottom: 6px } .phone .p-tabs span:first-child { color: var(--m-fg); font-weight: 600 }
+.phone .p-bar { position: absolute; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--m-line); background: var(--m-panel); padding: 8px 6px }
+.phone .p-bar div { text-align: center; font: 600 11px/1.2 var(--m-mono); font-variant-numeric: tabular-nums } .phone .p-bar div span { display: block; font: 500 8.5px/1.2 var(--m-mono); color: var(--m-muted); text-transform: uppercase; letter-spacing: .05em }
+.phone .p-bar .pos { color: var(--m-good) }
+@media (max-width: 860px) { .m-hero, .m-body { grid-template-columns: 1fr } .m-chart { border-right: 0; border-bottom: 1px solid var(--m-line) } .m-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) } .metric:nth-child(2) { border-right: 0 } .metric:nth-child(-n+2) { border-bottom: 1px solid var(--m-line) } .m-nav { display: none } }
+
+/* A · Control Room — dark graphite by default, "blueprint paper" light mode */
+.frame[data-dir="a"] { --m-bg: #0c0e10; --m-fg: #e4e7ea; --m-muted: #8a939c; --m-line: #232830; --m-panel: #111418; --m-strip: #0f1215;
+  --m-btc: #f7931a; --m-good: #4fc98a; --m-good-bg: rgba(79, 201, 138, .16); --m-bad: #ef6a5b; --m-heat: #f0a33c; --m-cool: #5aa9f0; --m-power: #d9dee3;
+  --m-ui: "Geist", system-ui, sans-serif; --m-mono: "Geist Mono", ui-monospace, monospace;
+  --m-display: 600 34px/1.08 "Geist", system-ui, sans-serif; --m-figure: 500 24px/1.15 "Geist Mono", ui-monospace, monospace; --m-radius: 6px;
+  background-image: linear-gradient(var(--m-grid) 1px, transparent 1px), linear-gradient(90deg, var(--m-grid) 1px, transparent 1px); background-size: 24px 24px; --m-grid: rgba(255, 255, 255, .025) }
+.frame[data-dir="a"][data-mode="paper"] { --m-bg: #f4f6f8; --m-fg: #14202b; --m-muted: #5a6876; --m-line: #cfd8e1; --m-panel: #ffffff; --m-strip: #eaeff3;
+  --m-good: #1c8a52; --m-good-bg: rgba(28, 138, 82, .12); --m-power: #2b3a48; --m-grid: rgba(20, 60, 110, .06); --m-btc: #d97706; --m-cool: #2a7bd0; --m-heat: #d98410 }
+
+/* B · Engineering Datasheet — light, Swiss, print-like */
+.frame[data-dir="b"] { --m-bg: #fbfbf8; --m-fg: #111111; --m-muted: #5f5f5a; --m-line: #1a1a1a; --m-panel: #ffffff; --m-strip: #f1f1ec;
+  --m-btc: #e07b00; --m-good: #1a7f37; --m-good-bg: rgba(26, 127, 55, .12); --m-bad: #c4321f; --m-heat: #c4321f; --m-cool: #1f5fbf; --m-power: #111;
+  --m-ui: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --m-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --m-display: 700 40px/1.0 "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --m-figure: 600 26px/1.1 "IBM Plex Sans Condensed", sans-serif; --m-radius: 0 }
+.frame[data-dir="b"] .m-hero h2 { text-transform: uppercase; letter-spacing: -0.01em }
+.frame[data-dir="b"] .metric .k { color: var(--m-fg) }
+.frame[data-dir="b"] .schem-wrap { border-width: 1px 0; padding: 10px 0; background: transparent }
+.frame[data-dir="b"] .m-metrics { border-width: 2px 0 }
+
+/* C · Thermal — dark, thermal-camera gradients as the visual language */
+.frame[data-dir="c"] { --m-bg: #0a0712; --m-fg: #f1ecf7; --m-muted: #a296b4; --m-line: #2a2238; --m-panel: #120d1d; --m-strip: #100b19;
+  --m-btc: #ffb000; --m-good: #7ee0b0; --m-good-bg: rgba(126, 224, 176, .14); --m-bad: #ff5b5b; --m-heat: #ff6a2b; --m-cool: #6b7cff; --m-power: #e9e3f3;
+  --m-ui: "Barlow", system-ui, sans-serif; --m-mono: "Martian Mono", ui-monospace, monospace;
+  --m-display: 700 36px/1.05 "Barlow", system-ui, sans-serif; --m-figure: 500 21px/1.2 "Martian Mono", ui-monospace, monospace; --m-radius: 4px }
+.frame[data-dir="c"] .m-hero h2 { background: linear-gradient(90deg, #6b7cff, #c23cf0 35%, #ff6a2b 70%, #ffd23f); -webkit-background-clip: text; background-clip: text; color: transparent }
+.frame[data-dir="c"] .m-metrics { background: linear-gradient(90deg, rgba(107, 124, 255, .08), rgba(194, 60, 240, .06), rgba(255, 106, 43, .08)) }
+
+.modes { display: inline-flex; border: 1px solid var(--m-line); border-radius: 999px; overflow: hidden; margin-left: 10px }
+.modes button { font: 500 11px/1 var(--m-mono); padding: 5px 9px; background: transparent; color: var(--m-muted); border: 0; cursor: pointer }
+.modes button[aria-pressed="true"] { background: var(--m-fg); color: var(--m-bg) }
+@media (prefers-reduced-motion: reduce) { .dot, .flow, .plume { animation: none !important } }
+.flow { stroke-dasharray: 3 9; animation: flow 1.1s linear infinite } @keyframes flow { to { stroke-dashoffset: -24 } }
+.plume { animation: rise 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom } @keyframes rise { 50% { opacity: .55; transform: translateY(-4px) scaleY(1.06) } }
+</style>
+
+<div class="wrap">
+  <header class="chrome">
+    <h1>MineForge · three design directions</h1>
+    <p>Gate G1 of the Q4 revamp. Each mockup shows the same real farm (the Small Farm preset: 100 × Antminer S21 XP at $0.05/kWh, 2026-10-03 market) in the hero, metric row, a chart, the farm schematic and the phone layout. Pick one direction and note any tweaks.</p>
+  </header>
+
+  <div class="picker" role="group" aria-label="Design direction">
+    <button class="pick" id="pick-a" data-dir="a" aria-pressed="true"><b>A · Control Room <span class="tag">Recommended</span></b><span>Dark graphite SCADA, with a light blueprint-paper mode</span></button>
+    <button class="pick" id="pick-b" data-dir="b" aria-pressed="false"><b>B · Engineering Datasheet</b><span>Light, Swiss, print-like spec sheet</span></button>
+    <button class="pick" id="pick-c" data-dir="c" aria-pressed="false"><b>C · Thermal</b><span>Thermal-camera gradients as the visual language</span></button>
+  </div>
+
+  <section class="rationale" id="rationale" aria-live="polite"></section>
+
+  <article class="frame" id="frame" data-dir="a" data-mode="dark">
+    <div class="m-ticker">
+      <span class="btc">BTC <b>$84,714</b></span>
+      <span>Hashrate <b>964 EH/s</b></span>
+      <span>Hashprice <b>$39.89</b>/PH/day</span>
+      <span>Fees <b>0.027</b> BTC/block</span>
+      <span>Tip <b>969,763</b></span>
+      <span>Halving <b>~Apr 2028</b></span>
+      <span class="live"><span class="dot"></span>live · mempool.space</span>
+    </div>
+    <div class="m-head">
+      <span class="m-brand">MineForge<small>Bitcoin Mining Farm Calculator</small></span>
+      <span class="modes" id="modes" hidden><button id="mode-dark" aria-pressed="true">Dark</button><button id="mode-paper" aria-pressed="false">Paper</button></span>
+      <nav class="m-nav"><span>Calculator</span><span>Methodology</span><span>API</span><span>Use from AI agents</span></nav>
+    </div>
+
+    <section class="m-hero">
+      <div>
+        <h2>Plan a mining farm down to the transformer and the last fan.</h2>
+        <p>Pick a site and your hardware. MineForge sizes power, cooling at your climate and CAPEX, then forecasts cash flow from live network data.</p>
+        <div class="m-cta"><button class="m-btn primary">Start from a preset</button><button class="m-btn">Drop a pin on the map</button></div>
+      </div>
+      <div class="schem-wrap">
+        <div class="schem-cap"><span>Live farm schematic</span><span>383 kW · 27.0 PH/s</span></div>
+        <svg class="schem" id="schem" viewBox="0 0 640 230" role="img" aria-label="Farm schematic: grid connection, 500 kVA transformer, PDUs, one container with 100 miners, two exhaust fans moving 76,164 cubic metres of air per hour"></svg>
+      </div>
+    </section>
+
+    <section class="m-metrics">
+      <div class="metric"><span class="k">Hashrate</span><span class="v">27.0<small>PH/s</small></span><span class="d">100 × S21 XP · 13.5 J/TH</span></div>
+      <div class="metric"><span class="k">Power</span><span class="v">382.7<small>kW</small></span><span class="d">459 kVA → 500 kVA 3-ph</span></div>
+      <div class="metric"><span class="k">CAPEX</span><span class="v">$435,429</span><span class="d">miners 79% · transformer 9%</span></div>
+      <div class="metric"><span class="k">Monthly profit</span><span class="v">+$13,707</span><span class="d pos">revenue $31,321 · OPEX $17,613</span></div>
+    </section>
+
+    <section class="m-body">
+      <div class="m-chart">
+        <h4>Revenue vs OPEX, 48 months</h4>
+        <p class="sub">Flat BTC price, 0% network growth, 4%/yr ASIC wear. The April 2028 halving cuts revenue below OPEX.</p>
+        <div class="legend"><span><i style="background:var(--m-good)"></i>Mining revenue</span><span><i style="background:var(--m-bad)"></i>OPEX</span><span><i style="background:var(--m-btc)"></i>Halving</span></div>
+        <svg id="chart" viewBox="0 0 640 220" class="schem" role="img" aria-label="Monthly revenue falls from $31,214 to $13,415 after the halving in month 19, while OPEX rises from $17,648 to $19,368"></svg>
+        <div class="chips"><span class="chip">Bear −30%/yr</span><span class="chip on">Flat</span><span class="chip">Bull +30%/yr</span><span class="chip">Target</span></div>
+      </div>
+      <aside class="m-side">
+        <div>
+          <h4>Break-even BTC price</h4>
+          <p class="sub">All-in monthly OPEX per BTC mined, against today's price</p>
+          <div class="big">$47,639<small>44% margin of safety</small></div>
+        </div>
+        <div>
+          <div class="gauge" id="gauge"><div class="fill"></div><div class="be"></div><div class="mark"></div></div>
+          <div class="glabels"><span>$0</span><span>break-even $47.6k</span><span>you are here $84.7k</span><span>$120k</span></div>
+        </div>
+        <dl class="kv">
+          <dt>Payback (flat price)</dt><dd>not within 48 mo</dd>
+          <dt>48-mo cash after OPEX</dt><dd>+$85,774</dd>
+          <dt>Break-even incl. CAPEX</dt><dd>$115,145</dd>
+          <dt>Cooling</dt><dd>2 × 56″ fans · 76,164 m³/h</dd>
+        </dl>
+      </aside>
+    </section>
+
+    <section class="m-mobile">
+      <div class="phone" aria-label="Phone layout preview">
+        <div class="p-top"><span>BTC <b>$84,714</b></span><span>964 EH/s</span><span>live</span></div>
+        <div class="p-body">
+          <h5>Plan a mining farm down to the last fan.</h5>
+          <div class="p-tabs"><span>Build</span><span>Energy</span><span>Thermal</span><span>Projections</span></div>
+          <svg id="schem-mini" viewBox="0 0 640 230" class="schem" aria-hidden="true"></svg>
+          <div style="font-size:10.5px;color:var(--m-muted)">100 × Antminer S21 XP · containers</div>
+        </div>
+        <div class="p-bar"><div><span>Hash</span>27.0 PH</div><div><span>Power</span>383 kW</div><div><span>CAPEX</span>$435k</div><div class="pos"><span>Profit/mo</span>+$13.7k</div></div>
+      </div>
+      <div class="note"><b>Phone (390 px)</b>Tabs scroll horizontally above the work area. Results collapse into a sticky summary bar (hashrate · MW · CAPEX · monthly profit) that opens as a sheet. The schematic scales down instead of disappearing.</div>
+    </section>
+  </article>
+</div>
+
+<script>
+(function () {
+  const frame = document.getElementById('frame');
+  const RATIONALE = {
+    a: { why: ['Reads as instrumentation for a real facility, which matches what the engine does.', 'Orange is reserved for live market data, so the eye finds the market at once.', 'The paper mode reuses the same grid, so dark and light are one system.'],
+         risk: ['Dark dashboards are common in crypto; restraint (one accent, hairlines, no glow) is what keeps it from looking like one.'],
+         motion: ['Number roll + delta tint on inputs; power flow speed scales with MW; one live pulse on the ticker.'] },
+    b: { why: ['The most credible to B2B and engineering readers: it looks like a manufacturer spec sheet.', 'Dense tables and hard rules suit the 23-line CAPEX breakdown and the miner comparison.', 'Prints and screenshots cleanly for the case study.'],
+         risk: ['The least showy; the schematic and pin-drop have to carry the "wow" alone.', 'Condensed uppercase type can feel cold at large sizes.'],
+         motion: ['Minimal: value changes, chart draw on first view, schematic flow only on hover.'] },
+    c: { why: ['The most striking and memorable; ties every screen to the thermal sizing that no competitor has.', 'Heat maps make climate derating intuitive.'],
+         risk: ['Highest risk of reading as a theme, or of the gradients hurting legibility of numbers.', 'Gradient text and glow edge toward the crypto-casino look the brief rules out; needs strict limits.'],
+         motion: ['Heat plume and colour temperature respond to load and site climate.'] },
+  };
+  function rationale(dir) {
+    const r = RATIONALE[dir];
+    const list = (items) => '<ul>' + items.map((t) => '<li>' + t + '</li>').join('') + '</ul>';
+    document.getElementById('rationale').innerHTML =
+      '<div><h3>Why it works</h3>' + list(r.why) + '</div><div><h3>Risks</h3>' + list(r.risk) + '</div><div><h3>Motion</h3>' + list(r.motion) + '</div>';
+  }
+
+  // Schematic: grid → transformer → PDUs → container (100 miners) → fans → exhaust
+  function schematic(svg, mini) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text) n.textContent = text; svg.appendChild(n); return n; };
+    svg.innerHTML = '';
+    const stroke = 'var(--m-power)', line = 'var(--m-line)', muted = 'var(--m-muted)', mono = 'var(--m-mono)';
+    const label = (x, y, t, anchor) => el('text', { x, y, fill: muted, 'font-size': mini ? 17 : 11, 'font-family': mono, 'text-anchor': anchor || 'middle' }, t);
+    // grid pylon
+    el('path', { d: 'M40 150 L52 70 L64 150 M44 120 H60 M47 100 H57 M52 70 V60', stroke, fill: 'none', 'stroke-width': 2 });
+    label(52, 172, 'GRID');
+    // transformer
+    el('rect', { x: 110, y: 85, width: 70, height: 60, rx: 4, fill: 'var(--m-panel)', stroke, 'stroke-width': 1.5 });
+    el('circle', { cx: 135, cy: 115, r: 13, fill: 'none', stroke, 'stroke-width': 1.5 });
+    el('circle', { cx: 155, cy: 115, r: 13, fill: 'none', stroke, 'stroke-width': 1.5 });
+    label(145, 172, '500 kVA');
+    // PDU
+    el('rect', { x: 230, y: 95, width: 34, height: 40, rx: 3, fill: 'var(--m-panel)', stroke, 'stroke-width': 1.5 });
+    label(247, 172, 'PDU');
+    // container with racks filled to 100/250
+    el('rect', { x: 310, y: 60, width: 190, height: 110, rx: 4, fill: 'var(--m-panel)', stroke, 'stroke-width': 1.5 });
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) {
+      const filled = r * 10 + c < 20; // 100 of 250 miner slots filled (40%)
+      el('rect', { x: 322 + c * 17.5, y: 70 + r * 19, width: 13, height: 14, rx: 1.5, fill: filled ? 'var(--m-heat)' : 'none', 'fill-opacity': filled ? .85 : 1, stroke: filled ? 'none' : line });
+    }
+    label(405, 190, mini ? '' : '1 × 20 ft container · 100 / 250 miners');
+    // fans
+    for (const [i, cx] of [[0, 552], [1, 600]]) {
+      el('circle', { cx, cy: 115, r: 18, fill: 'none', stroke: 'var(--m-cool)', 'stroke-width': 1.5 });
+      el('path', { d: `M${cx} 115 l0 -14 M${cx} 115 l12 7 M${cx} 115 l-12 7`, stroke: 'var(--m-cool)', 'stroke-width': 1.5 });
+    }
+    label(576, 172, '2 × 56″ fans');
+    // heat plume
+    for (const [i, cx] of [[0, 552], [1, 600]]) {
+      el('path', { class: 'plume', d: `M${cx - 10} 90 C ${cx - 18} 70, ${cx + 6} 58, ${cx - 4} 34 M${cx + 8} 90 C ${cx + 2} 72, ${cx + 20} 60, ${cx + 8} 40`, stroke: 'var(--m-heat)', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round', opacity: .8, style: `animation-delay:${i * .8}s` });
+    }
+    label(576, 26, mini ? '' : '76,164 m³/h');
+    // power flow paths
+    const flows = ['M64 115 H110', 'M180 115 H230', 'M264 115 H310'];
+    for (const d of flows) { el('path', { d, stroke: line, 'stroke-width': 3 }); el('path', { d, class: 'flow', stroke: 'var(--m-btc)', 'stroke-width': 3 }); }
+    el('path', { d: 'M500 115 H534', stroke: 'var(--m-cool)', 'stroke-width': 2, 'stroke-dasharray': '2 4' });
+  }
+
+  // Revenue vs OPEX chart (engine output, Small Farm, flat price)
+  const REV = [31214,31108,31003,30897,30792,30688,30584,30480,30376,30273,30170,30068,29966,29864,29762,29661,29561,29460,19265,14756,14705,14656,14606,14556,14507,14457,14408,14359,14311,14262,14214,14165,14117,14069,14022,13974,13926,13879,13832,13785,13738,13692,13645,13599,13553,13507,13461,13415];
+  const OPEX = [17648,17682,17717,17752,17787,17821,17856,17892,17927,17962,17997,18033,18068,18104,18139,18175,18211,18247,18283,18319,18355,18392,18428,18465,18501,18538,18575,18611,18648,18685,18723,18760,18797,18834,18872,18910,18947,18985,19023,19061,19099,19137,19175,19214,19252,19290,19329,19368];
+  function chart(svg) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const el = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text) n.textContent = text; svg.appendChild(n); return n; };
+    svg.innerHTML = '';
+    const L = 52, R = 628, T = 12, B = 192, max = 35000;
+    const x = (i) => L + (i / 47) * (R - L), y = (v) => B - (v / max) * (B - T);
+    for (const v of [0, 10000, 20000, 30000]) {
+      el('line', { x1: L, x2: R, y1: y(v), y2: y(v), stroke: 'var(--m-line)', 'stroke-width': 1 });
+      el('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end', fill: 'var(--m-muted)', 'font-size': 10.5, 'font-family': 'var(--m-mono)' }, '$' + v / 1000 + 'k');
+    }
+    for (const m of [1, 12, 24, 36, 48]) el('text', { x: x(m - 1), y: B + 18, 'text-anchor': 'middle', fill: 'var(--m-muted)', 'font-size': 10.5, 'font-family': 'var(--m-mono)' }, 'm' + m);
+    // loss area after the crossing
+    let area = '';
+    for (let i = 18; i < 48; i++) area += (i === 18 ? 'M' : 'L') + x(i) + ' ' + y(OPEX[i]);
+    for (let i = 47; i >= 18; i--) area += 'L' + x(i) + ' ' + y(REV[i]);
+    el('path', { d: area + 'Z', fill: 'var(--m-bad)', 'fill-opacity': .12 });
+    const path = (arr) => arr.map((v, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1)).join('');
+    el('path', { d: path(OPEX), fill: 'none', stroke: 'var(--m-bad)', 'stroke-width': 2 });
+    el('path', { d: path(REV), fill: 'none', stroke: 'var(--m-good)', 'stroke-width': 2.25 });
+    el('line', { x1: x(18), x2: x(18), y1: T, y2: B, stroke: 'var(--m-btc)', 'stroke-width': 1.25, 'stroke-dasharray': '4 4' });
+    el('text', { x: x(18) + 6, y: T + 12, fill: 'var(--m-btc)', 'font-size': 11, 'font-family': 'var(--m-mono)' }, 'halving · block 1,050,000');
+    el('circle', { cx: x(47), cy: y(REV[47]), r: 3.5, fill: 'var(--m-good)' });
+    el('text', { x: x(47) - 6, y: y(REV[47]) + 16, 'text-anchor': 'end', fill: 'var(--m-fg)', 'font-size': 11, 'font-family': 'var(--m-mono)' }, '$13,415');
+  }
+
+  function gauge() {
+    const g = document.getElementById('gauge'), max = 120000;
+    g.querySelector('.fill').style.width = (84714 / max * 100) + '%';
+    g.querySelector('.be').style.left = (47639 / max * 100) + '%';
+    g.querySelector('.mark').style.left = (84714 / max * 100) + '%';
+  }
+
+  function select(dir) {
+    frame.dataset.dir = dir;
+    for (const b of document.querySelectorAll('.pick')) b.setAttribute('aria-pressed', String(b.dataset.dir === dir));
+    document.getElementById('modes').hidden = dir !== 'a';
+    if (dir !== 'a') frame.dataset.mode = 'dark';
+    rationale(dir);
+    try { localStorage.setItem('mf-dir', dir); } catch (e) {}
+  }
+  for (const b of document.querySelectorAll('.pick')) b.addEventListener('click', () => select(b.dataset.dir));
+  for (const [id, mode] of [['mode-dark', 'dark'], ['mode-paper', 'paper']]) document.getElementById(id).addEventListener('click', () => {
+    frame.dataset.mode = mode;
+    document.getElementById('mode-dark').setAttribute('aria-pressed', String(mode === 'dark'));
+    document.getElementById('mode-paper').setAttribute('aria-pressed', String(mode === 'paper'));
+  });
+
+  schematic(document.getElementById('schem'));
+  schematic(document.getElementById('schem-mini'), true);
+  chart(document.getElementById('chart'));
+  gauge();
+  let start = 'a';
+  try { start = localStorage.getItem('mf-dir') || 'a'; } catch (e) {}
+  select(['a', 'b', 'c'].includes(start) ? start : 'a');
+})();
+</script>
