@@ -30,7 +30,9 @@ export default function FarmPersistence() {
         await useFarmStore.persist.rehydrate();
         await useForecastStore.persist.rehydrate();
       }
-    })();
+    })().catch(() => {
+      // A broken saved state or blocked storage: keep the default farm.
+    });
   }, []);
 
   async function copyLink() {

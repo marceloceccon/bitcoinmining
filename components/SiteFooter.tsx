@@ -3,7 +3,7 @@ import { hardwarePricesAsOf } from "@/lib/catalog";
 
 export default function SiteFooter() {
   return (
-    <footer className="mt-16 border-t border-line">
+    <footer className="mt-16 border-t border-line pb-16 lg:pb-0">
       <div className="mx-auto grid max-w-7xl gap-3 px-4 py-8 text-sm text-muted sm:flex sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p className="text-fg">MineForge · Bitcoin Mining Farm Calculator</p>

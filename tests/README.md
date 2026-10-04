@@ -228,3 +228,13 @@ describe('calculateTotalPower', () => {
 - Every preset resolves its miner ids from the catalog and is OPEX-profitable at the default $0.05/kWh at the 2026-10-03 snapshot (`FALLBACK_MARKET`)
 - Farm presets stay cash-positive over a flat-price 48-month forecast; the home preset needs no transformer; the industrial preset is hydro-cooled
 - A fresh store opens on the Small Farm preset, and `applyPreset` equals `buildPresetConfig`
+
+### UI engine helpers and integrations (P4–P5)
+
+- `schematicLayout.test.ts`: the live farm schematic layout is deterministic, groups large farms as ×N, scales power flow with MW and the heat plume with heat and climate
+- `sensitivity.test.ts`: the key-drivers tornado (downside below / upside above base NPV, sorted by swing)
+- `climate.test.ts`: ERA5 summary and Nominatim place search mapping
+- `share.test.ts`: share links round-trip, store catalog miners by id (no stale prices), compress large payloads, reject garbage
+- `mcp.tools.test.ts`: every MCP tool as a plain function (happy path, unknown ids with suggestions, bad input, assumptions echo, dependency failures); `calculate_farm(Small Farm)` equals the UI engine exactly
+- `mcp.route.test.ts`: JSON-RPC `tools/list`, `tools/call`, resources and prompts through `/api/mcp`
+- `registryAuth.test.ts`: `/.well-known/mcp-registry-auth` serves only a well-formed public key line

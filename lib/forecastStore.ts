@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { ForecastParams } from "@/types";
 import { DEFAULT_NETWORK_GROWTH_PERCENT } from "@/lib/networkData";
+import { safeStorage } from "@/lib/store";
 
 export const DEFAULT_FORECAST_PARAMS: ForecastParams = {
   months: 48,
@@ -35,13 +36,7 @@ export const useForecastStore = create<ForecastStore>()(persist((set) => ({
 }), {
   name: "mf-forecast",
   version: 1,
-  storage: createJSONStorage(() => {
-    try {
-      return localStorage;
-    } catch {
-      return undefined as unknown as Storage;
-    }
-  }),
+  storage: createJSONStorage(() => safeStorage),
   partialize: (s) => ({ params: s.params, growthOverride: s.growthOverride }),
   migrate: (persisted, version) => (version === 1 ? (persisted as Partial<ForecastStore>) : {}),
   merge: (persisted, current) => {

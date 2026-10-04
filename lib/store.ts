@@ -63,7 +63,7 @@ function autoConfigureCooling(
 }
 
 /** localStorage that never throws (private windows, blocked storage): the farm just isn't remembered. */
-const safeStorage: StateStorage = {
+export const safeStorage: StateStorage = {
   getItem: (key) => {
     try {
       return localStorage.getItem(key);
