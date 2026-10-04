@@ -216,3 +216,15 @@ describe('calculateTotalPower', () => {
 - **Descriptive names**: `it('10 × S21 Pro at 5% parasitic = 36.855 kW')` > `it('calculates power')`.
 - **Independence**: Each test should be self-contained and not depend on execution order.
 - **Injected market**: Never rely on live data or hardcoded market constants; pass the snapshot in.
+
+### `data.miners.test.ts` — Catalog integrity (schema v2)
+
+- Every row of `data/miners.json` has all schema-v2 fields with valid values, `watercooled === (cooling !== "air")`, and `|W ÷ TH/s − J/TH| ÷ J/TH < 3 %`
+- Ids are unique and URL-safe; `announced` models are never used by presets; `updates.json` is not older than the newest price
+- Prices older than 120 days only print a warning, so data ages visibly without breaking CI
+
+### `presets.test.ts` — Presets resolve and make money
+
+- Every preset resolves its miner ids from the catalog and is OPEX-profitable at the default $0.05/kWh at the 2026-10-03 snapshot (`FALLBACK_MARKET`)
+- Farm presets stay cash-positive over a flat-price 48-month forecast; the home preset needs no transformer; the industrial preset is hydro-cooled
+- A fresh store opens on the Small Farm preset, and `applyPreset` equals `buildPresetConfig`

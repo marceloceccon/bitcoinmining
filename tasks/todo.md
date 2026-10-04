@@ -101,7 +101,7 @@ Present all of these together at G0. The recommendation comes first in each row.
 - D8: follow recommendation
 - G0 (2026-10-03): D1–D8 confirmed as recommended (see above). Execution started with no further pause.
 - G1 direction: 
-- G2 data approval: Do it automatically, this data can be reviewed
+- G2 data approval: Do it automatically, this data can be reviewed → applied 2026-10-04 (90 models; see `tasks/pr/p2-data.md`)
 - G3 registry:
 
 ---
@@ -256,7 +256,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
 
 ### P2 — Data refresh (branch `revamp/p2-data`)
 
-- [ ] **P2.1 MUST — Miner schema v2.** The change is additive, so existing API consumers keep working. Keep every current field and add:
+- [x] **P2.1 MUST — Miner schema v2.** The change is additive, so existing API consumers keep working. Keep every current field and add:
   ```ts
   cooling: "air" | "hydro" | "immersion"     // `watercooled` stays, derived = cooling !== "air"
   status: "current" | "legacy" | "announced"  // announced = not yet shipping; hidden by default in the UI
@@ -268,7 +268,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   ```
   - Update `types/index.ts`, `lib/validateFarmConfig.ts` (accept the new optional fields on client-sent miners), the `/api/miners` JSDoc and the OpenAPI spec.
   - Add `tests/data.miners.test.ts`: every row has all fields; `|power_watts / hash_rate_ths − efficiency_jth| / efficiency_jth < 3%`; ids are unique and URL-safe; `price_as_of` is no older than 120 days (this one is a **warning** test, so data ages visibly instead of breaking CI); `status = announced` implies it's excluded from presets.
-- [ ] **P2.2 MUST — Build the proposed table** from Appendix B. Re-verify every spec against `spec_source` (⚠ the research is dated 2026-10-03).
+- [x] **P2.2 MUST — Build the proposed table** from Appendix B. Re-verify every spec against `spec_source` (⚠ the research is dated 2026-10-03).
   - Keep all current ids except the ones explicitly removed (CK5/CK6, see Appendix B). Only `s21-pro`, `s21-hyd` and `m60s` are referenced in code (`FarmPresets.tsx`), but external API consumers may use any id.
   - Mark pre-2023 units as `status: "legacy"` and price them as `index` or `used`.
   - **Pricing rules:**
@@ -276,21 +276,25 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
     - **Legacy units:** $/TH from the Luxor/TheBlock ASIC price index band × TH/s → `price_basis: "index"`.
     - **Do not use the 14–19 J/TH band value ($3.63/TH on 2026-09-27).** It is anomalous: it sits below the 19–25 band and far below <14 at $18.38. For that tier, use reseller quotes or interpolate, and flag it in `price_source`.
   - Sanity reference: S19j Pro ≈ $120–320 and S19 XP ≈ $440–650 today, vs the $2,500 / $3,800 in the current JSON.
-- [ ] 🚦 **P2.3 MUST — G2: present the full table to the user** (model, TH/s, W, J/TH, cooling, status, price, basis, as-of, source) **before** writing `data/miners.json`. Apply their corrections.
-- [ ] **P2.4 MUST — Write the data.** Update `data/miners.json` and set `data/updates.json` to a real date and note (e.g. "Q4-2026 refresh: +N current-gen models, legacy repriced to market").
+  - Note: research by 3 parallel subagents (raw data and build scripts were in the session scratchpad). Removed `s21-ultra` and `a1346-pro` as well as CK5/CK6: neither exists as a product, and each duplicated another row's specs. S21 XP and S21 XP Hyd use the in-stock reseller price (~$12.8/TH) rather than Bitmain's $17/TH shop price. Rows above 38 J/TH are priced on a used tier ($1.00 / $0.80 / $0.60 per TH), low confidence. The 13 lowest-confidence prices are flagged in `notes`.
+- [x] 🚦 **P2.3 MUST — G2: present the full table to the user** (model, TH/s, W, J/TH, cooling, status, price, basis, as-of, source) **before** writing `data/miners.json`. Apply their corrections.
+  - G2 was pre-approved ("do it automatically, this data can be reviewed"). The table for review is `data/miners.json`: each row has its sources and `notes`.
+- [x] **P2.4 MUST — Write the data.** Update `data/miners.json` and set `data/updates.json` to a real date and note (e.g. "Q4-2026 refresh: +N current-gen models, legacy repriced to market").
   - Surface freshness in the UI: "Hardware prices as of Oct 2026" near the miner selector, and in the footer.
   - Add a short "how to refresh prices" section to `CONTRIBUTING.md` or `data/README.md` (sources, rules, quarterly cadence).
-- [ ] **P2.5 MUST — Presets reference ids** (Trap 6). Each preset stores `{ minerId, quantity, infrastructure, ... }` and resolves against the loaded catalog. New presets must be **profitable at the default $0.05/kWh** at today's market (check with the engine and add a test):
+- [x] **P2.5 MUST — Presets reference ids** (Trap 6). Each preset stores `{ minerId, quantity, infrastructure, ... }` and resolves against the loaded catalog. New presets must be **profitable at the default $0.05/kWh** at today's market (check with the engine and add a test):
   - **Home:** 1 × Avalon Q (or Nano 3S, per D7), residential, no transformer;
   - **Garage:** 10 × S21 XP (air);
   - **Small Farm:** 100 × S21 XP or M70S (air, containers);
   - **Industrial:** 500 × S21 XP Hyd or S23 Hyd (hydro, containers).
 
   Note: if P1.9 found an OPEX bug, profitability depends on that fix.
-- [ ] **P2.6 SHOULD — Gentler first impression.**
+  - Note: presets can carry `overrides`. Home is self-maintained (no paid technician hours: 8 h × $35 would cost more than the unit earns) and uses a 5 m cable run. All four presets are OPEX-profitable at $0.05/kWh at the 2026-10-03 snapshot. Home turns cash-negative after the 2028 halving at a flat price, so the 48-month cash test covers the farm presets only.
+- [x] **P2.6 SHOULD — Gentler first impression.**
   - A fresh visit loads the "Small Farm" preset, not an empty or underwater farm.
   - `FarmWarnings` "OPEX > revenue" becomes an informative card ("At $X/kWh this farm loses $Y/month. Break-even power price: $Z/kWh"), not a red error banner. Keep red for real misconfigurations (undersized cooling).
-- [ ] **P2.7 COULD — Refresh the dry-cooler and fan catalogs** (prices `as_of`) with the same provenance fields.
+  - Note: the store's initial state is the Small Farm preset, so SSR and the client render the same farm, with no flash and no hydration mismatch.
+- [ ] **P2.7 COULD (skipped for now: dry-cooler/fan prices are unchanged since 2024; refresh with the next quarterly pass) — Refresh the dry-cooler and fan catalogs** (prices `as_of`) with the same provenance fields.
 
 🚦 PR → preview → **G4**. This is the **credibility release**. Tag it `v1.1.0`.
 
