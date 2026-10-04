@@ -6,9 +6,10 @@
 import { describe, it, expect } from 'vitest';
 import { calculateFarmMetrics, calculateMonthlyOpexBreakdown } from '@/lib/calculations';
 import { generateForecast } from '@/lib/forecasting';
-import { GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW, GOLDEN_PRESETS, buildPresetConfig } from './golden/cases';
+import { GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW, GOLDEN_PRESETS, P19_INDUSTRIAL, buildGoldenConfig } from './golden/cases';
+import { buildPresetConfig } from '@/lib/presets';
 
-const industrial = () => buildPresetConfig(GOLDEN_PRESETS.find((p) => p.slug === 'industrial')!);
+const industrial = () => buildGoldenConfig(P19_INDUSTRIAL);
 
 describe('monthly OPEX, itemized (Industrial preset: 500 × S21 Hyd)', () => {
   it('electricity + maintenance + maintenance labor account for the whole total', () => {
@@ -42,7 +43,7 @@ describe('monthly OPEX, itemized (Industrial preset: 500 × S21 Hyd)', () => {
 
 describe('forecast OPEX matches the dashboard OPEX', () => {
   it.each(GOLDEN_PRESETS.map((p) => p.slug))('%s: month-1 OPEX without energy inflation = metrics.monthlyOpex', (slug) => {
-    const config = buildPresetConfig(GOLDEN_PRESETS.find((p) => p.slug === slug)!);
+    const config = buildPresetConfig(GOLDEN_PRESETS.find((p) => p.slug === slug)!.preset);
     config.regional.energyInflationPercent = 0;
     const forecast = generateForecast(config, GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW);
     expect(forecast.periods[0].opexUsd).toBeCloseTo(calculateFarmMetrics(config).monthlyOpex, 6);

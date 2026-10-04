@@ -67,8 +67,31 @@ function validateMiner(raw: unknown, index: number): ValidationResult<true> {
       );
     }
   }
+  // Schema v2 fields are optional on client-sent miners, but must be valid when present.
+  for (const [key, allowed] of OPTIONAL_MINER_ENUMS) {
+    const v = (miner as Record<string, unknown>)[key];
+    if (v !== undefined && (typeof v !== 'string' || !allowed.includes(v))) {
+      return fail(
+        `miners[${index}].miner.${key} must be one of ${allowed.join(', ')}`,
+        `miners[${index}].miner.${key}`,
+      );
+    }
+  }
+  for (const key of ['price_as_of', 'price_source', 'spec_source'] as const) {
+    const v = (miner as Record<string, unknown>)[key];
+    if (v !== undefined && typeof v !== 'string') {
+      return fail(`miners[${index}].miner.${key} must be a string`, `miners[${index}].miner.${key}`);
+    }
+  }
   return { ok: true, value: true };
 }
+
+const OPTIONAL_MINER_ENUMS: ReadonlyArray<[string, readonly string[]]> = [
+  ['cooling', ['air', 'hydro', 'immersion']],
+  ['status', ['current', 'legacy', 'announced']],
+  ['segment', ['industrial', 'home']],
+  ['price_basis', ['new', 'used', 'index']],
+];
 
 const NESTED_OBJECT_FIELDS = [
   'electrical',

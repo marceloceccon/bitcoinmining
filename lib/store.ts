@@ -3,6 +3,8 @@
 import { create } from 'zustand';
 import { recommendCoolingSelections } from '@/lib/cooling';
 import { DRY_COOLERS, AIR_FANS } from '@/lib/catalog';
+import { defaultConfig } from '@/lib/defaults';
+import { DEFAULT_PRESET_ID, buildPresetConfig, getPreset, type PresetId } from '@/lib/presets';
 import type { FarmConfig, FarmMiner, ElectricalConfig, CoolingConfig, SolarConfig, RegionalConfig, PayoutScheme, LaborConfig, TemperatureConfig, InfrastructureType, ImportTaxConfig, MaintenanceLaborConfig, DryCoolerModel, AirFanModel } from '@/types';
 
 interface FarmStore {
@@ -34,63 +36,12 @@ interface FarmStore {
   updateImportTax: (importTax: Partial<ImportTaxConfig>) => void;
   updateMaintenanceLabor: (maintenanceLabor: Partial<MaintenanceLaborConfig>) => void;
   loadConfig: (config: FarmConfig) => void;
+  /** Replace the farm with a preset (miners resolved from the catalog, cooling auto-sized) */
+  applyPreset: (id: PresetId) => void;
+  /** Empty farm with default settings */
   reset: () => void;
 }
 
-const defaultConfig: FarmConfig = {
-  miners: [],
-  electrical: {
-    cableLength: 50,
-    cableGauge: 6,
-    copperPricePerKg: 9.5,
-  },
-  cooling: {
-    type: "air",
-    airCost: 5000,
-  },
-  solar: {
-    coveragePercent: 0,
-    installationCostPerKw: 1200,
-    maintenancePercentPerYear: 1,
-    injectionRatePercent: 100,
-    includeCommissioningInCapex: false,
-  },
-  regional: {
-    region: "CUSTOM",
-    electricityPriceKwh: 0.05,
-    taxAdderPercent: 0,
-    energyInflationPercent: 3,
-  },
-  parasiticLoadPercent: 5,
-  uptimePercent: 98,
-  poolFeePercent: 2.5,
-  maintenanceOpexPercent: 5,
-  payoutScheme: "fpps" as PayoutScheme,
-  labor: {
-    manHoursPerMiner: 1,
-    hourlyLaborCostUsd: 20,
-    cablesPerMinerUsd: 40,
-    manHoursPerTransformer: 8,
-    manHoursPerRack: 4,
-    manHoursPerContainer: 80,
-  },
-  temperature: {
-    location: null,
-    dryCoolerSelections: [],
-    airFanSelections: [],
-  },
-  infrastructureType: "racks" as InfrastructureType,
-  importTax: {
-    containers: 10,
-    racks: 10,
-    miners: 10,
-    fans: 10,
-    dryCoolers: 10,
-  },
-  maintenanceLabor: {
-    hourlyMaintenanceCostUsd: 35,
-  },
-};
 
 /**
  * Re-run cooling auto-sizing (lib/cooling.ts, the same path the engine and the
@@ -111,7 +62,8 @@ function autoConfigureCooling(
 }
 
 export const useFarmStore = create<FarmStore>((set, get) => ({
-  config: defaultConfig,
+  // A fresh visit starts from a realistic farm, not an empty one.
+  config: buildPresetConfig(getPreset(DEFAULT_PRESET_ID)),
   dryCoolerCatalog: DRY_COOLERS,
   airFanCatalog: AIR_FANS,
   coolingOverridden: false,
@@ -267,6 +219,12 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
   loadConfig: (config) =>
     set(() => ({
       config,
+      coolingOverridden: false,
+    })),
+
+  applyPreset: (id) =>
+    set((state) => ({
+      config: buildPresetConfig(getPreset(id), { dryCoolers: state.dryCoolerCatalog, airFans: state.airFanCatalog }),
       coolingOverridden: false,
     })),
 

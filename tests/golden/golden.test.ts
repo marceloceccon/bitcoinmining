@@ -3,7 +3,8 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { calculateFarmMetrics } from '@/lib/calculations';
 import { generateForecast } from '@/lib/forecasting';
-import { GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW, GOLDEN_PRESETS, buildPresetConfig } from './cases';
+import { GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW, GOLDEN_PRESETS } from './cases';
+import { buildPresetConfig } from '@/lib/presets';
 
 const FIXTURE_DIR = path.join(__dirname, 'fixtures');
 const UPDATE = process.env.UPDATE_GOLDEN === '1';
@@ -47,8 +48,8 @@ describe('golden fixtures: presets through the engine', () => {
     vi.useRealTimers();
   });
 
-  for (const preset of GOLDEN_PRESETS) {
-    it(`${preset.slug} matches tests/golden/fixtures/${preset.slug}.json`, () => {
+  for (const { slug, preset } of GOLDEN_PRESETS) {
+    it(`${slug} matches tests/golden/fixtures/${slug}.json`, () => {
       const config = buildPresetConfig(preset);
       const actual = normalize({
         input: { config, params: GOLDEN_FORECAST_PARAMS, market: GOLDEN_MARKET },
@@ -56,7 +57,7 @@ describe('golden fixtures: presets through the engine', () => {
         forecast: generateForecast(config, GOLDEN_FORECAST_PARAMS, GOLDEN_MARKET, GOLDEN_NOW),
       });
 
-      const file = path.join(FIXTURE_DIR, `${preset.slug}.json`);
+      const file = path.join(FIXTURE_DIR, `${slug}.json`);
       if (UPDATE) {
         fs.mkdirSync(FIXTURE_DIR, { recursive: true });
         fs.writeFileSync(file, JSON.stringify(actual, null, 2) + '\n');

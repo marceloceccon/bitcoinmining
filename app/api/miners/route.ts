@@ -14,10 +14,17 @@ type MinerResponse = {
   price_usd: number; // Approximate market price in USD
   efficiency_jth: number; // Energy efficiency in joules per terahash (J/TH), lower is better
   release_year: number; // Year the model was released
-  watercooled: boolean; // Whether the miner requires water/hydro cooling
+  watercooled: boolean; // Whether the miner needs liquid cooling (hydro or immersion); equals cooling !== "air"
   degradation_year1: number; // Annual hashrate degradation % in year 1
   degradation_year2: number; // Annual hashrate degradation % in year 2
   degradation_year3plus: number; // Annual hashrate degradation % in year 3+
+  cooling: "air" | "hydro" | "immersion"; // Cooling method
+  status: "current" | "legacy" | "announced"; // current = shipping, legacy = pre-2023 or superseded, announced = not yet shipping
+  segment: "industrial" | "home"; // Market segment
+  price_basis: "new" | "used" | "index"; // How price_usd was obtained: shop/reseller new price, used-market listings, or $/TH index band x TH/s
+  price_as_of: string; // ISO date the price was observed
+  price_source: string; // URL or index band the price came from
+  spec_source: string; // URL of the manufacturer/spec page
 };
 
 export async function OPTIONS(request: Request) {
@@ -26,7 +33,7 @@ export async function OPTIONS(request: Request) {
 
 /**
  * List all ASIC miners
- * @description Returns the complete catalog of 50+ Bitcoin ASIC mining hardware models with specs, pricing, and degradation curves. Sorted by hash rate descending. Check GET /updates for last data update timestamp.
+ * @description Returns the complete catalog of Bitcoin ASIC mining hardware (industrial and home units) with specs, pricing and degradation curves. Every row carries its price provenance (price_basis, price_as_of, price_source) and a spec_source URL; status marks current, legacy and announced (not yet shipping) models. Check GET /updates for the last refresh date.
  * @response MinerResponse[]
  * @openapi
  */

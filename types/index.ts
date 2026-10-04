@@ -62,6 +62,13 @@ export interface TemperatureConfig {
 }
 
 // Miner Types
+export type MinerCooling = "air" | "hydro" | "immersion";
+/** current = shipping now · legacy = pre-2023 or superseded · announced = not yet shipping (hidden by default) */
+export type MinerStatus = "current" | "legacy" | "announced";
+export type MinerSegment = "industrial" | "home";
+/** How price_usd was obtained: new (shop/reseller), used (used-market listings), index ($/TH index band × TH/s) */
+export type PriceBasis = "new" | "used" | "index";
+
 export interface Miner {
   id: string;
   name: string;
@@ -72,12 +79,28 @@ export interface Miner {
   price_usd: number;
   efficiency_jth: number;
   release_year: number;
+  /** Derived: cooling !== "air" (kept for API backward compatibility) */
   watercooled: boolean;
   degradation_year1: number;
   degradation_year2: number;
   degradation_year3plus: number;
   notes?: string;
+  // Schema v2 (additive). Always present in data/miners.json; optional on client-sent miners.
+  cooling?: MinerCooling;
+  status?: MinerStatus;
+  segment?: MinerSegment;
+  price_basis?: PriceBasis;
+  /** ISO date the price was observed */
+  price_as_of?: string;
+  /** URL, or the index band used */
+  price_source?: string;
+  /** URL of the manufacturer/spec page */
+  spec_source?: string;
 }
+
+/** A row of data/miners.json: every schema-v2 field is present. */
+export type CatalogMiner = Miner & Required<Pick<Miner,
+  "cooling" | "status" | "segment" | "price_basis" | "price_as_of" | "price_source" | "spec_source">>;
 
 // Application Types
 export interface FarmMiner {

@@ -1943,7 +1943,7 @@
           },
           "watercooled": {
             "type": "boolean",
-            "description": "Whether the miner requires water/hydro cooling"
+            "description": "Whether the miner needs liquid cooling (hydro or immersion); equals cooling !== \"air\""
           },
           "degradation_year1": {
             "type": "number",
@@ -1956,6 +1956,53 @@
           "degradation_year3plus": {
             "type": "number",
             "description": "Annual hashrate degradation % in year 3+"
+          },
+          "cooling": {
+            "type": "string",
+            "enum": [
+              "air",
+              "hydro",
+              "immersion"
+            ],
+            "description": "Cooling method"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "current",
+              "legacy",
+              "announced"
+            ],
+            "description": "current = shipping, legacy = pre-2023 or superseded, announced = not yet shipping"
+          },
+          "segment": {
+            "type": "string",
+            "enum": [
+              "industrial",
+              "home"
+            ],
+            "description": "Market segment"
+          },
+          "price_basis": {
+            "type": "string",
+            "enum": [
+              "new",
+              "used",
+              "index"
+            ],
+            "description": "How price_usd was obtained: shop/reseller new price, used-market listings, or $/TH index band x TH/s"
+          },
+          "price_as_of": {
+            "type": "string",
+            "description": "ISO date the price was observed"
+          },
+          "price_source": {
+            "type": "string",
+            "description": "URL or index band the price came from"
+          },
+          "spec_source": {
+            "type": "string",
+            "description": "URL of the manufacturer/spec page"
           }
         },
         "required": [
@@ -1971,7 +2018,14 @@
           "watercooled",
           "degradation_year1",
           "degradation_year2",
-          "degradation_year3plus"
+          "degradation_year3plus",
+          "cooling",
+          "status",
+          "segment",
+          "price_basis",
+          "price_as_of",
+          "price_source",
+          "spec_source"
         ]
       },
       "NextHalving": {
@@ -2363,7 +2417,7 @@
       "get": {
         "operationId": "get-miners",
         "summary": "List all ASIC miners",
-        "description": "Returns the complete catalog of 50+ Bitcoin ASIC mining hardware models with specs, pricing, and degradation curves. Sorted by hash rate descending. Check GET /updates for last data update timestamp.",
+        "description": "Returns the complete catalog of Bitcoin ASIC mining hardware (industrial and home units) with specs, pricing and degradation curves. Every row carries its price provenance (price_basis, price_as_of, price_source) and a spec_source URL; status marks current, legacy and announced (not yet shipping) models. Check GET /updates for the last refresh date.",
         "tags": [
           "Miners"
         ],

@@ -61,7 +61,7 @@ docs: document the dry-cooler derating formula
 
 ## What We're Looking For
 
-- New ASIC miner data (verify specs from manufacturer sites)
+- New ASIC miner data and quarterly price refreshes (see [`data/README.md`](data/README.md) for fields, sources and rules)
 - Calculation accuracy improvements
 - UI/UX enhancements
 - Performance optimizations

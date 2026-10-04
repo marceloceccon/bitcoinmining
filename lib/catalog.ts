@@ -9,15 +9,15 @@ import minersJson from '@/data/miners.json';
 import dryCoolersJson from '@/data/dryCoolers.json';
 import airFansJson from '@/data/airFans.json';
 import updatesJson from '@/data/updates.json';
-import type { Miner, DryCoolerModel, AirFanModel } from '@/types';
+import type { CatalogMiner, DryCoolerModel, AirFanModel } from '@/types';
 
-export const MINERS: Miner[] = minersJson as Miner[];
+export const MINERS: CatalogMiner[] = minersJson as CatalogMiner[];
 export const DRY_COOLERS: DryCoolerModel[] = dryCoolersJson as DryCoolerModel[];
 export const AIR_FANS: AirFanModel[] = airFansJson as AirFanModel[];
 export const CATALOG_UPDATES: Record<string, { lastUpdated: string; note: string }> = updatesJson;
 
 // Accessors used by the API routes (and spied on in tests).
-export function getMiners(): Miner[] {
+export function getMiners(): CatalogMiner[] {
   return MINERS;
 }
 
@@ -31,4 +31,13 @@ export function getAirFans(): AirFanModel[] {
 
 export function getUpdates(): Record<string, { lastUpdated: string; note: string }> {
   return CATALOG_UPDATES;
+}
+
+/** "Oct 2026": when hardware prices were last refreshed (data/updates.json). UTC, so server and client agree. */
+export function hardwarePricesAsOf(): string {
+  return new Date(CATALOG_UPDATES.miners.lastUpdated).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
