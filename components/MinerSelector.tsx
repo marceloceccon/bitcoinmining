@@ -114,15 +114,21 @@ export default function MinerSelector() {
               </div>
             </div>
             <div className="text-right mr-4">
-              <a
-                href={miner.price_source.startsWith("http") ? miner.price_source : undefined}
-                title={`${miner.price_basis} price, as of ${miner.price_as_of}: ${miner.price_source}`}
-                className="block font-semibold text-fg font-mono text-sm"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {formatUsd(miner.price_usd)}
-              </a>
+              {miner.price_source.startsWith("http") ? (
+                <a
+                  href={miner.price_source}
+                  title={`${miner.price_basis} price, as of ${miner.price_as_of}`}
+                  className="block font-mono text-sm font-semibold text-fg hover:underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {formatUsd(miner.price_usd)}
+                </a>
+              ) : (
+                <span title={`${miner.price_basis} price, as of ${miner.price_as_of}: ${miner.price_source}`} className="block font-mono text-sm font-semibold text-fg">
+                  {formatUsd(miner.price_usd)}
+                </span>
+              )}
               {priceNote(miner) && <div className="text-[10px] text-faint">{priceNote(miner)}</div>}
             </div>
             <Button variant="primary" size="sm" onClick={() => handleAddMiner(miner)} aria-label={`Add ${miner.name}`}>
