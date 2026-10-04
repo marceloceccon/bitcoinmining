@@ -311,3 +311,17 @@ describe('evictOldestUntilUnderCap', () => {
     expect(rateLimitMap.has(`ip-${MAX_TRACKED_IPS + 9}`)).toBe(true);
   });
 });
+
+describe('MCP endpoint', () => {
+  it('is rate-limited like every /api route and gets a JSON-RPC shaped 429', async () => {
+    const req = () => new NextRequest(new Request('https://api.example.com/api/mcp', { method: 'POST' }), {
+      headers: new Headers({ host: 'api.example.com', 'x-real-ip': '9.9.9.9' }),
+    });
+    for (let i = 0; i < MAX_REQUESTS; i++) expect(middleware(req()).status).toBe(200);
+    const blocked = middleware(req());
+    expect(blocked.status).toBe(429);
+    const body = await blocked.json();
+    expect(body).toMatchObject({ jsonrpc: '2.0', id: null, error: { code: -32000 } });
+    expect(body.error.message).toMatch(/60 requests\/minute/);
+  });
+});

@@ -28,6 +28,8 @@ process.env.NEXT_PUBLIC_COMMIT_DATE = date;
 const nextConfig = {
   output: 'standalone', // Required for Docker deployment
   outputFileTracingRoot: __dirname, // single-package repo; don't let a stray parent lockfile move the root
+  // The MCP methodology resource reads ARCHITECTURE.md at runtime
+  outputFileTracingIncludes: { '/api/mcp': ['./ARCHITECTURE.md'] },
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',

@@ -116,8 +116,13 @@ export function middleware(request: NextRequest) {
     const oldestInWindow = recentTimestamps[0];
     const retryAfterSec = Math.max(1, Math.ceil((oldestInWindow + WINDOW_MS - now) / 1000));
 
+    // MCP clients speak JSON-RPC: give them an error object they can surface
+    const isMcp = request.nextUrl.pathname.startsWith('/api/mcp');
+    const body = isMcp
+      ? { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Rate limit exceeded (${limit} requests/minute per IP). Retry after ${retryAfterSec} s.` } }
+      : { error: 'Too many requests' };
     return new NextResponse(
-      JSON.stringify({ error: 'Too many requests' }),
+      JSON.stringify(body),
       {
         status: 429,
         headers: {
