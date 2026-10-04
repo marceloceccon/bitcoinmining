@@ -70,9 +70,21 @@ pnpm test:golden:update      # re-capture golden fixtures after an intended engi
 
 No database or environment variables are required. See [tests/README.md](tests/README.md) for what each suite covers and [CONTRIBUTING.md](CONTRIBUTING.md) to contribute.
 
+### Deploying to Cloudflare
+
+Vercel is the primary target and needs no setup. The app also runs on Cloudflare Workers through [OpenNext](https://opennext.js.org/cloudflare) (`wrangler.jsonc`, `open-next.config.ts`):
+
+```bash
+pnpm cf:build                # next build, then bundle the worker into .open-next/
+pnpm cf:preview              # run that worker locally in workerd
+pnpm cf:deploy               # upload it (wrangler login first)
+```
+
+In Cloudflare Workers Builds, set the build command to `pnpm cf:build` and the deploy command to `pnpm cf:deploy`. A bare `npx wrangler deploy` doesn't work. Vercel Analytics has no effect on Cloudflare.
+
 ## Tech stack
 
-Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS (token-based design system), Zustand, Recharts, Leaflet, motion, Vitest, Playwright + axe, `mcp-handler` + `@modelcontextprotocol/server`, `next-openapi-gen`. Deployed on Vercel.
+Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS (token-based design system), Zustand, Recharts, Leaflet, motion, Vitest, Playwright + axe, `mcp-handler` + `@modelcontextprotocol/server`, `next-openapi-gen`. Deployed on Vercel; also runs on Cloudflare Workers via OpenNext.
 
 ## Privacy
 

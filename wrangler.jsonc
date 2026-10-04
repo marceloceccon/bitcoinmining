@@ -1,0 +1,20 @@
+// Cloudflare Workers deployment (secondary target; Vercel is primary and ignores this file).
+// Build with `pnpm cf:build`, deploy with `pnpm cf:deploy`. See README "Deploying to Cloudflare".
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bitcoinmining",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // next/image optimization (the header logo)
+  "images": {
+    "binding": "IMAGES"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

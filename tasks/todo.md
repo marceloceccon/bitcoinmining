@@ -708,3 +708,23 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 - The "unexplained OPEX" didn't exist, but itemizing it with a test exposed a real forecast/dashboard mismatch. Investigations should end in a test either way.
 - The e2e console-error check found two real bugs that unit tests couldn't: the UI storing 429 bodies as data, and an intermittent hydration mismatch from Next build workers.
 - Running every tab through axe in light and dark caught the contrast and label issues that a single Lighthouse run of the landing view missed.
+
+---
+
+## 10. Cloudflare Workers as a secondary target (2026-10-04, branch `deploy/cloudflare`)
+
+Why the Cloudflare build failed: the deploy command `npx wrangler deploy` found no wrangler config, so wrangler ran `@opennextjs/cloudflare migrate` in CI. That ran `pnpm add -D wrangler`, and pnpm 12 failed with `ERR_PNPM_IGNORED_BUILDS` because `workerd`'s postinstall wasn't in `allowBuilds`. Vercel builds Next.js natively, so it never got there.
+
+- [x] Add `@opennextjs/cloudflare` and `wrangler` as devDeps, and approve `workerd` in `pnpm-workspace.yaml`
+- [x] Bump `next` and `eslint-config-next` 15.5.15 → 15.5.27 (OpenNext 1.20 peer range: `>=15.5.27 <16`)
+- [x] Commit `wrangler.jsonc` (assets, images binding, `nodejs_compat`) and `open-next.config.ts` (static-assets incremental cache; no ISR, so no R2)
+- [x] Add the `cf:build`, `cf:preview` and `cf:deploy` scripts; Vercel's `build` is unchanged
+- [x] Remove `runtime = "edge"` from `app/opengraph-image.tsx`, which OpenNext doesn't support. It's now prerendered at build (`○`) on both targets
+- [x] Add the README section "Deploying to Cloudflare"
+- [ ] Cloudflare dashboard: build command `pnpm cf:build`, deploy command `pnpm cf:deploy`, then run a real deploy
+
+### Review
+- Vercel path: lint ✔ · typecheck ✔ · 646/646 vitest ✔ · `next build` ✔ · 77 e2e passed (3 reduced-motion-only skips).
+- Cloudflare path: a clean `pnpm install --frozen-lockfile` and `pnpm cf:build` on local disk ✔. `cf:preview` (workerd) returns 200 for `/`, `/opengraph-image` (rendered correctly), `/api/network` (live), `/api-docs`, sitemap, robots, `llms.txt` and `/_next/image`, and MCP `tools/list` returns all 7 tools.
+- Docker (alpine): the image builds with `workerd` in the tree, and `/` and `/opengraph-image` return 200.
+- Known difference on Cloudflare: the MCP methodology resource can't read `ARCHITECTURE.md` from disk and falls back to the GitHub link. Vercel Analytics has no effect.
