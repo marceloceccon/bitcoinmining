@@ -11,6 +11,7 @@ const PAGES = [
   { name: 'Thermal', path: '/?tab=temperature' },
   { name: 'Projections', path: '/?tab=forecast' },
   { name: 'Methodology', path: '/methodology' },
+  { name: 'MCP', path: '/mcp' },
 ];
 
 for (const { name, path } of PAGES) {

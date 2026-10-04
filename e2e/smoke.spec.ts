@@ -152,3 +152,17 @@ test('the farm survives a reload, and a share link reproduces it in a fresh brow
   await expect(other).not.toHaveURL(/\?s=/);
   await fresh.close();
 });
+
+test('the MCP page lists every tool and the endpoint; llms.txt is served', async ({ page, request }) => {
+  const errors = collectErrors(page);
+  await page.goto('/mcp');
+  await expect(page.getByRole('heading', { level: 1, name: 'Use MineForge from your AI agent' })).toBeVisible();
+  for (const tool of ['get_network_stats', 'list_miners', 'get_miner', 'compare_miners', 'calculate_farm', 'forecast_farm', 'size_cooling']) {
+    await expect(page.getByText(tool, { exact: true }).first()).toBeVisible();
+  }
+  await expect(page.locator('#endpoint')).toContainText('/api/mcp');
+  expect(errors).toEqual([]);
+  const llms = await request.get('/llms.txt');
+  expect(llms.status()).toBe(200);
+  expect(await llms.text()).toMatch(/^# MineForge/);
+});

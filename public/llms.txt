@@ -1,0 +1,22 @@
+# MineForge · Bitcoin Mining Farm Calculator
+
+> Free planning tool and API for Bitcoin mining farms, from one home unit to an industrial site. It sizes power and transformers, sizes cooling for a site's real climate (ERA5), itemizes CAPEX and OPEX, and forecasts cash flow from live network data (hashrate, block height, subsidy and fees), with halvings by block height and BTC price scenarios the user chooses. The same tested engine runs in the browser, behind a REST API, and as an MCP server for AI agents. No account or API key.
+
+## Docs
+
+- [Methodology](https://www.bitcoinminingfarmcalculator.com/methodology): how power, cooling, CAPEX, OPEX, revenue and forecasts are calculated
+- [Formula reference (ARCHITECTURE.md)](https://github.com/marceloceccon/bitcoinmining/blob/main/ARCHITECTURE.md): every formula and its accuracy
+
+## API
+
+- [REST API reference](https://www.bitcoinminingfarmcalculator.com/api-docs): POST /api/calculate, POST /api/forecast, GET /api/miners, GET /api/network
+- [OpenAPI spec](https://www.bitcoinminingfarmcalculator.com/openapi.json): machine-readable schema; 60 requests/minute per IP
+
+## MCP
+
+- [Use MineForge from your AI agent](https://www.bitcoinminingfarmcalculator.com/mcp): client setup for Claude, Cursor and VS Code
+- [MCP endpoint](https://www.bitcoinminingfarmcalculator.com/api/mcp): stateless Streamable HTTP; tools get_network_stats, list_miners, get_miner, compare_miners, calculate_farm, forecast_farm, size_cooling
+
+## Optional
+
+- [Source code (MIT)](https://github.com/marceloceccon/bitcoinmining)

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.bitcoinminingfarmcalculator/mineforge",
+  "title": "MineForge",
+  "description": "Plan Bitcoin mining farms: compare ASICs, size power and cooling, forecast from live network data",
+  "websiteUrl": "https://www.bitcoinminingfarmcalculator.com/mcp",
+  "repository": {
+    "url": "https://github.com/marceloceccon/bitcoinmining",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://www.bitcoinminingfarmcalculator.com/api/mcp"
+    }
+  ]
+}

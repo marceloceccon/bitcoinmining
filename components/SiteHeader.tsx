@@ -6,6 +6,7 @@ const NAV = [
   { href: "/#calculator", label: "Calculator" },
   { href: "/methodology", label: "Methodology" },
   { href: "/api-docs", label: "API" },
+  { href: "/mcp", label: "AI agents" },
 ];
 
 export default function SiteHeader() {

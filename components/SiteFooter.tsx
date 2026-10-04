@@ -15,6 +15,7 @@ export default function SiteFooter() {
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           <Link href="/methodology" className="hover:text-fg">Methodology</Link>
           <Link href="/api-docs" className="hover:text-fg">Free API</Link>
+          <Link href="/mcp" className="hover:text-fg">AI agents (MCP)</Link>
           <a href="https://github.com/marceloceccon/bitcoinmining" className="hover:text-fg">GitHub</a>
           <span className="font-mono text-xs text-faint">
             {process.env.NEXT_PUBLIC_COMMIT_HASH ?? "dev"} · {process.env.NEXT_PUBLIC_COMMIT_DATE ?? ""}
