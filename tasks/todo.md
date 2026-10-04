@@ -329,24 +329,27 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
 
 **Stack:** `motion` (`motion/react`, the successor to framer-motion; ⚠ re-verify the package name and version), with `LazyMotion` + `domAnimation` + `m.*` components to keep the bundle small, plus CSS for simple transitions.
 
-- [ ] **P4.1 MUST — Design tokens.**
+- [x] **P4.1 MUST — Design tokens.**
   - CSS variables on `:root` for both themes; Tailwind maps to them; `darkMode: "class"`, defaulting to the system preference, with a theme toggle (old backlog item).
   - Remove the unused tokens (`blueprint-light`, `-grid`, the unused shadcn semantics, `glass-*`), the glass classes, and the hardcoded `color-scheme: light` (`globals.css:38`).
   - Chart colors come from tokens: no hex in `ForecastCharts.tsx`, and `getRoiColor` in `lib/utils.ts:104` is aligned with them.
   - Fonts via `next/font`.
-- [ ] **P4.2 MUST — Primitives rebuilt and accessible.**
+  - Note: tokens are RGB triplets so Tailwind can apply alpha. Text tokens were checked numerically at ≥4.5:1 on every surface in both themes. The theme toggle has 3 states (system / light / dark) and is applied before first paint.
+- [x] **P4.2 MUST — Primitives rebuilt and accessible.**
   - `Button` and `Card` via CVA (already installed).
   - **Tabs:** `role="tablist/tab/tabpanel"`, `aria-selected`, arrow-key navigation, and the active tab synced to `?tab=` for deep links. Animated indicator via `layoutId`.
   - **Dialog:** focus trap, focus return, Esc and click-outside.
   - **Tooltip:** `aria-describedby`, and tap-to-open on touch.
   - **Slider:** keyboard steps, plus a visible value with units.
   - **`<Metric>`:** a label, value and unit component with the number-roll + delta-tint behaviour from motion principle 1. Use it everywhere a figure appears.
-- [ ] **P4.3 MUST — Information architecture and layout.**
+  - Note: `Metric` rolls with a requestAnimationFrame tween (150 ms settle, 320 ms roll) rather than the motion library. `motion` is used for layout and indicator animation, through `LazyMotion` + `domAnimation`.
+- [x] **P4.3 MUST — Information architecture and layout.**
   - **Hero:** a one-line value proposition, a live market strip, and **the live farm schematic** (P4.4), with a "Start from a preset" CTA.
   - **Workbench below:** tabs on the left/top, sticky results on the right. On mobile, results collapse into a sticky bottom summary bar (hashrate · MW · CAPEX · monthly profit) that expands as a sheet.
   - Remove the triple "About" duplication (tab, `#about-footer`, footer: `app/page.tsx:168-277`). Move About + methodology to `/methodology`.
   - `SeoContent` (`app/layout.tsx:195`, currently rendered under every tab) moves to `/methodology` and a slim home-page section.
-- [ ] **P4.4 MUST — Signature 1: live farm schematic** (`components/FarmSchematic.tsx`, SVG, driven purely by `FarmMetrics` + config, deterministic, unit-testable layout function).
+  - Note: the home page is a server component (ticker, header, `Calculator`, slim methodology section, footer). The footer is server-rendered. Added a "Compare miners" tab (P4.7).
+- [x] **P4.4 MUST — Signature 1: live farm schematic** (`components/FarmSchematic.tsx`, SVG, driven purely by `FarmMetrics` + config, deterministic, unit-testable layout function).
   - Shows: grid connection → transformer (labelled kVA) → PDUs → racks or containers, with fill proportional to miner count → cooling units (fans or dry coolers × qty) → heat exhaust.
   - **Power flow** animates along the paths, with speed or density scaled to MW.
   - **Heat plume** intensity scales with heat load and site climate.
@@ -354,29 +357,30 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - Collapses gracefully for very large farms (e.g. "×12 containers" grouping).
   - Reduced motion: a static diagram.
   - This is the stop-scrolling moment. Polish it.
-- [ ] **P4.5 MUST — Signature 2: the thermal pin-drop sequence.**
+- [x] **P4.5 MUST — Signature 2: the thermal pin-drop sequence.**
   - Map pick (plus a **search box** via Nominatim `search`; today you can only click a world map) → pin drops.
   - Climate card values count in → derating gauge sweeps → cooler/fan quantities recompute with a delta flash ("+3 dry coolers vs default climate") → CAPEX updates.
   - Depends on P1.7 (re-size on location change).
-- [ ] **P4.6 MUST — Signature 3: Projections redesign.**
+  - Note: `lib/climate.ts` (search, reverse geocode, ERA5 summary) is shared and tested, and P5 reuses it. A server-side User-Agent is supported but still unused.
+- [x] **P4.6 MUST — Signature 3: Projections redesign.**
   - The hero metric is the **break-even BTC price**, shown against the live BTC price with a "you are here" marker and the margin of safety in %.
   - Then: payback month, IRR, NPV.
   - The cash-flow chart draws on first view.
   - Scenario chips (Bear / Flat / Bull / Custom) cross-fade the chart.
   - Key Drivers becomes a tornado chart.
   - The data table stays (monthly, quarterly, yearly).
-- [ ] **P4.7 SHOULD — Miner comparison table** (new): every miner, with revenue/day, power cost/day and profit/day at *your* $/kWh, plus break-even $/kWh, $/TH and simple payback. Sortable; filter by segment, cooling and status. Uses the same `lib/unitEconomics.ts` as MCP `compare_miners` (P5.3). This is the most useful feature for real miners.
-- [ ] **P4.8 MUST — Remaining tabs restyled** (Build, Energy, Deploy & Labor, Thermal):
+- [x] **P4.7 SHOULD — Miner comparison table** (new): every miner, with revenue/day, power cost/day and profit/day at *your* $/kWh, plus break-even $/kWh, $/TH and simple payback. Sortable; filter by segment, cooling and status. Uses the same `lib/unitEconomics.ts` as MCP `compare_miners` (P5.3). This is the most useful feature for real miners.
+- [x] **P4.8 MUST — Remaining tabs restyled** (Build, Energy, Deploy & Labor, Thermal):
   - token-based styling and the new primitives;
   - map tiles darkened in dark mode with a CSS filter (no new tile provider, so no new terms);
   - an inline SVG `divIcon` marker (no unpkg);
   - Leaflet attribution kept.
-- [ ] **P4.9 SHOULD — Persistence and sharing.**
+- [x] **P4.9 SHOULD — Persistence and sharing.**
   - Zustand `persist` (localStorage, versioned with `migrate`, wrapped in try/catch).
   - "Copy share link": encode the config plus forecast params into `?s=` as base64url JSON (compress if it's over ~1.5 KB). Loading a link hydrates the store. Old backlog item.
-- [ ] **P4.10 SHOULD — Global farm settings UI:** sliders for parasitic load %, uptime % and maintenance OPEX % (old backlog item), in the Build tab under "Advanced".
-- [ ] **P4.11 MUST — OG image and favicon.** Redesign `app/opengraph-image.tsx` in the new direction, ideally showing a schematic snapshot. Optimize `public/favicon.svg` (117 KB → under 5 KB).
-- [ ] **P4.12 MUST — Performance and accessibility pass.**
+- [x] **P4.10 SHOULD — Global farm settings UI:** sliders for parasitic load %, uptime % and maintenance OPEX % (old backlog item), in the Build tab under "Advanced".
+- [x] **P4.11 MUST — OG image and favicon.** Redesign `app/opengraph-image.tsx` in the new direction, ideally showing a schematic snapshot. Optimize `public/favicon.svg` (117 KB → under 5 KB).
+- [x] **P4.12 MUST — Performance and accessibility pass.**
   - Lazy-load Leaflet (already done) and the Projections charts.
   - Keep the `motion` bundle lean.
   - Run Lighthouse on the preview to the §1 targets.
@@ -384,6 +388,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - Playwright projects: light, dark, reduced-motion and mobile.
   - Keep the before/after screenshots in `docs/case-study/after/`.
 
+  - Note: there's no Vercel preview from this environment, so Lighthouse ran locally: 98 / 100 / 96 / 100. The 96 comes only from the local 404 for `/_vercel/insights` (see `docs/case-study/after/README.md`). Re-run on the preview. First-load JS is 217 kB.
 🚦 PR(s) → preview → **G4**.
 
 ### P5 — MCP server (branch `revamp/p5-mcp`)
@@ -685,6 +690,7 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 - Build hygiene (found in P1): a footer commit hash that differed between Next build workers caused intermittent React #418 hydration errors. Fixed in `next.config.js`.
 - P5.8 real-client MCP transcript summary:
 - P7.3 revenue cross-check vs Hashrate Index:
+- P4.12 Lighthouse (local production build, mobile): Perf 98 / A11y 100 / BP 96 (local Vercel Analytics 404 only) / SEO 100; LCP 2.3 s, TBT 20 ms, CLS 0.001.
 - P7.4 Lighthouse (final):
 
 ### Retrospective
