@@ -3,6 +3,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SeoContent from "@/components/SeoContent";
+import { FAQ_JSON_LD } from "@/lib/faqJsonLd";
 
 export const metadata: Metadata = {
   title: "Methodology",
@@ -21,6 +22,7 @@ const ENDPOINTS = [
 export default function MethodologyPage() {
   return (
     <div className="min-h-screen">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
       <SiteHeader />
       <main className="mx-auto max-w-4xl space-y-10 px-4 py-10">
         <header className="space-y-3">

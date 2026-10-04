@@ -11,6 +11,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: "MineForge · Bitcoin Mining Farm Calculator",
   title: {
     default: "Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool",
     template: "%s | Bitcoin Mining Farm Calculator",
@@ -19,6 +20,8 @@ export const metadata: Metadata = {
     "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year forecasts from live network data. No signup.",
   keywords: [
     "bitcoin mining calculator",
+    "bitcoin mining MCP server",
+    "dry cooler sizing bitcoin mining",
     "bitcoin mining profitability calculator",
     "bitcoin mining farm simulator",
     "ASIC miner ROI calculator",
@@ -96,6 +99,7 @@ const jsonLd = {
   {
     "@type": "SoftwareApplication",
     name: "Bitcoin Mining Farm Calculator",
+    alternateName: "MineForge",
     url: SITE_URL,
     description:
       "A free, browser-based Bitcoin mining farm calculator. Model ASIC hardware costs, deployment labor, electrical infrastructure, solar offset, cooling sizing, and multi-year profitability forecasts from live network data with user-chosen BTC price scenarios.",
@@ -110,7 +114,9 @@ const jsonLd = {
       priceCurrency: "USD",
     },
     featureList: [
-      "50+ real ASIC miner database with market pricing",
+      "90 ASIC models (industrial and home) with sourced, dated prices",
+      "Miner comparison at your electricity price",
+      "MCP server for AI agents",
       "10-component CAPEX breakdown calculator",
       "Multi-year ROI and profitability forecasting",
       "Live hashrate, fees and halving-aware revenue forecasts",
@@ -119,51 +125,6 @@ const jsonLd = {
       "Deployment labor and electrical infrastructure estimation",
       "Country-specific import tax calculator",
       "Free API for developers and AI agents",
-    ],
-  },
-  {
-    "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "Is this Bitcoin mining calculator free?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. No account, no payment, no trial period. Calculations run in your browser; the only request is for live market data, and your farm configuration is never sent or stored.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How accurate are the mining profitability projections?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "The projections are estimates based on the live network hashrate, block subsidy and transaction fees, the BTC price scenario you choose (flat, annual growth or a target price), and your input parameters. Real results depend on actual BTC price movement, difficulty changes, hardware reliability, and electricity rate changes. Use this as a planning tool, not a guarantee.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Can I model a large-scale industrial mining farm?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. The simulator supports any farm size from 1 miner to 10,000+. It calculates racks, containers, transformers, cooling, and labor costs that scale with your operation. Most competing calculators only handle single-rig scenarios.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "Does this calculator account for Bitcoin halving events?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "Yes. Halvings are computed from block height: the forecast estimates when block 1,050,000 (and later halvings) will be mined at 10 minutes per block and halves the block subsidy from that month on, weighting the month in which it happens by blocks on each side.",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "How is electricity cost modeled?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "You set a base electricity rate in dollars per kWh and an annual energy inflation percentage. The forecast engine compounds inflation monthly, giving a realistic cost curve over multi-year horizons. Solar offset reduces the effective grid consumption.",
-        },
-      },
     ],
   },
   {
