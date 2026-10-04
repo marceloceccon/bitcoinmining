@@ -40,3 +40,8 @@ vitest-*.tgz
 # playwright
 /test-results/
 /playwright-report/
+
+# cloudflare (opennextjs-cloudflare / wrangler)
+/.open-next/
+/.wrangler/
+.dev.vars*
