@@ -396,12 +396,13 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
 **Scope:** a public, read-only, **stateless** Streamable-HTTP server at `/api/mcp` on the same Vercel deployment. **Do not build:** auth, SSE, sessions, Redis, write tools, or a separate stdio package (a COULD at most, later).
 **Rule:** tools call the **same pure engine** as the UI and REST, with zero duplicated math.
 
-- [ ] **P5.1 MUST — Re-verify the stack** (⚠ Appendix D is research from 2026-10-03 and newer than the planning model's training):
+- [x] **P5.1 MUST — Re-verify the stack** (⚠ Appendix D is research from 2026-10-03 and newer than the planning model's training):
   - `npm view mcp-handler version`, `npm view @modelcontextprotocol/server version`, `npm view zod version`;
   - read the `mcp-handler` README and the MCP spec versioning page.
 
   Expected (as researched): `mcp-handler@^2`, `@modelcontextprotocol/server@^2` (v2 line; `@modelcontextprotocol/sdk` 1.x is legacy), `zod@^4.2`, a single route file `app/api/mcp/route.ts` exporting the handler as GET and POST, and no Redis. If reality differs, follow reality and note the difference here.
-- [ ] **P5.2 MUST — Shared domain layer for tools.**
+  - Verified 2026-10-04: `mcp-handler@2.2.0`, `@modelcontextprotocol/server@2.3.0`, `zod@4.6.5`. A single route file exports the handler as GET/POST, with no Redis and no `[transport]` route. It serves the 2026-07-28 protocol natively plus a stateless fallback for 2025-era clients. Options are `createMcpHandler(init, { serverInfo, instructions })`.
+- [x] **P5.2 MUST — Shared domain layer for tools.**
   - `lib/defaults.ts`: move `defaultConfig` out of `lib/store.ts:34-87` so it's usable on the server.
   - `lib/farmSpec.ts`: a simplified agent-facing `FarmSpec`:
     - `{ miners: [{ id, quantity }], electricityPriceKwh, cooling?, infrastructure?, location?: { lat, lon }, climate?, poolFeePercent?, uptimePercent? }`
@@ -410,7 +411,7 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
     - a descriptive `User-Agent` (Nominatim policy: max 1 req/s, identify your app);
     - cache by rounded lat/lon (0.1°) for 30 days in `serverCache`;
     - ⚠ check the Open-Meteo archive API terms for this usage.
-- [ ] **P5.3 MUST — Tools.** All tools are read-only (`annotations: { readOnlyHint: true, openWorldHint: <true when it fetches external data> }`). Each has a zod `inputSchema` and an `outputSchema`, returns `structuredContent` plus a ≤5-line text summary, and **echoes the `assumptions` / market snapshot it used**.
+- [x] **P5.3 MUST — Tools.** All tools are read-only (`annotations: { readOnlyHint: true, openWorldHint: <true when it fetches external data> }`). Each has a zod `inputSchema` and an `outputSchema`, returns `structuredContent` plus a ≤5-line text summary, and **echoes the `assumptions` / market snapshot it used**.
   | Tool | Input | Output |
   |---|---|---|
   | `get_network_stats` | — | `MarketSnapshot` + hashprice $/PH/day (incl. fees) + next halving `{height, estimatedDate}` |
@@ -421,26 +422,30 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   | `forecast_farm` | `FarmSpec` + `{ months (12–72), priceScenario: {type: flat\|growth\|target, …}, networkHashrateGrowthPercent?, revenueMode?, discountRatePercent? }` | summary (payback, IRR, NPV, break-even BTC price) + **yearly** periods only (keep output small) + assumptions |
   | `size_cooling` | `{ location: {lat, lon} }` or `{ climate }`, plus `heatLoadKw` or `FarmSpec`, `cooling` | design temperature, derating, recommended model × qty, power, CAPEX |
   - Errors: return `isError: true` with an actionable message (e.g. "Unknown miner id 's21xp'. Did you mean 's21-xp'?"). Never throw raw errors.
-- [ ] **P5.4 SHOULD — Resources:** `mineforge://catalog/miners` (JSON) and `mineforge://docs/methodology` (the `ARCHITECTURE.md` markdown).
-- [ ] **P5.5 COULD — Prompt:** `plan_mining_farm(budgetUsd, electricityPriceKwh, location)`, which walks the agent through compare → calculate → size_cooling → forecast.
-- [ ] **P5.6 MUST — Middleware and limits.** Confirm that `middleware.ts` (matcher `/api/:path*`) applies the P0.8 limiter to `/api/mcp` and doesn't break its method or headers. Return JSON-RPC-friendly 429s if the adapter allows it. Set `maxDuration` if needed (⚠ verify for v2).
-- [ ] **P5.7 MUST — Tests.**
+  - Note: output schemas use `z.looseObject`. The Inspector reports 27 portability *warnings* (free-form `additionalProperties: {}` and `number|null` type arrays) and 0 errors. Tightening them is optional polish.
+- [x] **P5.4 SHOULD — Resources:** `mineforge://catalog/miners` (JSON) and `mineforge://docs/methodology` (the `ARCHITECTURE.md` markdown).
+- [x] **P5.5 COULD — Prompt:** `plan_mining_farm(budgetUsd, electricityPriceKwh, location)`, which walks the agent through compare → calculate → size_cooling → forecast.
+- [x] **P5.6 MUST — Middleware and limits.** Confirm that `middleware.ts` (matcher `/api/:path*`) applies the P0.8 limiter to `/api/mcp` and doesn't break its method or headers. Return JSON-RPC-friendly 429s if the adapter allows it. Set `maxDuration` if needed (⚠ verify for v2).
+  - `/api/mcp` is limited at 60/min per IP (MCP clients send no `Sec-Fetch-Site`). Its 429 is a JSON-RPC error object (`code -32000`). The route sets `maxDuration = 30`.
+- [x] **P5.7 MUST — Tests.**
   - Unit-test each tool handler as a plain function: happy path, unknown id, out-of-range input, and the `assumptions` echo.
   - One integration test that POSTs JSON-RPC `tools/list` and `tools/call` (`calculate_farm` with a preset) against the route handler.
   - Golden check: `calculate_farm(Small Farm preset)` equals the UI engine output exactly.
-- [ ] **P5.8 MUST — Manual verification with MCP Inspector** (⚠ re-verify the command):
+- [x] **P5.8 MUST — Manual verification with MCP Inspector** (⚠ re-verify the command):
   - `npx @modelcontextprotocol/inspector --cli http://localhost:3000/api/mcp --transport http --method tools/list`
   - Then a real client: `claude mcp add --transport http mineforge http://localhost:3000/api/mcp`. Ask Claude to "plan a 1 MW air-cooled farm in Paraguay at $0.04/kWh" and paste the transcript summary into §9.
+  - Inspector CLI against a production build: `tools/list` returned all 7 tools, and `tools/call` worked with live data (see §9). Still to do: the real-client step (`claude mcp add …` plus the Paraguay prompt), on the user's machine, ideally against the preview URL.
 - [ ] 🚦 **P5.9 MUST — Distribution (G3).**
   - Prepare `server.json` (registry schema ⚠ re-verify; researched as `2025-12-11`), with `remotes: [{ type: "streamable-http", url: "https://www.bitcoinminingfarmcalculator.com/api/mcp" }]` and the D5 namespace.
   - For HTTP auth: serve `/.well-known/mcp-registry-auth` with the **public** key only, and have the user generate the key pair and run `mcp-publisher login http` and `publish` themselves. **Never commit a private key.**
-- [ ] **P5.10 MUST — `/mcp` page** ("Use MineForge from your AI agent"), styled in the new direction:
+  - Prepared: `server.json` (schema `2025-12-11`, namespace `com.bitcoinminingfarmcalculator/mineforge`, remote `https://www.bitcoinminingfarmcalculator.com/api/mcp`) and `/.well-known/mcp-registry-auth`, which serves only the public key line from the `MCP_REGISTRY_AUTH` env var. **Waiting on the user (G3), see `tasks/pr/p5-mcp.md` → "G3: publish".** HTTP auth fetches `https://bitcoinminingfarmcalculator.com/.well-known/…` on the apex, which redirects to www. If the publisher doesn't follow that redirect, use DNS auth (a TXT record on the apex) instead.
+- [x] **P5.10 MUST — `/mcp` page** ("Use MineForge from your AI agent"), styled in the new direction:
   - copy-paste snippets for Claude Code (`claude mcp add --transport http mineforge <url>`), claude.ai / Claude Desktop (Settings → Connectors → Add custom connector), Cursor (`.cursor/mcp.json`) and VS Code (`.vscode/mcp.json`) — see Appendix D;
   - the tool list (generated from the tool definitions, so it can't drift);
   - an example conversation.
 
   Link it from the header, `/api-docs`, the README and the sitemap.
-- [ ] **P5.11 SHOULD — `public/llms.txt`** (llmstxt.org format): H1 title, a blockquote summary, and H2 sections linking `/methodology`, `/api-docs`, `/openapi.json`, `/mcp`, and the MCP endpoint.
+- [x] **P5.11 SHOULD — `public/llms.txt`** (llmstxt.org format): H1 title, a blockquote summary, and H2 sections linking `/methodology`, `/api-docs`, `/openapi.json`, `/mcp`, and the MCP endpoint.
 
 🚦 PR → preview → **G4**.
 
@@ -688,7 +693,7 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 
 ### Verification
 - Build hygiene (found in P1): a footer commit hash that differed between Next build workers caused intermittent React #418 hydration errors. Fixed in `next.config.js`.
-- P5.8 real-client MCP transcript summary:
+- P5.8 MCP Inspector run (live data, 2026-10-04), "plan a 1 MW air-cooled farm in Paraguay at $0.04/kWh": `compare_miners` ranked S23, A16XP and SealMiner A3 Pro Air as the most profitable air units/day. `calculate_farm` (261 × S21 XP, Asunción) gave 70.47 PH/s, 999 kW, 1,199 kVA, CAPEX $1,136,712, OPEX $37,012/mo, 6 × 56″ fans (ERA5: design max 40.5 °C, 71% humidity). `forecast_farm` (48 mo, flat $84,830) gave break-even BTC $62,097 (incl. CAPEX $99,954), payback not within 48 mo, NPV −$487k. Real-client (Claude) transcript still to do.
 - P7.3 revenue cross-check vs Hashrate Index:
 - P4.12 Lighthouse (local production build, mobile): Perf 98 / A11y 100 / BP 96 (local Vercel Analytics 404 only) / SEO 100; LCP 2.3 s, TBT 20 ms, CLS 0.001.
 - P7.4 Lighthouse (final):
