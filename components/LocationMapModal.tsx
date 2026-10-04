@@ -55,6 +55,8 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [searching, setSearching] = useState(false);
   const pickAbort = useRef<AbortController | null>(null);
+  // The label of the result the user just picked: don't search for it again
+  const chosenLabel = useRef<string | null>(null);
 
   const pickPoint = useCallback(async (lat: number, lng: number, knownName?: string) => {
     pickAbort.current?.abort();
@@ -79,8 +81,9 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
 
   // Debounced place search
   useEffect(() => {
-    if (query.trim().length < 3) {
+    if (query.trim().length < 3 || query === chosenLabel.current) {
       setResults([]);
+      setSearching(false);
       return;
     }
     const controller = new AbortController();
@@ -145,6 +148,7 @@ export default function LocationMapModal({ onConfirm, onClose }: Props) {
                   type="button"
                   className="w-full px-3 py-2 text-left text-sm text-fg hover:bg-surface-2"
                   onClick={() => {
+                    chosenLabel.current = r.label;
                     setQuery(r.label);
                     setResults([]);
                     pickPoint(r.lat, r.lng, r.name);
