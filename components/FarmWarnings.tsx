@@ -6,6 +6,7 @@ import { useFarmStore } from "@/lib/store";
 import { useCalculation, useMarket } from "@/lib/apiClient";
 import { monthlyBtcMined } from "@/lib/unitEconomics";
 import { coolingHeatLoadKw } from "@/lib/cooling";
+import { calculateMonthlyOpexBreakdown } from "@/lib/calculations";
 import { formatNumber, formatUsd } from "@/lib/utils";
 
 interface Warning {
@@ -72,16 +73,24 @@ export default function FarmWarnings() {
       }
     }
 
-    // Profitability check at the current market snapshot
+    // Profitability at the current market: informative, not an error. Red is
+    // reserved for real misconfigurations (e.g. undersized cooling).
     const btcPriceUsd = market.btcPriceUsd;
-
     if (btcPriceUsd > 0) {
       const monthlyRevenue = monthlyBtcMined(metrics.totalHashRateThs, market, config) * btcPriceUsd;
-
-      if (monthlyRevenue > 0 && metrics.monthlyOpex > monthlyRevenue) {
+      const opex = calculateMonthlyOpexBreakdown(config, metrics.totalCapex);
+      if (monthlyRevenue > 0 && opex.total > monthlyRevenue) {
+        // Electricity cost is linear in the power price, so solve revenue = OPEX for $/kWh.
+        const otherOpex = opex.total - opex.electricity;
+        const priceKwh = config.regional.electricityPriceKwh;
+        const breakEvenKwh = opex.electricity > 0 ? (priceKwh * (monthlyRevenue - otherOpex)) / opex.electricity : 0;
+        const priceLabel = `$${priceKwh.toFixed(3)}/kWh`;
         w.push({
-          type: "error",
-          message: `Monthly OPEX (${formatUsd(metrics.monthlyOpex)}) exceeds mining revenue (${formatUsd(monthlyRevenue)}). This farm loses money at current BTC price.`,
+          type: "info",
+          message:
+            breakEvenKwh > 0
+              ? `At ${priceLabel} this farm loses ${formatUsd(opex.total - monthlyRevenue)}/month at today's BTC price (${formatUsd(btcPriceUsd)}). Break-even power price: $${breakEvenKwh.toFixed(3)}/kWh.`
+              : `At today's BTC price (${formatUsd(btcPriceUsd)}) this farm's non-electricity costs alone exceed its revenue, so it loses money even with free power.`,
         });
       }
     }

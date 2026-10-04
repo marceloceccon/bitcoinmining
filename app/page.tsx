@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { hardwarePricesAsOf } from "@/lib/catalog";
 import MinerSelector from "@/components/MinerSelector";
 import FarmBuilder from "@/components/FarmBuilder";
 import MetricsDashboard from "@/components/MetricsDashboard";
@@ -253,6 +254,7 @@ export default function Home() {
       <footer className="container mx-auto px-4 py-6 mt-10 border-t border-slate-200/50">
         <div className="text-center text-slate-500 text-sm">
           <p>&copy; 2026 Bitcoin Mining Farm Calculator &middot; Simulation tool only &middot; No real mining or financial advice</p>
+          <p className="mt-1">Hardware prices as of {hardwarePricesAsOf()} &middot; live market data from mempool.space</p>
           <p className="mt-1">Built by Marcelo Ceccon. Independent tool for miners &amp; investors. <a href="/api-docs" className="text-blueprint-deep hover:underline">Free API</a></p>
           <p className="mt-3 font-mono text-xs text-slate-300">
             {process.env.NEXT_PUBLIC_COMMIT_HASH ?? 'dev'} &middot; {process.env.NEXT_PUBLIC_COMMIT_DATE ?? ''}

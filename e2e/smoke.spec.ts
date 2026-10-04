@@ -32,6 +32,11 @@ test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ 'x-real-ip': `10.${octet()}.${octet()}.${octet()}` });
 });
 
+/** A preset card (its accessible name is the preset name followed by its description). */
+function presetButton(page: Page, name: string) {
+  return page.getByRole('button', { name: new RegExp(`^${name}.+`) });
+}
+
 function tab(page: Page, label: string) {
   return page.locator('nav#calculator').getByRole('button', { name: label });
 }
@@ -40,6 +45,8 @@ test('loads without console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  // A fresh visit opens on the Small Farm preset, not an empty farm.
+  await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
   await page.waitForLoadState('networkidle');
   expect(errors).toEqual([]);
 });
@@ -48,7 +55,7 @@ for (const preset of PRESETS) {
   test(`preset "${preset}" renders metrics`, async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/');
-    await page.getByRole('button', { name: new RegExp(preset) }).click();
+    await presetButton(page, preset).click();
     await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
     await expect(page.getByText('Add miners to see farm calculations')).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -58,7 +65,7 @@ for (const preset of PRESETS) {
 test('every tab renders', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await page.getByRole('button', { name: /Small Farm/ }).click();
+  await presetButton(page, 'Small Farm').click();
   for (const { label, heading } of TABS) {
     await tab(page, label).click();
     await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible();
@@ -83,7 +90,7 @@ test('calculations run in the browser: the UI only fetches the market snapshot',
     if (url.pathname.startsWith('/api/')) apiCalls.push(`${req.method()} ${url.pathname}`);
   });
   await page.goto('/');
-  await page.getByRole('button', { name: /Industrial/ }).click();
+  await presetButton(page, 'Industrial').click();
   await expect(page.getByRole('heading', { name: 'Live Metrics' })).toBeVisible();
   await tab(page, 'Projections').click();
   await expect(page.getByRole('heading', { name: 'Forecast Parameters' })).toBeVisible();
