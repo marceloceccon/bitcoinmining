@@ -20,14 +20,18 @@ import EnergyTab from "@/components/EnergyTab";
 import LaborCosts from "@/components/LaborCosts";
 import TemperatureControl from "@/components/TemperatureControl";
 import ForecastCharts from "@/components/ForecastCharts";
+import MinerComparison from "@/components/MinerComparison";
 import ImportTaxes from "@/components/ImportTaxes";
 import FarmWarnings from "@/components/FarmWarnings";
 import FarmPresets from "@/components/FarmPresets";
+import FarmSettings from "@/components/FarmSettings";
+import FarmPersistence from "@/components/FarmPersistence";
 
-type Tab = "build" | "energy" | "labor" | "temperature" | "forecast";
+type Tab = "build" | "compare" | "energy" | "labor" | "temperature" | "forecast";
 
 const TABS: TabItem<Tab>[] = [
   { id: "build", label: "Build" },
+  { id: "compare", label: "Compare miners" },
   { id: "energy", label: "Energy" },
   { id: "labor", label: "Deploy & Labor" },
   { id: "temperature", label: "Thermal" },
@@ -125,7 +129,12 @@ export default function Calculator() {
 
       {/* Workbench: tabs on top, sticky results on the right (desktop) */}
       <section id="calculator" className="mx-auto max-w-7xl scroll-mt-16 px-4 pb-24 pt-6 lg:pb-8">
-        <Tabs tabs={TABS} value={tab} onChange={setTab} idPrefix={ID_PREFIX} label="Calculator sections" className="mb-6" />
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3 border-b border-line">
+          <Tabs tabs={TABS} value={tab} onChange={setTab} idPrefix={ID_PREFIX} label="Calculator sections" className="min-w-0 flex-1 border-b-0" />
+          <div className="pb-2">
+            <FarmPersistence />
+          </div>
+        </div>
         <AnimatePresence mode="wait" initial={false}>
           <m.div
             key={tab}
@@ -141,6 +150,8 @@ export default function Calculator() {
           >
             {tab === "forecast" ? (
               <ForecastCharts />
+            ) : tab === "compare" ? (
+              <MinerComparison />
             ) : (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <div className="min-w-0 space-y-6 lg:col-span-2">
@@ -152,6 +163,7 @@ export default function Calculator() {
                       <FarmBuilder />
                       <ImportTaxes />
                       <MiningPoolParams />
+                      <FarmSettings />
                     </>
                   )}
                   {tab === "energy" && <EnergyTab />}

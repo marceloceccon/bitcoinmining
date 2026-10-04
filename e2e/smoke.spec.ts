@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const TABS = [
   { label: 'Build', heading: 'Miner Database' },
+  { label: 'Compare miners', heading: 'Compare miners' },
   { label: 'Energy', heading: 'Regional Settings' },
   { label: 'Deploy & Labor', heading: 'Deployment Labor Costs' },
   { label: 'Thermal', heading: 'Site Location & Climate' },
@@ -128,4 +129,26 @@ test('"Drop a pin on the map" opens the location picker on the Thermal tab', asy
   await expect(dialog.getByLabel('Search for a place')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
+});
+
+test('the farm survives a reload, and a share link reproduces it in a fresh browser', async ({ page, context, browser }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/');
+  await presetButton(page, 'Industrial').click();
+  await expect(summary(page)).toContainText('236.50 PH/s');
+
+  await page.reload();
+  await expect(summary(page)).toContainText('236.50 PH/s');
+
+  await page.getByRole('button', { name: 'Copy share link' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Link copied' })).toBeVisible();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(link).toMatch(/\?s=[jz]/);
+
+  const fresh = await browser.newContext({ baseURL: new URL(link).origin });
+  const other = await fresh.newPage();
+  await other.goto(new URL(link).pathname + new URL(link).search);
+  await expect(other.getByRole('region', { name: 'Farm summary' })).toContainText('236.50 PH/s');
+  await expect(other).not.toHaveURL(/\?s=/);
+  await fresh.close();
 });

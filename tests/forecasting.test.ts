@@ -783,3 +783,18 @@ describe('Mining economics fundamentals', () => {
     expect(difficulty).toBeGreaterThan(1e13);
   });
 });
+
+describe('minerEconomics (comparison table / compare_miners)', () => {
+  it('derives daily revenue, power cost, break-even $/kWh, $/TH and payback consistently', async () => {
+    const { minerEconomics } = await import('@/lib/unitEconomics');
+    const market = { btcPriceUsd: 84714, networkHashrateEh: 964, blockReward: 3.125, avgFeesPerBlockBtc: 0.027 };
+    const e = minerEconomics({ hash_rate_ths: 270, power_watts: 3645, price_usd: 3454 }, market, { electricityPriceKwh: 0.05, uptimePercent: 100, poolFeePercent: 0 });
+    expect(e.revenuePerDayUsd).toBeCloseTo(hashpriceUsdPerPhDay(market) * 0.27, 6);
+    expect(e.powerCostPerDayUsd).toBeCloseTo(3.645 * 24 * 0.05, 9);
+    expect(e.breakEvenKwh).toBeCloseTo(e.revenuePerDayUsd / (3.645 * 24), 9);
+    expect(e.usdPerTh).toBeCloseTo(3454 / 270, 9);
+    expect(e.paybackDays).toBeCloseTo(3454 / e.profitPerDayUsd, 6);
+    const pricey = minerEconomics({ hash_rate_ths: 270, power_watts: 3645, price_usd: 3454 }, market, { electricityPriceKwh: 1, uptimePercent: 100, poolFeePercent: 0 });
+    expect(pricey.paybackDays).toBeNull();
+  });
+});

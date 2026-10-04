@@ -16,7 +16,8 @@ import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { scenarioBtcPrice } from "@/lib/forecasting";
-import { DEFAULT_NETWORK_GROWTH_PERCENT, defaultNetworkGrowthPercent, toMarketSnapshot } from "@/lib/networkData";
+import { defaultNetworkGrowthPercent, toMarketSnapshot } from "@/lib/networkData";
+import { useForecastStore } from "@/lib/forecastStore";
 import { useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
 import type { ForecastParams, ForecastPeriod } from "@/types";
@@ -137,16 +138,7 @@ function aggregatePeriods(
 export default function ForecastCharts() {
   const config = useFarmStore((state) => state.config);
 
-  const [params, setParams] = useState<ForecastParams>({
-    months: 48,
-    revenueMode: "sell_opex",
-    btcPriceModel: "flat",
-    annualGrowthPercent: 30,
-    finalBtcPrice: null,
-    networkHashrateGrowthPercent: DEFAULT_NETWORK_GROWTH_PERCENT, // replaced by effectiveParams below
-    asicDegradationPercent: 4,
-    discountRatePercent: 10,
-  });
+  const { params, setParams, growthOverride, setGrowthOverride } = useForecastStore();
 
   const [btcDecimals, setBtcDecimals] = useState(8);
   const [granularity, setGranularity] = useState<Granularity>("monthly");
@@ -157,7 +149,6 @@ export default function ForecastCharts() {
   const market = useMarket();
   const startPrice = params.startingBtcPrice ?? Math.round(market.btcPriceUsd);
   // Network growth defaults to the trailing 12-month rate (clamped 0–60 %) until the user moves the slider.
-  const [growthOverride, setGrowthOverride] = useState<number | null>(null);
   const trailingGrowth = market.hashrateGrowth12mPercent;
   const effectiveParams = useMemo(
     () => ({ ...params, networkHashrateGrowthPercent: growthOverride ?? defaultNetworkGrowthPercent(trailingGrowth) }),

@@ -1,8 +1,9 @@
 "use client";
 
 import { create } from 'zustand';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 import { recommendCoolingSelections } from '@/lib/cooling';
-import { DRY_COOLERS, AIR_FANS } from '@/lib/catalog';
+import { DRY_COOLERS, AIR_FANS, MINERS } from '@/lib/catalog';
 import { defaultConfig } from '@/lib/defaults';
 import { DEFAULT_PRESET_ID, buildPresetConfig, getPreset, type PresetId } from '@/lib/presets';
 import type { FarmConfig, FarmMiner, ElectricalConfig, CoolingConfig, SolarConfig, RegionalConfig, PayoutScheme, LaborConfig, TemperatureConfig, InfrastructureType, ImportTaxConfig, MaintenanceLaborConfig, DryCoolerModel, AirFanModel } from '@/types';
@@ -61,7 +62,43 @@ function autoConfigureCooling(
   };
 }
 
-export const useFarmStore = create<FarmStore>((set, get) => ({
+/** localStorage that never throws (private windows, blocked storage): the farm just isn't remembered. */
+const safeStorage: StateStorage = {
+  getItem: (key) => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // ignore
+    }
+  },
+  removeItem: (key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  },
+};
+
+/** Persisted catalog miners are re-resolved by id so a saved farm never keeps stale specs or prices. */
+function refreshMiners(config: FarmConfig): FarmConfig {
+  return {
+    ...config,
+    miners: config.miners.map(({ miner, quantity }) => ({ miner: MINERS.find((m) => m.id === miner.id) ?? miner, quantity })),
+  };
+}
+
+export const FARM_STORAGE_KEY = 'mf-farm';
+const FARM_STORAGE_VERSION = 1;
+
+export const useFarmStore = create<FarmStore>()(persist((set, get) => ({
   // A fresh visit starts from a realistic farm, not an empty one.
   config: buildPresetConfig(getPreset(DEFAULT_PRESET_ID)),
   dryCoolerCatalog: DRY_COOLERS,
@@ -229,4 +266,18 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
     })),
 
   reset: () => set(() => ({ config: defaultConfig, coolingOverridden: false })),
+}), {
+  name: FARM_STORAGE_KEY,
+  version: FARM_STORAGE_VERSION,
+  storage: createJSONStorage(() => safeStorage),
+  partialize: (state) => ({ config: state.config, coolingOverridden: state.coolingOverridden }),
+  // Unknown older shapes are dropped rather than half-loaded
+  migrate: (persisted, version) => (version === FARM_STORAGE_VERSION ? (persisted as Partial<FarmStore>) : {}),
+  merge: (persisted, current) => {
+    const p = (persisted ?? {}) as Partial<Pick<FarmStore, 'config' | 'coolingOverridden'>>;
+    if (!p.config || !Array.isArray(p.config.miners)) return current;
+    return { ...current, config: refreshMiners({ ...defaultConfig, ...p.config }), coolingOverridden: !!p.coolingOverridden };
+  },
+  // Rehydrated after mount (see FarmPersistence) so the server and first client render agree
+  skipHydration: true,
 }));

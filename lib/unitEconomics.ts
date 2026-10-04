@@ -2,7 +2,7 @@
  * Spot mining economics at a market snapshot — the one revenue formula shared by
  * the forecast engine, the dashboard, the warnings and (later) MCP.
  */
-import type { MarketSnapshot } from '@/types';
+import type { MarketSnapshot, Miner } from '@/types';
 import { BLOCKS_PER_DAY, hashpriceUsdPerPhDay } from '@/lib/bitcoin';
 import { DAYS_PER_MONTH } from '@/lib/calculations';
 
@@ -72,5 +72,47 @@ export function calculateSpotEconomics(
     monthlyProfitUsd: monthlyRevenueUsd - monthlyOpexUsd,
     costPerBtcUsd: monthlyBtc > 0 ? monthlyOpexUsd / monthlyBtc : null,
     hashpriceUsdPhDay: hashpriceUsdPerPhDay(market),
+  };
+}
+
+export interface MinerEconomicsInput {
+  electricityPriceKwh: number;
+  uptimePercent: number;
+  poolFeePercent: number;
+}
+
+export interface MinerEconomics {
+  revenuePerDayUsd: number;
+  powerCostPerDayUsd: number;
+  profitPerDayUsd: number;
+  /** Electricity price at which the miner just breaks even, $/kWh */
+  breakEvenKwh: number;
+  /** Hardware price per TH/s */
+  usdPerTh: number;
+  /** Days of profit to repay the hardware at today's market; null if it doesn't profit */
+  paybackDays: number | null;
+}
+
+/**
+ * One miner's daily economics at today's market and your power price — the
+ * miner comparison table and MCP compare_miners. Wall power only (no parasitic
+ * load); power is drawn only while the miner is up.
+ */
+export function minerEconomics(
+  miner: Pick<Miner, 'hash_rate_ths' | 'power_watts' | 'price_usd'>,
+  market: Pick<MarketSnapshot, 'btcPriceUsd' | 'networkHashrateEh' | 'blockReward' | 'avgFeesPerBlockBtc'>,
+  input: MinerEconomicsInput,
+): MinerEconomics {
+  const revenuePerDayUsd = dailyBtcMined(miner.hash_rate_ths, market, input) * market.btcPriceUsd;
+  const kwhPerDay = (miner.power_watts / 1000) * 24 * (input.uptimePercent / 100);
+  const powerCostPerDayUsd = kwhPerDay * input.electricityPriceKwh;
+  const profitPerDayUsd = revenuePerDayUsd - powerCostPerDayUsd;
+  return {
+    revenuePerDayUsd,
+    powerCostPerDayUsd,
+    profitPerDayUsd,
+    breakEvenKwh: kwhPerDay > 0 ? revenuePerDayUsd / kwhPerDay : 0,
+    usdPerTh: miner.hash_rate_ths > 0 ? miner.price_usd / miner.hash_rate_ths : 0,
+    paybackDays: profitPerDayUsd > 0 ? miner.price_usd / profitPerDayUsd : null,
   };
 }
