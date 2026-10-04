@@ -118,3 +118,14 @@ test('the methodology page renders', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'How MineForge works' })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('"Drop a pin on the map" opens the location picker on the Thermal tab', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Drop a pin on the map' }).click();
+  await expect(tab(page, 'Thermal')).toHaveAttribute('aria-selected', 'true');
+  const dialog = page.getByRole('dialog', { name: 'Choose Location' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Search for a place')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});

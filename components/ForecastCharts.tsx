@@ -1,27 +1,33 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, m } from "motion/react";
 import {
   ComposedChart, LineChart, Line, Bar, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
 import { TrendingUp, Bitcoin, ChevronDown, ChevronUp, Activity } from "lucide-react";
+import BreakEvenHero from "./projections/BreakEvenHero";
+import KeyDriversTornado from "./projections/KeyDriversTornado";
+import { keyDrivers } from "@/lib/sensitivity";
 import Card from "./ui/Card";
 import Button from "./ui/Button";
 import Slider from "./ui/Slider";
 import HelpTooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
-import { generateForecast, scenarioBtcPrice } from "@/lib/forecasting";
+import { scenarioBtcPrice } from "@/lib/forecasting";
 import { DEFAULT_NETWORK_GROWTH_PERCENT, defaultNetworkGrowthPercent, toMarketSnapshot } from "@/lib/networkData";
 import { useForecast, useMarket } from "@/lib/apiClient";
 import { formatUsd, formatBtc, formatDate, formatPercent } from "@/lib/utils";
-import type { FarmConfig, ForecastParams, ForecastPeriod } from "@/types";
+import type { ForecastParams, ForecastPeriod } from "@/types";
 
 /** Compact USD formatter for chart axis ticks */
 function tickUsd(v: number): string {
-  if (Math.abs(v) >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-  return `$${v.toFixed(0)}`;
+  const sign = v < 0 ? "−" : "";
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${sign}$${(a / 1_000_000).toFixed(1)}M`;
+  if (a >= 1_000) return `${sign}$${(a / 1_000).toFixed(0)}K`;
+  return `${sign}$${a.toFixed(0)}`;
 }
 
 function tickBtcPrice(v: number): string {
@@ -30,16 +36,25 @@ function tickBtcPrice(v: number): string {
   return `$${v.toFixed(0)}`;
 }
 
+/** Chart colors come from the design tokens, so both themes work. */
+const C = {
+  good: "rgb(var(--good))",
+  bad: "rgb(var(--bad))",
+  btc: "rgb(var(--btc))",
+  fg: "rgb(var(--fg))",
+  axis: "rgb(var(--muted))",
+  grid: "rgb(var(--line))",
+};
+
 const TOOLTIP_STYLE = {
   contentStyle: {
-    backgroundColor: "rgba(255,255,255,0.85)",
-    backdropFilter: "blur(12px)",
-    WebkitBackdropFilter: "blur(12px)",
-    border: "1px solid rgba(210,218,230,0.7)",
-    borderRadius: "16px",
-    fontSize: "13px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6)",
+    backgroundColor: "rgb(var(--surface))",
+    border: "1px solid rgb(var(--line-strong))",
+    borderRadius: "6px",
+    fontSize: "12px",
+    color: "rgb(var(--fg))",
   },
+  labelStyle: { color: "rgb(var(--muted))" },
 };
 
 type Granularity = "monthly" | "quarterly" | "yearly";
@@ -152,47 +167,19 @@ export default function ForecastCharts() {
 
   const { data: forecast } = useForecast(config, effectiveParams);
 
-  // Sensitivity analysis — 4 what-if scenarios, computed in the browser
-  const sensitivity = useMemo(() => {
-    if (!forecast || config.miners.length === 0) return null;
-    const snapshot = toMarketSnapshot(market);
-    const now = new Date();
-    const run = (c: FarmConfig, p: ForecastParams) => generateForecast(c, p, snapshot, now);
+  // Key drivers: NPV swing per input (tornado), computed in the browser
+  const drivers = useMemo(
+    () => (forecast ? keyDrivers(config, effectiveParams, toMarketSnapshot(market), new Date()) : null),
+    [forecast, config, effectiveParams, market],
+  );
 
-    const base = forecast.summary.npv;
-    const configElec = {
-      ...config,
-      regional: { ...config.regional, electricityPriceKwh: config.regional.electricityPriceKwh * 1.2 },
-    };
-    // Every price in the scenario 10% lower
-    const paramsBear = {
-      ...effectiveParams,
-      startingBtcPrice: startPrice * 0.9,
-      finalBtcPrice: effectiveParams.finalBtcPrice != null ? effectiveParams.finalBtcPrice * 0.9 : null,
-    };
-    const paramsNet = { ...effectiveParams, networkHashrateGrowthPercent: effectiveParams.networkHashrateGrowthPercent + 10 };
-    const paramsNoDeg = { ...effectiveParams, asicDegradationPercent: 0 };
-
-    const elecNpv = run(configElec, effectiveParams).summary.npv;
-    const bearNpv = run(config, paramsBear).summary.npv;
-    const netData = run(config, paramsNet);
-    const noDegData = run(config, paramsNoDeg);
-
-    const netLastRevenue = netData.periods[netData.periods.length - 1]?.miningRevenueUsd ?? 0;
-    const baseLastRevenue = forecast.periods[forecast.periods.length - 1]?.miningRevenueUsd ?? 0;
-    const revDeltaPct = baseLastRevenue > 0 ? ((netLastRevenue - baseLastRevenue) / baseLastRevenue) * 100 : 0;
-
-    const baseBtc = forecast.summary.totalBtcMined;
-    const noDegBtc = noDegData.summary.totalBtcMined;
-    const btcDeltaPct = baseBtc > 0 ? ((noDegBtc - baseBtc) / baseBtc) * 100 : 0;
-
-    return [
-      { label: "Electricity +20%", value: `NPV ${formatUsd(elecNpv)}`, delta: elecNpv - base },
-      { label: "BTC price −10%", value: `NPV ${formatUsd(bearNpv)}`, delta: bearNpv - base },
-      { label: `Network growth +10%`, value: `Final month revenue ${revDeltaPct >= 0 ? "+" : ""}${revDeltaPct.toFixed(1)}%`, delta: revDeltaPct },
-      { label: "Zero ASIC degradation", value: `+${btcDeltaPct.toFixed(1)}% total BTC mined`, delta: btcDeltaPct },
-    ];
-  }, [forecast, config, effectiveParams, startPrice, market]);
+  // Charts draw on first view only; recalculations update in place
+  const drawnOnce = useRef(false);
+  useEffect(() => {
+    if (forecast) drawnOnce.current = true;
+  }, [forecast]);
+  const animateCharts = !drawnOnce.current;
+  const scenarioKey = `${params.btcPriceModel}:${params.annualGrowthPercent}:${params.finalBtcPrice}`;
 
   if (config.miners.length === 0) {
     return (
@@ -221,6 +208,8 @@ export default function ForecastCharts() {
     grossRevenue: p.miningRevenueUsd,
     btcSoldForOpex: params.revenueMode === "sell_opex" ? Math.min(p.opexUsd, p.miningRevenueUsd) : 0,
     netCashFlow: p.miningRevenueUsd - p.opexUsd - (i === 0 ? forecast.totalCapex : 0),
+    opexPositive: p.opexUsd,
+    cumulativeCash: forecast.periods.slice(0, i + 1).reduce((sum, q) => sum + q.miningRevenueUsd - q.opexUsd, -forecast.totalCapex),
     btc: p.btcBalance,
     btcMined: p.btcMined,
   }));
@@ -466,249 +455,113 @@ export default function ForecastCharts() {
         </div>
       </Card>
 
-      {/* Summary Cards — row 1 */}
-      {forecast && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
-            <div className="text-sm text-muted mb-1">Total Revenue</div>
-            <div className="text-xl font-bold text-good font-mono tabular-nums">
-              {formatUsd(forecast.summary.totalRevenue)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1">Total Costs</div>
-            <div className="text-xl font-bold text-bad font-mono tabular-nums">
-              {formatUsd(forecast.summary.totalCosts)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1">Net Profit</div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.totalProfit >= 0 ? 'text-good' : 'text-bad'}`}>
-              {formatUsd(forecast.summary.totalProfit)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1 flex items-center gap-1">
-              BTC / Month
-              <HelpTooltip content="Average Bitcoin mined per month over the forecast period, accounting for network growth and ASIC degradation." />
-            </div>
-            <div className="text-xl font-bold text-warn font-mono tabular-nums">
-              {formatBtc(forecast.summary.totalBtcMined / params.months, 6)}
-            </div>
-            <div className="text-xs text-faint mt-1">
-              Total: {formatBtc(forecast.summary.totalBtcMined, 4)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1">ROI</div>
-            <div className="text-xl font-bold text-fg font-mono tabular-nums">
-              {formatPercent(forecast.summary.roiPercent)}
-            </div>
-            {forecast.summary.paybackMonths && (
-              <div className="text-xs text-faint mt-1">
-                Payback: {forecast.summary.paybackMonths} months
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
+      {forecast && <BreakEvenHero forecast={forecast} startPrice={startPrice} months={params.months} discountRate={params.discountRatePercent} />}
 
-      {/* Financial Metric Cards — row 2 */}
-      {forecast && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <div className="text-sm text-muted mb-1 flex items-center gap-1">
-              IRR
-              <HelpTooltip content="Internal Rate of Return — the annualized discount rate at which the project's NPV equals zero. Higher = better. Comparable across investments of different sizes." />
-            </div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.irr !== null && forecast.summary.irr >= 0 ? 'text-fg' : 'text-bad'}`}>
-              {forecast.summary.irr === null ? "n/a" : `${forecast.summary.irr.toFixed(1)}%`}
-            </div>
-            <div className="text-xs text-faint mt-1">
-              {forecast.summary.irr === null ? "cash flows never repay the CAPEX" : "annual"}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1 flex items-center gap-1">
-              NPV
-              <HelpTooltip content="Net Present Value — the total value of future cash flows discounted to today's dollars, minus initial investment. Positive = project adds value above your required return." />
-            </div>
-            <div className={`text-xl font-bold font-mono tabular-nums ${forecast.summary.npv >= 0 ? 'text-fg' : 'text-bad'}`}>
-              {formatUsd(forecast.summary.npv)}
-            </div>
-            <div className="text-xs text-faint mt-1">
-              at {params.discountRatePercent}% discount rate
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1 flex items-center gap-1">
-              Break-even BTC Price
-              <HelpTooltip content="The average BTC price needed for revenue to cover all costs. 'OPEX only' covers operating costs; 'With CAPEX' covers total investment including hardware." />
-            </div>
-            <div className="text-xl font-bold text-fg font-mono tabular-nums">
-              {formatUsd(forecast.summary.breakEvenBtcPriceWithCapex)}
-            </div>
-            <div className="text-xs text-faint mt-1">
-              OPEX only: {formatUsd(forecast.summary.breakEvenBtcPrice)}
-            </div>
-          </Card>
-          <Card>
-            <div className="text-sm text-muted mb-1 flex items-center gap-1">
-              Avg Hashprice
-              <HelpTooltip content="Average revenue per terahash per day over the forecast period. Key metric for comparing mining profitability across different hardware and time periods." />
-            </div>
-            <div className="text-xl font-bold text-fg font-mono tabular-nums">
-              ${forecast.summary.avgHashpriceUsd.toFixed(4)}
-            </div>
-            <div className="text-xs text-faint mt-1">
-              $/TH/day avg over {params.months}m
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Revenue & Profit Chart */}
+      {/* Cash flow — draws on first view; scenario changes cross-fade */}
       {chartData && (
         <Card>
-          <h3 className="text-base font-semibold text-fg mb-4">Revenue & Profit</h3>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickUsd} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatUsd(value), name]}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#059669" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-              <Line type="monotone" dataKey="profit" name="Profit" stroke="#3B82F6" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      {/* BTC Price Forecast Chart */}
-      {chartData && (
-        <Card>
-          <h3 className="text-base font-semibold text-fg mb-4">BTC Price Scenario</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickBtcPrice} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatUsd(value), name]}
-              />
-              <Line type="monotone" dataKey="btcPrice" name="BTC Price" stroke="#F59E0B" strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-      )}
-
-      {/* Cash Flow Chart */}
-      {chartData && forecast && (
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-fg">Cash Flow Analysis</h3>
+          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+            <div>
+              <h3 className="text-base font-semibold text-fg">Monthly cash flow</h3>
+              <p className="text-sm text-muted">Revenue against OPEX, and the cumulative cash position after CAPEX</p>
+            </div>
+            <span className="label">{forecast!.assumptions.priceScenario}</span>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#059669" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#059669" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="opexGrad" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.5} />
-                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} tickFormatter={tickUsd} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => {
-                  return [formatUsd(Math.abs(value)), name];
-                }}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="grossRevenue" name="Revenue" stroke="#059669" fill="url(#revenueGrad)" strokeWidth={1.5} />
-              <Area type="monotone" dataKey="opex" name="OPEX" stroke="#dc2626" fill="url(#opexGrad)" strokeWidth={1.5} />
-              <Bar dataKey="capex" name="CAPEX" fill="#7c3aed" opacity={0.8} />
-              {params.revenueMode === "sell_opex" && (
-                <Area type="monotone" dataKey="btcSoldForOpex" name="BTC Sold for OPEX" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="4 2" />
-              )}
-              <Line type="monotone" dataKey="netCashFlow" name="Net Cash Flow" stroke="#3B82F6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <AnimatePresence mode="wait" initial={false}>
+            <m.div key={scenarioKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                  <defs>
+                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={C.good} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={C.good} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke={C.grid} vertical={false} />
+                  <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+                  <YAxis yAxisId="m" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickUsd} width={64} tickLine={false} />
+                  <YAxis yAxisId="c" orientation="right" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickUsd} width={64} tickLine={false} />
+                  <Tooltip {...TOOLTIP_STYLE} formatter={(value: number, name: string) => [formatUsd(value), name]} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: C.axis }} />
+                  <Area yAxisId="m" type="monotone" dataKey="grossRevenue" name="Revenue" stroke={C.good} fill="url(#revenueGrad)" strokeWidth={2} isAnimationActive={animateCharts} />
+                  <Line yAxisId="m" type="monotone" dataKey="opexPositive" name="OPEX" stroke={C.bad} strokeWidth={2} dot={false} isAnimationActive={animateCharts} />
+                  <Line yAxisId="c" type="monotone" dataKey="cumulativeCash" name="Cumulative cash (right)" stroke={C.fg} strokeWidth={1.5} strokeDasharray="4 3" dot={false} isAnimationActive={animateCharts} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </m.div>
+          </AnimatePresence>
         </Card>
       )}
 
-      {/* BTC Balance Chart (if holding) */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* BTC price scenario */}
+        {chartData && (
+          <Card>
+            <h3 className="text-base font-semibold text-fg">BTC price scenario</h3>
+            <p className="mb-3 text-sm text-muted">A scenario you choose, not a prediction</p>
+            <AnimatePresence mode="wait" initial={false}>
+              <m.div key={scenarioKey} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid stroke={C.grid} vertical={false} />
+                    <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+                    <YAxis stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickFormatter={tickBtcPrice} width={64} tickLine={false} domain={[(min: number) => Math.floor((min * 0.85) / 1000) * 1000, (max: number) => Math.ceil((max * 1.1) / 1000) * 1000]} tickCount={5} />
+                    <Tooltip {...TOOLTIP_STYLE} formatter={(value: number) => [formatUsd(value), "BTC price"]} />
+                    <Line type="monotone" dataKey="btcPrice" name="BTC price" stroke={C.btc} strokeWidth={2} dot={false} isAnimationActive={animateCharts} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </m.div>
+            </AnimatePresence>
+          </Card>
+        )}
+
+        {/* Key drivers tornado */}
+        {drivers && <KeyDriversTornado drivers={drivers} />}
+      </div>
+
+      {/* BTC balance (when holding) */}
       {chartData && params.revenueMode !== "sell_all" && (
         <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <Bitcoin className="h-5 w-5 text-warn" />
-            <h3 className="text-base font-semibold text-fg">Bitcoin Balance</h3>
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-fg">
+              <Bitcoin className="h-4 w-4 text-btc" aria-hidden />
+              BTC held
+            </h3>
+            <span className="font-mono text-sm text-fg">{formatBtc(forecast!.summary.finalBtcBalance, 4)} at month {params.months}</span>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={chartData}>
-              <defs>
-                <linearGradient id="btcGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.6} />
-                  <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(30,64,175,0.08)" />
-              <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} width={80} />
-              <Tooltip
-                {...TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => [formatBtc(value, btcDecimals), name]}
-              />
-              <Area type="monotone" dataKey="btc" name="BTC Balance" stroke="#F59E0B" fillOpacity={1} fill="url(#btcGradient)" activeDot={{ r: 4, strokeWidth: 2 }} />
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid stroke={C.grid} vertical={false} />
+              <XAxis dataKey="date" stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} tickLine={false} minTickGap={24} />
+              <YAxis stroke={C.axis} tick={{ fontSize: 11, fill: C.axis }} width={64} tickLine={false} tickFormatter={(v: number) => v.toFixed(v < 10 ? 1 : 0)} />
+              <Tooltip {...TOOLTIP_STYLE} formatter={(value: number) => [formatBtc(value, btcDecimals), "BTC held"]} />
+              <Area type="monotone" dataKey="btc" name="BTC held" stroke={C.btc} fill={C.btc} fillOpacity={0.12} strokeWidth={2} isAnimationActive={animateCharts} />
             </ComposedChart>
           </ResponsiveContainer>
         </Card>
       )}
 
-      {/* Granularity Toggle + Expandable Data Table */}
+      {/* Period data table */}
       {forecast && (
         <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm text-muted">View:</span>
-            {(["monthly", "quarterly", "yearly"] as const).map((g) => (
-              <Button
-                key={g}
-                variant={granularity === g ? "primary" : "default"}
-                size="sm"
-                onClick={() => setGranularity(g)}
-              >
-                {g.charAt(0).toUpperCase() + g.slice(1)}
-              </Button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              className="flex items-center gap-2 text-left"
+              onClick={() => setTableExpanded(!tableExpanded)}
+              aria-expanded={tableExpanded}
+            >
+              <Activity className="h-4 w-4 text-muted" aria-hidden />
+              <h3 className="text-base font-semibold text-fg">Period data</h3>
+              {tableExpanded ? <ChevronUp className="h-4 w-4 text-faint" aria-hidden /> : <ChevronDown className="h-4 w-4 text-faint" aria-hidden />}
+            </button>
+            <div className="flex gap-1.5" role="group" aria-label="Table granularity">
+              {(["monthly", "quarterly", "yearly"] as const).map((g) => (
+                <Button key={g} variant={granularity === g ? "primary" : "default"} size="sm" aria-pressed={granularity === g} onClick={() => setGranularity(g)}>
+                  {g.charAt(0).toUpperCase() + g.slice(1)}
+                </Button>
+              ))}
+            </div>
           </div>
-        </Card>
-      )}
-      {forecast && (
-        <Card>
-          <button
-            className="w-full flex items-center justify-between text-left"
-            onClick={() => setTableExpanded(!tableExpanded)}
-          >
-            <h3 className="text-base font-semibold text-fg flex items-center gap-2">
-              <Activity className="h-5 w-5 text-fg" />
-              Period Data ({granularity})
-            </h3>
-            {tableExpanded ? (
-              <ChevronUp className="h-5 w-5 text-faint" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-faint" />
-            )}
-          </button>
 
           {tableExpanded && (
             <div className="mt-4 overflow-x-auto">
@@ -755,28 +608,6 @@ export default function ForecastCharts() {
         </Card>
       )}
 
-      {/* Sensitivity Analysis */}
-      {sensitivity && (
-        <Card>
-          <h3 className="text-base font-semibold text-fg mb-3 flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-fg" />
-            Key Drivers Impact
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {sensitivity.map((s, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between py-2 px-3 inset"
-              >
-                <span className="text-sm text-muted">{s.label}</span>
-                <span className={`text-sm font-mono font-semibold tabular-nums ${s.delta >= 0 ? 'text-good' : 'text-bad'}`}>
-                  {s.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   );
 }

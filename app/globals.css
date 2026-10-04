@@ -213,3 +213,21 @@
 @keyframes schematic-plume {
   50% { opacity: 0.25; transform: translateY(-4px) scaleY(1.06); }
 }
+
+/* Map: OSM tiles darkened in the dark theme with a filter (no new tile provider) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .map-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+}
+:root[data-theme="dark"] .map-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+.leaflet-container { font-family: inherit; }
+.leaflet-control-attribution { background: rgb(var(--surface) / 0.85) !important; color: rgb(var(--muted)) !important; }
+.leaflet-control-attribution a { color: rgb(var(--fg)) !important; }
+
+/* Site pin drops onto the map */
+.site-pin { background: none; border: 0; }
+.site-pin svg { animation: pin-drop 500ms cubic-bezier(0.2, 0.9, 0.3, 1.2); transform-origin: 50% 100%; }
+@keyframes pin-drop {
+  0% { transform: translateY(-36px) scale(0.9); opacity: 0; }
+  70% { transform: translateY(2px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}

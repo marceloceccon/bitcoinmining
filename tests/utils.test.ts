@@ -219,30 +219,30 @@ describe('debounce', () => {
 
 describe('getRoiColor', () => {
   it('returns red for negative ROI', () => {
-    expect(getRoiColor(-10)).toBe('text-red-500');
+    expect(getRoiColor(-10)).toBe('text-bad');
   });
 
   it('returns yellow for 0-50% ROI', () => {
-    expect(getRoiColor(25)).toBe('text-yellow-500');
+    expect(getRoiColor(25)).toBe('text-warn');
   });
 
   it('returns orange for 50-100% ROI', () => {
-    expect(getRoiColor(75)).toBe('text-orange-500');
+    expect(getRoiColor(75)).toBe('text-warn');
   });
 
   it('returns green for ≥ 100% ROI', () => {
-    expect(getRoiColor(150)).toBe('text-green-500');
+    expect(getRoiColor(150)).toBe('text-good');
   });
 
   it('edge case: exactly 0% → yellow', () => {
-    expect(getRoiColor(0)).toBe('text-yellow-500');
+    expect(getRoiColor(0)).toBe('text-warn');
   });
 
   it('edge case: exactly 50% → orange', () => {
-    expect(getRoiColor(50)).toBe('text-orange-500');
+    expect(getRoiColor(50)).toBe('text-warn');
   });
 
   it('edge case: exactly 100% → green', () => {
-    expect(getRoiColor(100)).toBe('text-green-500');
+    expect(getRoiColor(100)).toBe('text-good');
   });
 });

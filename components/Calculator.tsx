@@ -5,6 +5,7 @@ import { AnimatePresence, m } from "motion/react";
 import { ChevronUp } from "lucide-react";
 import { useFarmStore } from "@/lib/store";
 import { useCalculation } from "@/lib/apiClient";
+import { useUiStore } from "@/lib/uiStore";
 import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 import FarmSchematic from "@/components/FarmSchematic";
 import Metric from "@/components/ui/Metric";
@@ -57,6 +58,7 @@ export default function Calculator() {
   const { data: report } = useCalculation(config);
   const [tab, setTab] = useTabParam();
   const [sheetOpen, setSheetOpen] = useState(false);
+  const requestMap = useUiStore((s) => s.requestMap);
 
   const goToTab = (next: Tab) => {
     setTab(next);
@@ -82,7 +84,14 @@ export default function Calculator() {
             <Button variant="primary" onClick={() => goToTab("build")}>
               Start from a preset
             </Button>
-            <Button onClick={() => goToTab("temperature")}>Drop a pin on the map</Button>
+            <Button
+              onClick={() => {
+                requestMap();
+                goToTab("temperature");
+              }}
+            >
+              Drop a pin on the map
+            </Button>
           </div>
         </div>
         <div className="panel p-3">

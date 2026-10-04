@@ -8,6 +8,8 @@ import Input from "./ui/Input";
 import Tooltip from "./ui/Tooltip";
 import { useFarmStore } from "@/lib/store";
 import { useCalculation } from "@/lib/apiClient";
+import { useUiStore } from "@/lib/uiStore";
+import SiteThermalSummary from "./thermal/SiteThermalSummary";
 import { getDryCoolerDeratingFactor } from "@/lib/calculations";
 import {
   airFanQuantity,
@@ -32,6 +34,11 @@ export default function TemperatureControl() {
   const { location, dryCoolerSelections, airFanSelections } = temperature;
 
   const [showMap, setShowMap] = useState(false);
+  // The hero's "Drop a pin on the map" opens the map as soon as this tab mounts
+  const consumeMapRequest = useUiStore((s) => s.consumeMapRequest);
+  useEffect(() => {
+    if (consumeMapRequest()) setShowMap(true);
+  }, [consumeMapRequest]);
 
   const { data: calcData } = useCalculation(config);
 
@@ -164,10 +171,16 @@ export default function TemperatureControl() {
 
         <button
           onClick={() => setShowMap(true)}
-          className="mb-6 px-5 py-2.5 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 transition-all"
+          className="mb-5 px-4 py-2 text-sm font-semibold bg-fg text-bg rounded hover:bg-fg/85 transition-colors"
         >
           Choose Location
         </button>
+
+        {calcData && config.miners.length > 0 && (
+          <div className="mb-5">
+            <SiteThermalSummary config={config} report={calcData} />
+          </div>
+        )}
 
         {coolingOverridden && config.miners.length > 0 && (
           <p className="mb-5 text-sm text-muted">
