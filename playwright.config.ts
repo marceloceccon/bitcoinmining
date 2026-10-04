@@ -17,10 +17,16 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1440, height: 900 } } },
+    { name: 'desktop', use: { browserName: 'chromium', viewport: { width: 1440, height: 900 }, colorScheme: 'light' } },
+    { name: 'desktop-dark', use: { browserName: 'chromium', viewport: { width: 1440, height: 900 }, colorScheme: 'dark' } },
+    {
+      name: 'reduced-motion',
+      use: { browserName: 'chromium', viewport: { width: 1440, height: 900 }, contextOptions: { reducedMotion: 'reduce' } },
+      testMatch: /(smoke|motion)\.spec\.ts/,
+    },
     {
       name: 'mobile',
-      use: { browserName: 'chromium', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      use: { browserName: 'chromium', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark' },
     },
   ],
   webServer: {

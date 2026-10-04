@@ -66,10 +66,10 @@ export default function FarmSchematic({ config, report, className, compact = fal
           <path d={d} className="stroke-line" strokeWidth={3} />
           <path
             d={d}
-            className="stroke-btc"
             strokeWidth={3}
             strokeDasharray="3 9"
-            style={reduce ? undefined : { animation: `schematic-flow ${layout.flowSeconds}s linear infinite` }}
+            className="schem-flow stroke-btc"
+            style={{ ["--flow-s" as string]: `${layout.flowSeconds}s` }}
           />
         </g>
       ))}
@@ -172,12 +172,12 @@ export default function FarmSchematic({ config, report, className, compact = fal
           <path
             key={i}
             d={`M${618 + i * 26} 90 C ${608 + i * 26} 70, ${632 + i * 26} 58, ${620 + i * 26} 34`}
-            className="stroke-heat"
+            className="schem-plume stroke-heat"
             strokeWidth={2}
             fill="none"
             strokeLinecap="round"
             opacity={i < 1 + Math.round(layout.plume * 2) ? 0.35 + layout.plume * 0.55 : 0}
-            style={reduce ? undefined : { animation: `schematic-plume 3.2s ease-in-out ${i * 0.7}s infinite`, transformBox: "fill-box", transformOrigin: "bottom" }}
+            style={{ animationDelay: `${i * 0.7}s` }}
           />
         ))}
       {layout.exhaustLabel && text(648, 22, layout.exhaustLabel)}

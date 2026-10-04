@@ -19,8 +19,14 @@ import MiningPoolParams from "@/components/MiningPoolParams";
 import EnergyTab from "@/components/EnergyTab";
 import LaborCosts from "@/components/LaborCosts";
 import TemperatureControl from "@/components/TemperatureControl";
-import ForecastCharts from "@/components/ForecastCharts";
+import dynamic from "next/dynamic";
 import MinerComparison from "@/components/MinerComparison";
+
+// Recharts only loads with the Projections tab
+const ForecastCharts = dynamic(() => import("@/components/ForecastCharts"), {
+  ssr: false,
+  loading: () => <div className="panel h-96 animate-pulse" aria-busy="true" aria-label="Loading projections" />,
+});
 import ImportTaxes from "@/components/ImportTaxes";
 import FarmWarnings from "@/components/FarmWarnings";
 import FarmPresets from "@/components/FarmPresets";

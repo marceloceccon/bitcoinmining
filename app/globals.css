@@ -17,16 +17,16 @@
     --surface-2: 234 239 243;
     --fg: 20 32 43;
     --fg-2: 47 61 74;
-    --muted: 84 98 112;
-    --faint: 118 132 146;
+    --muted: 78 91 104;
+    --faint: 94 107 120;
     --line: 207 216 225;
     --line-strong: 170 184 198;
-    --btc: 180 95 6;
-    --good: 28 127 75;
-    --bad: 194 54 43;
-    --warn: 166 98 0;
-    --heat: 196 99 15;
-    --cool: 42 111 192;
+    --btc: 158 82 0;
+    --good: 22 112 64;
+    --bad: 178 44 34;
+    --warn: 140 82 0;
+    --heat: 166 84 10;
+    --cool: 32 96 170;
     --power: 43 58 72;
     --grid: 20 60 110;
     --grid-alpha: 0.05;
@@ -41,8 +41,8 @@
       --surface-2: 15 18 21;
       --fg: 228 231 234;
       --fg-2: 195 201 207;
-      --muted: 142 151 160;
-      --faint: 108 117 128;
+      --muted: 150 159 168;
+      --faint: 128 137 148;
       --line: 35 40 48;
       --line-strong: 56 64 75;
       --btc: 247 147 26;
@@ -64,8 +64,8 @@
     --surface-2: 15 18 21;
     --fg: 228 231 234;
     --fg-2: 195 201 207;
-    --muted: 142 151 160;
-    --faint: 108 117 128;
+    --muted: 150 159 168;
+    --faint: 128 137 148;
     --line: 35 40 48;
     --line-strong: 56 64 75;
     --btc: 247 147 26;
@@ -202,11 +202,17 @@
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }
 
-/* Farm schematic: power flow along the wires and the heat plume above cooling */
+/* Farm schematic: power flow along the wires and the heat plume above cooling.
+   CSS-gated (not JS) so server-rendered markup respects reduced motion too. */
+@media (prefers-reduced-motion: no-preference) {
+  .schem-flow { animation: schematic-flow var(--flow-s, 1.5s) linear infinite; }
+  .schem-plume { animation: schematic-plume 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: bottom; }
+}
 @keyframes schematic-flow {
   to { stroke-dashoffset: -24; }
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 import { Zap, Flame, Gauge, DollarSign, TrendingUp, Factory, Volume2, CircuitBoard } from "lucide-react";
 import Card from "./ui/Card";
 import Tooltip from "./ui/Tooltip";
@@ -113,10 +112,6 @@ export default function MetricsDashboard() {
     ...(metrics.importTaxCapex > 0 ? [{ label: "Import Taxes", value: metrics.importTaxCapex }] : []),
   ];
 
-  const PIE_COLORS = ["#1e40af", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#7c3aed", "#a78bfa", "#c4b5fd", "#f59e0b", "#fbbf24", "#fcd34d"];
-  const pieData = costBreakdown
-    .filter((item) => item.value > 0)
-    .map((item) => ({ name: item.label, value: item.value }));
 
   const isProfitable = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc < btcPriceUsd;
   const isMarginal = btcPriceUsd > 0 && costPerBtc > 0 && costPerBtc >= btcPriceUsd * 0.8 && costPerBtc < btcPriceUsd;
@@ -154,46 +149,22 @@ export default function MetricsDashboard() {
       <Card>
         <h2 className="text-lg font-bold text-fg mb-4">Cost Breakdown</h2>
         <div className="space-y-1">
-          {costBreakdown.map((item) => (
-            <div key={item.label} className="flex justify-between text-sm px-2 py-1.5 rounded row-hover">
-              <span className="text-muted">{item.label}</span>
-              <span className="font-mono font-medium text-fg-2 tabular-nums">{formatUsd(item.value)}</span>
-            </div>
-          ))}
-          {pieData.length > 1 && (
-            <div className="py-3 mt-3 border-t border-line">
-              <div className="h-48 relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={75}
-                      paddingAngle={2}
-                      dataKey="value"
-                      stroke="none"
-                    >
-                      {pieData.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      formatter={(value: number) => formatUsd(value)}
-                      contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e2e8f0" }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center">
-                    <div className="text-xs text-faint">CAPEX</div>
-                    <div className="text-sm font-bold text-fg font-mono tabular-nums">{formatUsd(metrics.totalCapex)}</div>
-                  </div>
-                </div>
+          {costBreakdown.map((item) => {
+            const share = metrics.totalCapex > 0 ? item.value / metrics.totalCapex : 0;
+            return (
+              <div key={item.label} className="relative overflow-hidden rounded px-2 py-1.5 text-sm">
+                {/* share of CAPEX as a hairline bar behind the row */}
+                <span aria-hidden className="absolute inset-y-0 left-0 bg-fg/[0.07]" style={{ width: `${share * 100}%` }} />
+                <span className="relative flex justify-between gap-3">
+                  <span className="text-muted">{item.label}</span>
+                  <span className="font-mono font-medium tabular-nums text-fg-2">
+                    {formatUsd(item.value)}
+                    <span className="ml-2 inline-block w-9 text-right text-xs text-faint">{share >= 0.005 ? `${Math.round(share * 100)}%` : ""}</span>
+                  </span>
+                </span>
               </div>
-            </div>
-          )}
+            );
+          })}
 
           <div className="pt-3 mt-3 border-t border-line flex justify-between font-semibold">
             <span className="text-fg">Total CAPEX</span>

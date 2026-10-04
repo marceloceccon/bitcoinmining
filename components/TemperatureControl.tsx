@@ -199,6 +199,7 @@ export default function TemperatureControl() {
                 <Tooltip content="Nearest city or region name resolved from map click. Editable." />
               </label>
               <Input
+                aria-label="City or location"
                 value={location.city}
                 onChange={(e) => handleLocationFieldChange("city", e.target.value)}
               />
@@ -211,6 +212,7 @@ export default function TemperatureControl() {
               </label>
               <div className="flex gap-2 items-center">
                 <Input
+                  aria-label="Average yearly temperature, °C"
                   type="number"
                   step="0.1"
                   value={location.avgYearlyTempC}
@@ -227,6 +229,7 @@ export default function TemperatureControl() {
               </label>
               <div className="flex gap-2 items-center">
                 <Input
+                  aria-label="Maximum temperature, °C"
                   type="number"
                   step="0.1"
                   value={location.maxTempC}
@@ -243,6 +246,7 @@ export default function TemperatureControl() {
               </label>
               <div className="flex gap-2 items-center">
                 <Input
+                  aria-label="Minimum temperature, °C"
                   type="number"
                   step="0.1"
                   value={location.minTempC}
@@ -259,6 +263,7 @@ export default function TemperatureControl() {
               </label>
               <div className="flex gap-2 items-center">
                 <Input
+                  aria-label="Average humidity, %"
                   type="number"
                   step="1"
                   min="0"
@@ -343,6 +348,7 @@ export default function TemperatureControl() {
                 <Tooltip content="Select an industrial axial fan model. Airflow is rated at free-delivery (no static back-pressure). Real installations typically achieve 80-90% of rated flow — add margin." />
               </label>
               <select
+                aria-label="Fan model"
                 className="w-full bg-surface border border-line rounded px-3 py-2 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
                 value={selectedFanModel}
                 onChange={(e) => setSelectedFanModel(e.target.value)}
@@ -398,6 +404,7 @@ export default function TemperatureControl() {
                       <Tooltip content={`Auto-suggested: ceil(${formatNumber(Math.round(ventilation.m3h))} m3/h / ${formatNumber(row.model.airflow_m3h)} m3/h) = ${Math.ceil(ventilation.m3h / row.model.airflow_m3h)} units to meet required airflow.`} />
                     </label>
                     <input
+                      aria-label={`Quantity of ${row.model.model}`}
                       type="number"
                       min="1"
                       step="1"
@@ -492,6 +499,7 @@ export default function TemperatureControl() {
                 <Tooltip content="kW capacity rated at 35 C ambient. Pick a model, then add it. Quantity auto-fills based on your farm's heat load." />
               </label>
               <select
+                aria-label="Dry cooler model to add"
                 className="w-full bg-surface border border-line rounded px-3 py-2 text-fg-2 text-sm focus:outline-none focus:ring-2 focus:ring-fg/20 focus:border-line-strong transition-all"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
@@ -548,6 +556,7 @@ export default function TemperatureControl() {
                       <Tooltip content={`Auto-suggested: ceil(${formatNumber(hydroHeatKw, 1)} kW / (${row.model.kw_capacity_35c} kW × ${dryCoolerDerating.toFixed(2)} derating)) = ${dryCoolerQuantity(hydroHeatKw, row.model, dryCoolerDerating)} units. Override as needed.`} />
                     </label>
                     <input
+                      aria-label={`Quantity of ${row.model.model}`}
                       type="number"
                       min="1"
                       step="1"

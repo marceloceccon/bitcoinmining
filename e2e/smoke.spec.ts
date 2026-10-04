@@ -62,7 +62,7 @@ for (const preset of PRESETS) {
     await page.goto('/');
     await presetButton(page, preset).click();
     await expect(page.getByRole('heading', { name: 'Farm Configuration' })).toBeVisible();
-    await expect(summary(page)).not.toContainText('0.00 TH/s');
+    await expect(summary(page)).not.toContainText(/(^|[^0-9.])0\.00 TH\/s/);
     expect(errors).toEqual([]);
   });
 }

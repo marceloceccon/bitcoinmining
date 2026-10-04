@@ -119,11 +119,12 @@ export default function LaborCosts() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {fields.map(({ key, label, step, tooltip }) => (
             <div key={key}>
-              <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
+              <label htmlFor={`labor-${key}`} className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
                 {label}
                 <Tooltip content={tooltip} />
               </label>
               <Input
+                id={`labor-${key}`}
                 type="number"
                 step={step}
                 min="0"
@@ -147,11 +148,12 @@ export default function LaborCosts() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
-            <label className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
+            <label htmlFor="maintenance-rate" className="text-sm font-medium text-fg-2 mb-2 flex items-center gap-1">
               Hourly maintenance cost (USD)
               <Tooltip content="Hourly rate for on-site maintenance technicians who perform routine inspections, swap failed units, clean filters, and handle day-to-day farm upkeep. Typically $25–$60/hr." />
             </label>
             <Input
+              id="maintenance-rate"
               type="number"
               step="1"
               min="0"
