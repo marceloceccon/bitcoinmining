@@ -4,7 +4,6 @@ import { computeFarmReport } from "@/lib/farmReport";
 import { FALLBACK_MARKET } from "@/lib/networkData";
 import { formatHashRate, formatPower, formatUsd } from "@/lib/utils";
 
-export const runtime = "edge";
 export const alt = "MineForge · Bitcoin Mining Farm Calculator: a live farm schematic with power, cooling, CAPEX and monthly profit";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";

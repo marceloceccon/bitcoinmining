@@ -11,6 +11,7 @@ Patterns to keep (and mistakes not to repeat) on this project.
 ## Shell (zsh in this container)
 - Don't name a loop variable `path`: zsh ties it to `$PATH` and every later command "isn't found".
 - `$VAR` holding a command doesn't word-split in zsh. Use a function or a bash script file.
+- `pnpm cf:build` fails here with `EACCES ... .open-next/.build`: Node 24's native `fs.cpSync` can't write to the virtiofs workspace mount. It's not a project bug (Cloudflare CI is fine). To test locally, copy the repo to the scratchpad and build there.
 
 ## Next.js
 - `next.config.js` runs once per build worker. Resolve anything environment-derived (git hash) once and export it through `process.env`, or server and client bundles can disagree.

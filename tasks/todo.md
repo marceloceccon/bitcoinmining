@@ -476,14 +476,14 @@ Principle: **market state is an input, never a constant.** One `MarketSnapshot` 
   - In `tasks/launch/` (5 drafts plus a README with posting order).
 ### P7 — Final verification and review
 
-- [ ] **P7.1 MUST** Full Definition of Done on `main` after the last merge: lint, typecheck, unit, e2e and build all pass, and CI is green.
-- [ ] **P7.2 MUST** Production smoke:
+- [x] **P7.1 MUST** Full Definition of Done on `main` after the last merge: lint, typecheck, unit, e2e and build all pass, and CI is green.
+- [x] **P7.2 MUST** Production smoke:
   - `curl -s https://www.bitcoinminingfarmcalculator.com/api/network` (live, with fees and height);
   - `/api/mcp` `tools/list` via the Inspector CLI;
   - the apex returns 308 → www;
   - `/llms.txt`, `/sitemap.xml` and the canonical tag are correct.
 - [x] **P7.3 MUST** Cross-check: for 1 × S21 XP at $0.05/kWh, compare the site's day-1 revenue with Hashrate Index hashprice × 0.27 PH. They should agree within ±3%. Record it in §9.
-- [ ] **P7.4 MUST** Lighthouse scores vs the §1 targets; record them in §9.
+- [x] **P7.4 MUST** Lighthouse scores vs the §1 targets; record them in §9.
 - [ ] **P7.5 MUST** Update `../tasks/lessons.md` with anything learned, and fill in §9.
 
 ---
@@ -699,10 +699,32 @@ Luxor ASIC price index via The Block, 2026-09-27 (theblock.co/data/on-chain-metr
 - P5.8 MCP Inspector run (live data, 2026-10-04), "plan a 1 MW air-cooled farm in Paraguay at $0.04/kWh": `compare_miners` ranked S23, A16XP and SealMiner A3 Pro Air as the most profitable air units/day. `calculate_farm` (261 × S21 XP, Asunción) gave 70.47 PH/s, 999 kW, 1,199 kVA, CAPEX $1,136,712, OPEX $37,012/mo, 6 × 56″ fans (ERA5: design max 40.5 °C, 71% humidity). `forecast_farm` (48 mo, flat $84,830) gave break-even BTC $62,097 (incl. CAPEX $99,954), payback not within 48 mo, NPV −$487k. Real-client (Claude) transcript still to do.
 - P7.3 revenue cross-check vs Hashrate Index (2026-10-04 ~02:55 UTC): HRI hashprice $40.48/PH/day (979 EH/s, BTC $84,794); ours $40.04/PH/day incl. fees (mempool.space: 960 EH/s, BTC $84,790, 0.0242 BTC fees/block). 1 × S21 XP (0.27 PH) day-1 gross revenue: ours $10.81 vs HRI $10.93, **−1.08%, within ±3%**. Most of the gap is the hashrate estimate; our formula at HRI's own hashrate and price gives $39.29 (−2.95%), which points to a higher fee average on HRI's side.
 - P4.12 Lighthouse (local production build, mobile): Perf 98 / A11y 100 / BP 96 (local Vercel Analytics 404 only) / SEO 100; LCP 2.3 s, TBT 20 ms, CLS 0.001.
-- P7.4 Lighthouse (final):
+- P7.1 (2026-10-04): PRs #1–#7 merged as a stack (main `e17a184`); main CI is green (lint, typecheck, unit, build, e2e incl. axe).
+- P7.2 production smoke: every page, `llms.txt`, sitemap, robots, `/api-docs` and the OG image return 200. `/api/network` is live (tip 969,857, fees 0.0236 BTC/block, hashprice $40.49/PH/day). The canonical is on www. The apex returns **308** → www. MCP `tools/list` via JSON-RPC returns all 7 tools, and `get_network_stats` via the Inspector CLI works on production.
+- P7.4 Lighthouse (final): PageSpeed Insights was over quota, so this is local Lighthouse 13.5 (mobile) against production. Runs: 94/100/100/100, 100/100/100/100, 99/100/100/100 → **median 99 / 100 / 100 / 100** (LCP 1.7–2.7 s, CLS ≤0.001). Meets the §1 targets.
 
 ### Retrospective
 - Pinning the engine with golden fixtures before touching it made every later change cheap to review. Each moved number has a one-line cause in its commit.
 - The "unexplained OPEX" didn't exist, but itemizing it with a test exposed a real forecast/dashboard mismatch. Investigations should end in a test either way.
 - The e2e console-error check found two real bugs that unit tests couldn't: the UI storing 429 bodies as data, and an intermittent hydration mismatch from Next build workers.
 - Running every tab through axe in light and dark caught the contrast and label issues that a single Lighthouse run of the landing view missed.
+
+---
+
+## 10. Cloudflare Workers as a secondary target (2026-10-04, branch `deploy/cloudflare`)
+
+Why the Cloudflare build failed: the deploy command `npx wrangler deploy` found no wrangler config, so wrangler ran `@opennextjs/cloudflare migrate` in CI. That ran `pnpm add -D wrangler`, and pnpm 12 failed with `ERR_PNPM_IGNORED_BUILDS` because `workerd`'s postinstall wasn't in `allowBuilds`. Vercel builds Next.js natively, so it never got there.
+
+- [x] Add `@opennextjs/cloudflare` and `wrangler` as devDeps, and approve `workerd` in `pnpm-workspace.yaml`
+- [x] Bump `next` and `eslint-config-next` 15.5.15 → 15.5.27 (OpenNext 1.20 peer range: `>=15.5.27 <16`)
+- [x] Commit `wrangler.jsonc` (assets, images binding, `nodejs_compat`) and `open-next.config.ts` (static-assets incremental cache; no ISR, so no R2)
+- [x] Add the `cf:build`, `cf:preview` and `cf:deploy` scripts; Vercel's `build` is unchanged
+- [x] Remove `runtime = "edge"` from `app/opengraph-image.tsx`, which OpenNext doesn't support. It's now prerendered at build (`○`) on both targets
+- [x] Add the README section "Deploying to Cloudflare"
+- [ ] Cloudflare dashboard: build command `pnpm cf:build`, deploy command `pnpm cf:deploy`, then run a real deploy
+
+### Review
+- Vercel path: lint ✔ · typecheck ✔ · 646/646 vitest ✔ · `next build` ✔ · 77 e2e passed (3 reduced-motion-only skips).
+- Cloudflare path: a clean `pnpm install --frozen-lockfile` and `pnpm cf:build` on local disk ✔. `cf:preview` (workerd) returns 200 for `/`, `/opengraph-image` (rendered correctly), `/api/network` (live), `/api-docs`, sitemap, robots, `llms.txt` and `/_next/image`, and MCP `tools/list` returns all 7 tools.
+- Docker (alpine): the image builds with `workerd` in the tree, and `/` and `/opengraph-image` return 200.
+- Known difference on Cloudflare: the MCP methodology resource can't read `ARCHITECTURE.md` from disk and falls back to the GitHub link. Vercel Analytics has no effect.
