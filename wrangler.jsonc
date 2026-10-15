@@ -9,6 +9,11 @@
   // No production workers.dev copy of the site (it would duplicate www); PR Previews get workers.dev URLs.
   "workers_dev": false,
   "preview_urls": true,
+  // Workers Cache stays off: its cache key ignores the hostname, so the apex's cached 308 → www
+  // could be served to www itself (a redirect loop). Static assets are cached via public/_headers.
+  "cache": {
+    "enabled": false
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
