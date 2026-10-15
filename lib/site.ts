@@ -56,6 +56,7 @@ export function pageMetadata({
 
 /** Last real content change per page (ISO date). Feeds the sitemap's lastmod and schema dateModified. */
 export const PAGE_UPDATED = {
+  "/": "2026-10-15",
   "/methodology": "2026-10-15",
   "/mcp": "2026-10-15",
   "/api-docs": "2026-10-15",

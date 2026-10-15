@@ -23,6 +23,7 @@ const PAGE_JSON_LD = {
       url: `${SITE_URL}/methodology`,
       mainEntityOfPage: `${SITE_URL}/methodology`,
       dateModified: PAGE_UPDATED["/methodology"],
+      image: `${SITE_URL}/opengraph-image`,
       inLanguage: "en",
       author: { "@id": `${SITE_URL}/#person` },
       publisher: { "@id": `${SITE_URL}/#org` },

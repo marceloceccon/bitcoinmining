@@ -24,7 +24,7 @@ Lab CWV (Lighthouse 13.5, mobile): LCP 1.7–2.1 s, TBT ≤ 60 ms, CLS ≤ 0.001
 **Duplicate host and indexing**
 - **The apex is a full duplicate of the site.** Since the move to Cloudflare, `https://bitcoinminingfarmcalculator.com` returns 200 on every page (P7.2 recorded a 308 when Vercel served it). `next.config.js` now has host-matched `redirects()` that send the apex to `www` with a 308 and keep the path and query. There are two rules (`/` and `/:path+`) because OpenNext leaves an empty `:path*` unsubstituted, which sent the apex root to a literal `/:path*` on workerd.
 - **Subpages advertised the homepage to social and AI crawlers.** /methodology and /mcp inherited the layout's `og:url`, `og:title`, `og:description` and Twitter tags, and the 404 page inherited the homepage canonical. The new `pageMetadata()` in `lib/site.ts` gives each page its own canonical, OG and Twitter tags. The layout keeps only site-wide metadata.
-- **Sitemap `lastmod` was the build time for every URL**, which Google ignores. The homepage now uses the miner catalog's `lastUpdated`. Subpages use `PAGE_UPDATED` in `lib/site.ts`, which also feeds the TechArticle `dateModified`. Dropped `changefreq` and `priority`, which Google ignores.
+- **Sitemap `lastmod` was the build time for every URL**, which Google ignores. It now comes from `PAGE_UPDATED` in `lib/site.ts`, which also feeds the TechArticle `dateModified`. For the homepage it's the later of that date and the miner catalog's `lastUpdated`. Dropped `changefreq` and `priority`, which Google ignores.
 - **/api-docs** now has a canonical, plus a `<noscript>` H1, an intro and an endpoint list generated from `openapi.json`. Its raw and runtime titles now match.
 - **`X-Robots-Tag: noindex`** on `/api/*` and `/openapi.json`. They stay crawlable for agents but stay out of search results. On Cloudflare, static assets are served before the Worker, so `public/_headers` carries the `/openapi.json` rule. Workers doesn't serve `_headers` itself; Vercel serves it as an ordinary static file.
 - **Baseline security headers** on every response: `Referrer-Policy`, `X-Frame-Options: SAMEORIGIN` and `nosniff`. There's no CSP yet, because the theme script and analytics are inline; that needs its own PR.
@@ -48,7 +48,7 @@ Lab CWV (Lighthouse 13.5, mobile): LCP 1.7–2.1 s, TBT ≤ 60 ms, CLS ≤ 0.001
 - The above-the-fold header logo is now `priority` (it was lazy-loaded).
 - The manifest had maskable-only icons. It now has `any` and `maskable` entries.
 - The mobile results bar's `aria-label="Show full results"` hid the visible figures from its accessible name (WCAG 2.5.3, flagged by Lighthouse). It's replaced by an `sr-only` prefix.
-- **Price-source links:** 80 of 90 `price_source` values are a URL followed by a note, so the whole string went into `href` and the link broke. `MinerSelector` now links the first URL (84 of 90 miners) and shows the note in the tooltip.
+- **Price-source links:** most `price_source` values mix a URL with free text. The old `startsWith("http")` check put the whole string into `href`, which broke 39 of 49 links, and URLs that came after a note were never linked. `MinerSelector` now links the first URL in the field (84 of 90 miners) and shows the rest in the tooltip.
 
 **Agents**
 - `llms.txt` lists all 7 REST endpoints (it had 4) and links the FAQ.
