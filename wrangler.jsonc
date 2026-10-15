@@ -6,6 +6,9 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // No production workers.dev copy of the site (it would duplicate www); PR Previews get workers.dev URLs.
+  "workers_dev": false,
+  "preview_urls": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
