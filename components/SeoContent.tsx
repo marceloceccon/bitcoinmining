@@ -1,5 +1,9 @@
 // Server component — no "use client" directive
-// Renders static SEO content visible to Googlebot in initial HTML
+// Renders static SEO content visible to Googlebot in initial HTML.
+// Figures come from the engine and catalogs so the copy can't drift from the code.
+import Link from "next/link";
+import { MINERS, DRY_COOLERS } from "@/lib/catalog";
+import { CONTAINER_MINERS_CAPACITY, RACK_MINERS_CAPACITY } from "@/lib/calculations";
 
 export default function SeoContent() {
   return (
@@ -9,7 +13,7 @@ export default function SeoContent() {
         {/* How it works */}
         <div id="how-it-works">
           <h2 className="text-2xl font-bold text-fg mb-4">
-            How This Bitcoin Mining Farm Calculator Works
+            What This Bitcoin Mining Farm Calculator Models
           </h2>
 
           <p>
@@ -45,14 +49,15 @@ export default function SeoContent() {
           <ul className="mt-3 space-y-2 list-disc list-inside">
             <li>
               <strong className="text-fg">Hardware CAPEX</strong> &mdash; Select
-              from 50+ real ASIC miners (Antminer, Whatsminer, Avalon) with current
-              market pricing. Mix different models in the same farm to optimize
+              from {MINERS.length} real ASIC miners (Antminer, Whatsminer, Avalon, SealMiner) with
+              sourced, dated prices. Mix different models in the same farm to optimize
               hashrate-per-watt.
             </li>
             <li>
               <strong className="text-fg">Import taxes</strong> &mdash; Apply
-              country-specific import duties that add 5&ndash;30% to hardware cost
-              depending on jurisdiction. Includes pre-configured rates for 20+ countries.
+              your country&apos;s import duty to hardware cost, with a separate rate for
+              miners, racks, containers, fans and dry coolers. Duties typically add
+              5&ndash;30% depending on jurisdiction.
             </li>
             <li>
               <strong className="text-fg">Deployment labor</strong> &mdash;
@@ -69,7 +74,7 @@ export default function SeoContent() {
             <li>
               <strong className="text-fg">Thermal management</strong> &mdash;
               Size ventilation fans and dry coolers based on total heat output. Select
-              from 26 real dry cooler models with accurate capacity ratings. The
+              from {DRY_COOLERS.length} real dry cooler models with accurate capacity ratings. The
               calculator accounts for local ambient temperature using ERA5 climate data
               for any location on earth.
             </li>
@@ -80,7 +85,7 @@ export default function SeoContent() {
             </li>
             <li>
               <strong className="text-fg">Multi-year ROI forecasting</strong>
-              &mdash; Project revenue, expenses, and cumulative profit over 12&ndash;60
+              &mdash; Project revenue, expenses, and cumulative profit over 12&ndash;72
               months. The forecast starts from live network hashrate, subsidy and fees,
               applies your hashrate-growth estimate and halvings by block height, and
               compounds energy inflation &mdash; giving you a realistic payback timeline.
@@ -114,11 +119,11 @@ export default function SeoContent() {
             </li>
             <li>
               <strong className="text-fg">Rack cost</strong> &mdash; Mining
-              racks calculated at 10 miners per rack
+              racks calculated at {RACK_MINERS_CAPACITY} miners per rack
             </li>
             <li>
               <strong className="text-fg">Container cost</strong> &mdash;
-              Shipping containers at 100 miners per container
+              20 ft containers at up to {CONTAINER_MINERS_CAPACITY} miners each
             </li>
             <li>
               <strong className="text-fg">Cooling infrastructure</strong>
@@ -156,11 +161,12 @@ export default function SeoContent() {
           </h3>
 
           <p>
-            Monthly operating expenses include grid electricity cost (adjusted for
-            solar offset), pool fees as a percentage of gross revenue, and optional
-            solar panel maintenance. The forecast tab compounds energy price
-            inflation monthly, reflecting real-world tariff escalation that most
-            simple calculators ignore.
+            Monthly operating expenses include grid electricity cost (net of solar
+            offset, plus any electricity tax), hardware maintenance as a yearly
+            percentage of CAPEX, maintenance labor hours, and optional solar panel
+            maintenance. Pool fees come off gross revenue. The forecast tab compounds
+            energy price inflation monthly, reflecting real-world tariff escalation
+            that most simple calculators ignore.
           </p>
 
           <p className="mt-3">
@@ -207,74 +213,10 @@ export default function SeoContent() {
           </p>
         </div>
 
-        {/* FAQ */}
-        <div id="faq">
-          <h2 className="text-2xl font-bold text-fg mb-4">
-            Frequently Asked Questions
-          </h2>
-
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-semibold text-fg mb-1">
-                Is this Bitcoin mining calculator free?
-              </h3>
-              <p>
-                Yes. No account, no payment, no trial period. Calculations run in
-                your browser; the only request is for live market data, and your
-                farm configuration is never sent or stored.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-fg mb-1">
-                How accurate are the profitability projections?
-              </h3>
-              <p>
-                The projections are estimates based on the live network hashrate,
-                block subsidy and transaction fees, the BTC price scenario you
-                choose, and your input parameters. Real results depend on actual BTC
-                price movement, difficulty changes, hardware reliability, and
-                electricity rate changes. Use this as a planning tool, not a guarantee.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-fg mb-1">
-                Can I model a large-scale industrial mining farm?
-              </h3>
-              <p>
-                Yes. The simulator supports any farm size &mdash; from 1 miner to
-                10,000+. It calculates racks, containers, transformers, cooling, and
-                labor costs that scale with your operation. Most competing calculators
-                only handle single-rig scenarios.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-fg mb-1">
-                Does this calculator account for Bitcoin halving events?
-              </h3>
-              <p>
-                Yes. Halvings are computed from block height: the forecast estimates
-                when block 1,050,000 (and later halvings) will be mined at 10 minutes
-                per block and halves the subsidy from then on.
-              </p>
-            </div>
-
-            <div>
-              <h3 className="text-base font-semibold text-fg mb-1">
-                How is electricity cost modeled?
-              </h3>
-              <p>
-                You set a base electricity rate ($/kWh) and an annual energy inflation
-                percentage. The forecast engine compounds inflation monthly, giving a
-                realistic cost curve over multi-year horizons. Solar offset reduces the
-                effective grid consumption.
-              </p>
-            </div>
-          </div>
-        </div>
-
+        <p>
+          Common questions are answered in the{" "}
+          <Link href="/#faq" className="text-fg underline underline-offset-2">Bitcoin mining calculator FAQ</Link>.
+        </p>
       </div>
     </section>
   );

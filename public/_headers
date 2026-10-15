@@ -1,0 +1,3 @@
+# Cloudflare Workers static assets skip the Worker, so next.config.js headers() never reach them.
+/openapi.json
+  X-Robots-Tag: noindex

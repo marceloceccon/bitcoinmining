@@ -14,7 +14,7 @@ export default function SiteHeader() {
     <header className="site-header sticky top-0 z-40" style={{ top: "env(safe-area-inset-top, 0px)" }}>
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
         <Link href="/" className="flex items-center gap-2.5">
-          <Image src="/web-app-manifest-192x192.png" alt="" width={28} height={28} className="rounded" />
+          <Image src="/web-app-manifest-192x192.png" alt="" width={28} height={28} className="rounded" priority />
           <span className="font-semibold tracking-tight text-fg">
             MineForge <span className="hidden font-normal text-muted sm:inline">· Bitcoin Mining Farm Calculator</span>
           </span>

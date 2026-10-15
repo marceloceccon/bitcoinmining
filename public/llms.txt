@@ -5,11 +5,12 @@
 ## Docs
 
 - [Methodology](https://www.bitcoinminingfarmcalculator.com/methodology): how power, cooling, CAPEX, OPEX, revenue and forecasts are calculated
+- [FAQ](https://www.bitcoinminingfarmcalculator.com/#faq): how mining profitability, break-even electricity price and payback are calculated
 - [Formula reference (ARCHITECTURE.md)](https://github.com/marceloceccon/bitcoinmining/blob/main/ARCHITECTURE.md): every formula and its accuracy
 
 ## API
 
-- [REST API reference](https://www.bitcoinminingfarmcalculator.com/api-docs): POST /api/calculate, POST /api/forecast, GET /api/miners, GET /api/network
+- [REST API reference](https://www.bitcoinminingfarmcalculator.com/api-docs): POST /api/calculate, POST /api/forecast, GET /api/miners, GET /api/dry-coolers, GET /api/air-fans, GET /api/network, GET /api/updates
 - [OpenAPI spec](https://www.bitcoinminingfarmcalculator.com/openapi.json): machine-readable schema; 60 requests/minute per IP
 
 ## MCP

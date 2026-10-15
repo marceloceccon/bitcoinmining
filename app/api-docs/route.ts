@@ -15,14 +15,24 @@
  *
  *   3. Update SCALAR_VERSION and SCALAR_SRI below.
  */
+import openapi from '@/public/openapi.json';
+import { SITE_URL } from '@/lib/site';
+
 const SCALAR_VERSION = '1.52.1';
 const SCALAR_SRI = 'sha384-mf6gxVzEDU/HNmr0o4taUchYTK9MzpkZLQsEmEGNJFyp2Cb+k6ilAOVAFCRj1Z4R';
 const SCALAR_URL = `https://cdn.jsdelivr.net/npm/@scalar/api-reference@${SCALAR_VERSION}/dist/browser/standalone.js`;
 
+/** Endpoints listed in the static fallback, so crawlers and no-JS readers see real content. */
+const ENDPOINTS = Object.entries(openapi.paths).flatMap(([path, ops]) =>
+  Object.entries(ops as Record<string, { summary?: string }>).map(
+    ([method, op]) => `<li><code>${method.toUpperCase()} /api${path}</code>: ${escapeHtmlAttr(op.summary ?? '')}</li>`,
+  ),
+);
+
 const SCALAR_CONFIG = {
   theme: 'default',
   metaData: {
-    title: 'Bitcoin Mining Farm Calculator — API Reference',
+    title: 'Free Bitcoin Mining Calculator API Reference | MineForge',
     description:
       'Free API for Bitcoin mining profitability calculations, hardware catalogs, and multi-year forecasts.',
   },
@@ -51,10 +61,16 @@ export async function GET() {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>API Reference — Bitcoin Mining Farm Calculator</title>
+  <title>Free Bitcoin Mining Calculator API Reference | MineForge</title>
   <meta name="description" content="Free API for Bitcoin mining profitability calculations, hardware catalogs, and multi-year forecasts." />
+  <link rel="canonical" href="${SITE_URL}/api-docs" />
 </head>
 <body>
+  <noscript>
+    <h1>Bitcoin Mining Farm Calculator API Reference</h1>
+    <p>Free REST API for Bitcoin mining farm CAPEX, OPEX, cooling and multi-year forecasts. Base URL: <code>${SITE_URL}/api</code>. Machine-readable spec: <a href="/openapi.json">openapi.json</a>.</p>
+    <ul>${ENDPOINTS.join('')}</ul>
+  </noscript>
   <script
     id="api-reference"
     data-url="/openapi.json"

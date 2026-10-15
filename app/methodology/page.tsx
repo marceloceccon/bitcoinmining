@@ -3,13 +3,33 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import SeoContent from "@/components/SeoContent";
-import { FAQ_JSON_LD } from "@/lib/faqJsonLd";
+import { PAGE_UPDATED, SITE_URL, breadcrumbJsonLd, pageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Methodology",
+export const metadata: Metadata = pageMetadata({
+  path: "/methodology",
+  title: { absolute: "How the Bitcoin Mining Farm Calculator Works | MineForge" },
+  socialTitle: "How the Bitcoin Mining Farm Calculator Works",
   description:
-    "How MineForge models a Bitcoin mining farm: power and transformer sizing, climate-derated cooling, itemized CAPEX and OPEX, live-network revenue with fees and halvings by block height, and user-chosen BTC price scenarios.",
-  alternates: { canonical: "/methodology" },
+    "How MineForge calculates Bitcoin mining profitability: transformer sizing, climate-derated cooling, itemized CAPEX/OPEX and halving-aware revenue.",
+});
+
+const PAGE_JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    breadcrumbJsonLd("Methodology", "/methodology"),
+    {
+      "@type": "TechArticle",
+      headline: "How MineForge works: the Bitcoin mining farm calculator's methodology",
+      url: `${SITE_URL}/methodology`,
+      mainEntityOfPage: `${SITE_URL}/methodology`,
+      dateModified: PAGE_UPDATED["/methodology"],
+      inLanguage: "en",
+      author: { "@id": `${SITE_URL}/#person` },
+      publisher: { "@id": `${SITE_URL}/#org` },
+      about: { "@id": `${SITE_URL}/#app` },
+      isPartOf: { "@id": `${SITE_URL}/#website` },
+    },
+  ],
 };
 
 const ENDPOINTS = [
@@ -22,12 +42,12 @@ const ENDPOINTS = [
 export default function MethodologyPage() {
   return (
     <div className="min-h-screen">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PAGE_JSON_LD) }} />
       <SiteHeader />
       <main className="mx-auto max-w-4xl space-y-10 px-4 py-10">
         <header className="space-y-3">
           <p className="label">Methodology</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-fg">How MineForge works</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-fg">How the MineForge Bitcoin mining calculator works</h1>
           <p className="max-w-2xl text-fg-2">
             MineForge is a free planning tool for Bitcoin mining operations, from a single home unit to an industrial
             farm. It models hardware, deployment labor, electrical infrastructure, cooling at your site&apos;s climate,

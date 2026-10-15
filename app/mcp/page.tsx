@@ -4,16 +4,19 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CopyButton from "@/components/CopyButton";
 import { TOOLS } from "@/lib/mcp/tools";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, breadcrumbJsonLd, pageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Use MineForge from your AI agent (MCP)",
+export const metadata: Metadata = pageMetadata({
+  path: "/mcp",
+  title: { absolute: "Bitcoin Mining MCP Server for AI Agents | MineForge" },
+  socialTitle: "Bitcoin Mining MCP Server for AI Agents",
   description:
-    "Connect Claude, Cursor or VS Code to the MineForge MCP server and let your agent compare ASICs, engineer a farm, size cooling for a site and forecast it from live Bitcoin network data.",
-  alternates: { canonical: "/mcp" },
-};
+    "Connect Claude, Cursor or VS Code to a free Bitcoin mining MCP server: compare ASIC miners, engineer a farm, size cooling and forecast ROI.",
+});
 
 const ENDPOINT = `${SITE_URL}/api/mcp`;
+
+const BREADCRUMB_JSON_LD = { "@context": "https://schema.org", ...breadcrumbJsonLd("MCP server", "/mcp") };
 
 const CLIENTS: { name: string; where: string; code: string }[] = [
   { name: "Claude Code", where: "Terminal", code: `claude mcp add --transport http mineforge ${ENDPOINT}` },
@@ -48,11 +51,12 @@ const EXAMPLE = [
 export default function McpPage() {
   return (
     <div className="min-h-screen">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(BREADCRUMB_JSON_LD) }} />
       <SiteHeader />
       <main className="mx-auto max-w-4xl space-y-10 px-4 py-10">
         <header className="space-y-3">
           <p className="label">Model Context Protocol</p>
-          <h1 className="text-3xl font-semibold tracking-tight text-fg">Use MineForge from your AI agent</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-fg">Bitcoin mining MCP server: use MineForge from your AI agent</h1>
           <p className="max-w-2xl text-fg-2">
             Point any MCP client at one URL and your agent can compare ASICs at your power price, engineer a farm, size
             its cooling for a real site and forecast it from live Bitcoin network data. It runs the same tested engine

@@ -1,31 +1,19 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL } from "@/lib/site";
+import { PAGE_UPDATED, SITE_URL } from "@/lib/site";
+import updates from "@/data/updates.json";
+
+/**
+ * lastmod must change only when the page does, or Google ignores it. The homepage moves with the
+ * miner catalog; bump PAGE_UPDATED (lib/site.ts) when a subpage's copy changes.
+ */
+const PAGES: { path: string; lastModified: string }[] = [
+  { path: "", lastModified: updates.miners.lastUpdated },
+  ...Object.entries(PAGE_UPDATED).map(([path, lastModified]) => ({ path, lastModified })),
+];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: SITE_URL,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
-      url: `${SITE_URL}/methodology`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/mcp`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-    {
-      url: `${SITE_URL}/api-docs`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.8,
-    },
-  ];
+  return PAGES.map(({ path, lastModified }) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: new Date(lastModified),
+  }));
 }

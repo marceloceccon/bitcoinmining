@@ -1,8 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import MarketTicker from "@/components/MarketTicker";
 import Calculator from "@/components/Calculator";
+import Faq from "@/components/Faq";
+import { pageMetadata } from "@/lib/site";
+
+// The <title> is the layout's default; only the social title needs spelling out.
+export const metadata: Metadata = pageMetadata({
+  path: "/",
+  socialTitle: "Bitcoin Mining Farm Calculator — Profitability, CAPEX & ROI",
+  description:
+    "Free Bitcoin mining profitability calculator for farms of any size. Compare ASIC miners, size power and cooling, and forecast CAPEX, OPEX and ROI.",
+});
 
 export default function Home() {
   return (
@@ -40,6 +51,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+        <Faq />
       </main>
       <SiteFooter />
     </div>
