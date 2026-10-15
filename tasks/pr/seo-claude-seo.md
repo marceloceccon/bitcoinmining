@@ -50,6 +50,11 @@ Lab CWV (Lighthouse 13.5, mobile): LCP 1.7–2.1 s, TBT ≤ 60 ms, CLS ≤ 0.001
 - The mobile results bar's `aria-label="Show full results"` hid the visible figures from its accessible name (WCAG 2.5.3, flagged by Lighthouse). It's replaced by an `sr-only` prefix.
 - **Price-source links:** most `price_source` values mix a URL with free text. The old `startsWith("http")` check put the whole string into `href`, which broke 39 of 49 links, and URLs that came after a note were never linked. `MinerSelector` now links the first URL in the field (84 of 90 miners) and shows the rest in the tooltip.
 
+**Cloudflare caching and previews**
+- **Hashed build files were revalidated on every visit.** Workers static assets default to `Cache-Control: public, max-age=0, must-revalidate`, so browsers re-checked every `/_next/static/*` JS and CSS file each time. `public/_headers` now marks them `public, max-age=31536000, immutable`; their content hash changes with every build.
+- **HTML needs no purge on deploy.** The zone has no cache rules or page rules, and Cloudflare doesn't edge-cache this Worker's HTML (no `cf-cache-status` on `/`). Each deploy is therefore live immediately, despite Next's `s-maxage=31536000`.
+- **Worker Previews.** Preview builds for PR branches failed: the Previews base config had no build command, and `wrangler preview` requires a `previews` block. `wrangler.jsonc` now has `previews.images`, and the Previews base config in Workers Builds (an account setting, not in the repo) now runs `pnpm cf:build` before `npx wrangler preview`.
+
 **Agents**
 - `llms.txt` lists all 7 REST endpoints (it had 4) and links the FAQ.
 
@@ -67,7 +72,6 @@ None. No engine code changed.
   - Blocking Google-Extended keeps the site out of Gemini grounding.
   - Baiduspider and PetalBot are search engines.
   - Consider adding `ai-input=yes`.
-- **Cloudflare cache purge on deploy.** HTML is served with `s-maxage=31536000` and has an offline market snapshot baked in.
 - **MCP Registry.** `/.well-known/mcp-registry-auth` returns 404 in production, and the server isn't in the registry. The launch docs say to set `MCP_REGISTRY_AUTH` on Vercel, but production now runs on Cloudflare. Set it as a Cloudflare secret, run `mcp-publisher publish`, then send PRs to the awesome-mcp-servers lists.
 - **MCP methodology resource on Cloudflare.** It can't read `ARCHITECTURE.md` from disk (already known, see §10). Embedding it at build time would fix it.
 - **SXO (product decisions, not SEO plumbing).** The ranking pages for "bitcoin mining calculator" are single-miner tools with $/kWh as the first input and daily profit and payback as the headline numbers. Options:

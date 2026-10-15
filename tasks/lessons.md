@@ -16,6 +16,7 @@ Patterns to keep (and mistakes not to repeat) on this project.
 
 ## Next.js
 - **On Cloudflare (OpenNext), `next.config.js` `headers()` never reach `public/` files.** Workers serves static assets before the Worker runs. Put asset headers in `public/_headers` as well.
+- **Worker Previews need a `previews` block in `wrangler.jsonc`** that repeats the bindings the code reads (here `images`). The Workers Builds Previews base config also needs the build command (`pnpm cf:build`); it doesn't inherit production's.
 - **OpenNext doesn't substitute an empty `:path*` in redirects.** `/` would redirect to a literal `/:path*`. Use separate `/` and `/:path+` rules, and check redirects on `wrangler dev`, not only `next start`.
 - `next.config.js` runs once per build worker. Resolve anything environment-derived (git hash) once and export it through `process.env`, or server and client bundles can disagree.
 - Server components can't import plain constants from a `"use client"` module (they get a client reference). Keep shared constants in a neutral module (`lib/theme.ts`).

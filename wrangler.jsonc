@@ -16,5 +16,12 @@
   },
   "observability": {
     "enabled": true
+  },
+  // Worker Previews (Workers Builds runs `npx wrangler preview` on non-main branches). Previews don't
+  // inherit top-level bindings, so the ones the code reads from env are repeated here.
+  "previews": {
+    "images": {
+      "binding": "IMAGES"
+    }
   }
 }
