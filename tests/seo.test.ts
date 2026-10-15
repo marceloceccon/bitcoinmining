@@ -47,3 +47,27 @@ describe('/api-docs SEO', () => {
     }
   });
 });
+
+describe('apex → www redirect', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const nextConfig = require('../next.config.js');
+  const hostRules = async () =>
+    ((await nextConfig.redirects()) as { has?: { type: string; value: string }[] }[]).flatMap((r) =>
+      (r.has ?? []).filter((h) => h.type === 'host'),
+    );
+  // OpenNext (production on Cloudflare) tests `has.value` unanchored; Next anchors it. Both must agree.
+  const openNextMatches = (value: string, host: string) => new RegExp(value).test(host);
+  const nextMatches = (value: string, host: string) => new RegExp(`^${value}$`).test(host);
+
+  it('matches only the apex, never www, under both OpenNext and Next semantics', async () => {
+    const rules = await hostRules();
+    expect(rules.length).toBeGreaterThan(0);
+    for (const { value } of rules) {
+      for (const matches of [openNextMatches, nextMatches]) {
+        expect(matches(value, 'bitcoinminingfarmcalculator.com')).toBe(true);
+        expect(matches(value, 'www.bitcoinminingfarmcalculator.com')).toBe(false);
+        expect(matches(value, 'bitcoinminingfarmcalculatorXcom')).toBe(false);
+      }
+    }
+  });
+});
