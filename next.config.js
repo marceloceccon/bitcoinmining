@@ -43,8 +43,10 @@ const nextConfig = {
   // rather than serve a duplicate of every page.
   // Two rules, not one `/:path*`: OpenNext leaves an empty `:path*` unsubstituted, so the apex root
   // would redirect to a literal "/:path*".
+  // The host value must be anchored: OpenNext tests it as an unanchored regex (Next anchors it), so a
+  // bare "bitcoinminingfarmcalculator.com" also matched www and redirected www to itself in a loop.
   async redirects() {
-    const apex = [{ type: 'host', value: 'bitcoinminingfarmcalculator.com' }];
+    const apex = [{ type: 'host', value: '^bitcoinminingfarmcalculator\\.com$' }];
     const www = 'https://www.bitcoinminingfarmcalculator.com';
     return [
       { source: '/', has: apex, destination: `${www}/`, permanent: true },

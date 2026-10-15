@@ -18,6 +18,8 @@ Patterns to keep (and mistakes not to repeat) on this project.
 - **On Cloudflare (OpenNext), `next.config.js` `headers()` never reach `public/` files.** Workers serves static assets before the Worker runs. Put asset headers in `public/_headers` as well.
 - **Worker Previews need a `previews` block in `wrangler.jsonc`** that repeats the bindings the code reads (here `images`). The Workers Builds Previews base config also needs the build command (`pnpm cf:build`); it doesn't inherit production's.
 - **Don't enable Workers Cache on a host-redirecting Worker.** Its cache key excludes the hostname, so the apex's cached redirect would be served to www.
+- **OpenNext tests `has` values as unanchored regexes** (`new RegExp(value).test(host)`), while Next anchors them. Always write host matchers as `^host\\.com$`. A bare apex value also matched `www`, and production looped (2026-10-15, rolled back from the Cloudflare dashboard API).
+- **Test host-dependent routing with the real `Host` header.** Hitting `127.0.0.1` on `wrangler dev` hid the loop. `scratchpad/cfcheck.sh`-style checks must send both `www` and apex hosts.
 - **OpenNext doesn't substitute an empty `:path*` in redirects.** `/` would redirect to a literal `/:path*`. Use separate `/` and `/:path+` rules, and check redirects on `wrangler dev`, not only `next start`.
 - `next.config.js` runs once per build worker. Resolve anything environment-derived (git hash) once and export it through `process.env`, or server and client bundles can disagree.
 - Server components can't import plain constants from a `"use client"` module (they get a client reference). Keep shared constants in a neutral module (`lib/theme.ts`).

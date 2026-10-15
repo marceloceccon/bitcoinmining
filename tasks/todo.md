@@ -746,3 +746,9 @@ Claude SEO (AgriciDaniel/claude-seo) was already installed at the latest release
 - Cloudflare path (`cf:build` + `wrangler dev`): the apex redirect returns 308 for `/`, paths and queries. This needed two rules because OpenNext doesn't substitute an empty `:path*`. `/openapi.json` gets noindex from `public/_headers`, since static assets skip the Worker.
 - Policy decisions left to the owner (Cloudflare dashboard): AI training crawler blocks in the managed robots.txt and the MCP registry secret. The cache purge turned out to be unneeded, since Cloudflare doesn't edge-cache the Worker's HTML.
 - Pipeline: the Cloudflare preview build failed because the Previews base config had no build command and `wrangler.jsonc` had no `previews` block. Both are fixed: the base config now runs `pnpm cf:build`, and `previews.images` was added. `public/_headers` makes `/_next/static/*` immutable (Workers' default is `max-age=0`).
+
+### Incident (2026-10-15): redirect loop on www after the PR #11 deploy
+- Symptom: every `www` URL (sitemap, homepage) returned `308 Location: /<same path>`, which loops. The apex was fine.
+- Cause: OpenNext matches `has: host` with an unanchored `new RegExp(value)`, so `bitcoinminingfarmcalculator.com` also matched `www.…`. `next start` anchors the match, and the workerd check sent Host `127.0.0.1`, so neither caught it.
+- Mitigation: rolled the Worker back to version `f3f4392b` (2026-10-05) via the API. `www` was back to 200 within seconds.
+- Fix (`fix/apex-redirect-loop`): the anchored value `^bitcoinminingfarmcalculator\\.com$`, plus a regression test that applies OpenNext's and Next's matching to the real config. It fails on the old config. Re-verified with workerd using real Host headers: `www` returns 200 on every path, and the apex 308s to www.
