@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import MotionProvider from "@/components/MotionProvider";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
-import { SITE_URL } from "@/lib/site";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"], display: "swap" });
@@ -13,11 +13,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: "MineForge · Bitcoin Mining Farm Calculator",
   title: {
-    default: "Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool",
+    default: "Bitcoin Mining Farm Calculator — Profitability, CAPEX & ROI",
     template: "%s | Bitcoin Mining Farm Calculator",
   },
   description:
-    "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year forecasts from live network data. No signup.",
+    "Free Bitcoin mining profitability calculator for farms of any size. Compare ASIC miners, size power and cooling, and forecast CAPEX, OPEX and ROI.",
   keywords: [
     "bitcoin mining calculator",
     "bitcoin mining MCP server",
@@ -40,8 +40,8 @@ export const metadata: Metadata = {
     "industrial bitcoin mining",
     "bitcoin mining farm labor cost estimator",
   ],
-  authors: [{ name: "Bitcoin Mining Farm Calculator" }],
-  creator: "Bitcoin Mining Farm Calculator",
+  authors: [{ name: "Marcelo Ceccon", url: "https://github.com/marceloceccon" }],
+  creator: "Marcelo Ceccon",
   robots: {
     index: true,
     follow: true,
@@ -53,31 +53,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: SITE_URL,
-    siteName: "Bitcoin Mining Farm Calculator",
-    title: "Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool",
-    description:
-      "Free Bitcoin Mining Farm Calculator: Model full CAPEX/OPEX/ROI for any size ASIC operation. Hardware, taxes, cooling, solar, pool fees & multi-year forecasts from live network data. No signup.",
-    images: [
-      {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "Bitcoin mining farm simulator showing CAPEX calculator, ROI forecast, and farm schematic",
-        type: "image/png",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Bitcoin Mining Farm Calculator — Free CAPEX & ROI Tool",
-    description:
-      "Model ASIC costs, deployment labor, cooling, solar offset, and multi-year ROI. Free, private, browser-based.",
-    images: ["/opengraph-image"],
-  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -87,18 +62,45 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
-  alternates: {
-    canonical: "/",
-  },
   category: "finance",
 };
 
+const REPO_URL = "https://github.com/marceloceccon/bitcoinmining";
+
+// Site-wide nodes only (this renders on every page), linked by @id. Page-specific nodes live in the pages.
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
   {
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    name: SITE_NAME,
+    alternateName: "MineForge",
+    url: SITE_URL,
+    inLanguage: "en",
+    publisher: { "@id": `${SITE_URL}/#org` },
+  },
+  {
+    "@type": "Organization",
+    "@id": `${SITE_URL}/#org`,
+    name: SITE_NAME,
+    alternateName: "MineForge",
+    url: SITE_URL,
+    logo: `${SITE_URL}/web-app-manifest-512x512.png`,
+    founder: { "@id": `${SITE_URL}/#person` },
+    sameAs: [REPO_URL],
+  },
+  {
+    "@type": "Person",
+    "@id": `${SITE_URL}/#person`,
+    name: "Marcelo Ceccon",
+    url: "https://github.com/marceloceccon",
+    sameAs: ["https://github.com/marceloceccon"],
+  },
+  {
     "@type": "SoftwareApplication",
-    name: "Bitcoin Mining Farm Calculator",
+    "@id": `${SITE_URL}/#app`,
+    name: SITE_NAME,
     alternateName: "MineForge",
     url: SITE_URL,
     description:
@@ -108,6 +110,11 @@ const jsonLd = {
     browserRequirements: "Requires JavaScript",
     inLanguage: "en",
     isAccessibleForFree: true,
+    screenshot: `${SITE_URL}/screenshot.png`,
+    author: { "@id": `${SITE_URL}/#person` },
+    publisher: { "@id": `${SITE_URL}/#org` },
+    isPartOf: { "@id": `${SITE_URL}/#website` },
+    license: `${REPO_URL}/blob/main/LICENSE`,
     offers: {
       "@type": "Offer",
       price: "0",
@@ -123,15 +130,9 @@ const jsonLd = {
       "Solar power offset modeling",
       "Dry cooler and ventilation fan sizing with ERA5 climate data",
       "Deployment labor and electrical infrastructure estimation",
-      "Country-specific import tax calculator",
+      "Per-component import duty rates",
       "Free API for developers and AI agents",
     ],
-  },
-  {
-    "@type": "Organization",
-    name: "Bitcoin Mining Farm Calculator",
-    url: SITE_URL,
-    logo: `${SITE_URL}/web-app-manifest-512x512.png`,
   },
   ],
 };
@@ -153,7 +154,8 @@ export default function RootLayout({
       </head>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <MotionProvider>{children}</MotionProvider>
-        <Analytics />
+        {/* Vercel Analytics only exists on Vercel; elsewhere (Cloudflare) its script 404s on every page */}
+        {process.env.VERCEL && <Analytics />}
       </body>
     </html>
   );

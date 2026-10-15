@@ -728,3 +728,21 @@ Why the Cloudflare build failed: the deploy command `npx wrangler deploy` found 
 - Cloudflare path: a clean `pnpm install --frozen-lockfile` and `pnpm cf:build` on local disk ✔. `cf:preview` (workerd) returns 200 for `/`, `/opengraph-image` (rendered correctly), `/api/network` (live), `/api-docs`, sitemap, robots, `llms.txt` and `/_next/image`, and MCP `tools/list` returns all 7 tools.
 - Docker (alpine): the image builds with `workerd` in the tree, and `/` and `/opengraph-image` return 200.
 - Known difference on Cloudflare: the MCP methodology resource can't read `ARCHITECTURE.md` from disk and falls back to the GitHub link. Vercel Analytics has no effect.
+
+---
+
+## 11. SEO pass with Claude SEO v2.4.2 (2026-10-15, branch `seo/claude-seo-optimizations`)
+
+Claude SEO (AgriciDaniel/claude-seo) was already installed at the latest release (v2.4.2, `doctor`: ready). We ran `/seo audit` against production, then fixed the code-level findings. The user asked for a PR, so the PR serves as the check-in.
+
+- [x] Full audit: technical, content/on-page, schema, performance/images, GEO/agentic, SXO (health score before: 71/100)
+- [x] Fix the code-level findings: apex redirect, per-page canonical/OG, real sitemap lastmod, /api-docs canonical + fallback, noindex on JSON, copy that contradicted the engine, titles/H1s/descriptions, homepage FAQ from one source, linked JSON-LD graph, breadcrumbs/TechArticle, analytics 404 on Cloudflare, price-source links, llms.txt
+- [x] lint, typecheck, unit, build, e2e
+- [x] Open the PR with the audit summary and the off-site/strategy items that aren't code. Details: `tasks/pr/seo-claude-seo.md`
+
+### Review
+- lint ✔ · typecheck ✔ · 650/650 vitest ✔ (new `tests/seo.test.ts`) · `next build` ✔ · 81 e2e passed (3 reduced-motion-only skips), including the new canonical/og:url/FAQ test.
+- `next start`, checked by hand: an apex `Host` gets a 308 to www with path and query kept. `/api/*` and `/openapi.json` send `X-Robots-Tag: noindex`. JSON-LD parses on every page.
+- Cloudflare path (`cf:build` + `wrangler dev`): the apex redirect returns 308 for `/`, paths and queries. This needed two rules because OpenNext doesn't substitute an empty `:path*`. `/openapi.json` gets noindex from `public/_headers`, since static assets skip the Worker.
+- Policy decisions left to the owner (Cloudflare dashboard): AI training crawler blocks in the managed robots.txt and the MCP registry secret. The cache purge turned out to be unneeded, since Cloudflare doesn't edge-cache the Worker's HTML.
+- Pipeline: the Cloudflare preview build failed because the Previews base config had no build command and `wrangler.jsonc` had no `previews` block. Both are fixed: the base config now runs `pnpm cf:build`, and `previews.images` was added. `public/_headers` makes `/_next/static/*` immutable (Workers' default is `max-age=0`).

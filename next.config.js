@@ -39,6 +39,33 @@ const nextConfig = {
     NEXT_PUBLIC_COMMIT_HASH: hash,
     NEXT_PUBLIC_COMMIT_DATE: date,
   },
+  // www is canonical (lib/site.ts). The apex is proxied to the same Worker, so redirect it here
+  // rather than serve a duplicate of every page.
+  // Two rules, not one `/:path*`: OpenNext leaves an empty `:path*` unsubstituted, so the apex root
+  // would redirect to a literal "/:path*".
+  async redirects() {
+    const apex = [{ type: 'host', value: 'bitcoinminingfarmcalculator.com' }];
+    const www = 'https://www.bitcoinminingfarmcalculator.com';
+    return [
+      { source: '/', has: apex, destination: `${www}/`, permanent: true },
+      { source: '/:path+', has: apex, destination: `${www}/:path+`, permanent: true },
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+        ],
+      },
+      // Machine-readable endpoints: crawlable for agents, kept out of search results.
+      { source: '/api/:path*', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+      { source: '/openapi.json', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] },
+    ];
+  },
 };
 
 module.exports = nextConfig;

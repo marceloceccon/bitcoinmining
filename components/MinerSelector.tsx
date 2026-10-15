@@ -18,6 +18,13 @@ const SEGMENTS: { id: MinerSegment | "all"; label: string }[] = [
   { id: "home", label: "Home" },
 ];
 
+/** `price_source` is free text: a URL, a note, or both. Link the first URL; the rest goes in the tooltip. */
+function splitPriceSource(source: string): { url: string | null; note: string } {
+  const url = source.match(/https?:\/\/[^\s)]+/)?.[0]?.replace(/[.,;]+$/, "") ?? null;
+  const note = (url ? source.replace(url, "") : source).replace(/\(\s*\)/g, "").replace(/\s+/g, " ").replace(/^[\s,;:–-]+|[\s,;:–-]+$/g, "");
+  return { url, note };
+}
+
 function priceNote(miner: Miner): string | null {
   if (miner.price_basis === "used") return "used-market price";
   if (miner.price_basis === "index") return "index estimate";
@@ -114,21 +121,25 @@ export default function MinerSelector() {
               </div>
             </div>
             <div className="text-right mr-4">
-              {miner.price_source.startsWith("http") ? (
-                <a
-                  href={miner.price_source}
-                  title={`${miner.price_basis} price, as of ${miner.price_as_of}`}
-                  className="block font-mono text-sm font-semibold text-fg hover:underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {formatUsd(miner.price_usd)}
-                </a>
-              ) : (
-                <span title={`${miner.price_basis} price, as of ${miner.price_as_of}: ${miner.price_source}`} className="block font-mono text-sm font-semibold text-fg">
-                  {formatUsd(miner.price_usd)}
-                </span>
-              )}
+              {(() => {
+                const { url, note } = splitPriceSource(miner.price_source);
+                const title = `${miner.price_basis} price, as of ${miner.price_as_of}${note ? `: ${note}` : ""}`;
+                return url ? (
+                  <a
+                    href={url}
+                    title={title}
+                    className="block font-mono text-sm font-semibold text-fg hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {formatUsd(miner.price_usd)}
+                  </a>
+                ) : (
+                  <span title={title} className="block font-mono text-sm font-semibold text-fg">
+                    {formatUsd(miner.price_usd)}
+                  </span>
+                );
+              })()}
               {priceNote(miner) && <div className="text-[10px] text-faint">{priceNote(miner)}</div>}
             </div>
             <Button variant="primary" size="sm" onClick={() => handleAddMiner(miner)} aria-label={`Add ${miner.name}`}>

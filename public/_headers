@@ -1,0 +1,9 @@
+# Cloudflare Workers static assets. They're served before the Worker runs, so next.config.js headers()
+# never reach them; Vercel ignores this file (it serves it as a plain static file).
+
+# Content-hashed build output never changes under the same URL (Workers' default is max-age=0).
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/openapi.json
+  X-Robots-Tag: noindex

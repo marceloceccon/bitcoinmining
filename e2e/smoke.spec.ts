@@ -116,7 +116,7 @@ test('tabs are keyboard-operable and deep-linkable', async ({ page }) => {
 test('the methodology page renders', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/methodology');
-  await expect(page.getByRole('heading', { level: 1, name: 'How MineForge works' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'How the MineForge Bitcoin mining calculator works' })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -156,7 +156,7 @@ test('the farm survives a reload, and a share link reproduces it in a fresh brow
 test('the MCP page lists every tool and the endpoint; llms.txt is served', async ({ page, request }) => {
   const errors = collectErrors(page);
   await page.goto('/mcp');
-  await expect(page.getByRole('heading', { level: 1, name: 'Use MineForge from your AI agent' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Bitcoin mining MCP server: use MineForge from your AI agent' })).toBeVisible();
   for (const tool of ['get_network_stats', 'list_miners', 'get_miner', 'compare_miners', 'calculate_farm', 'forecast_farm', 'size_cooling']) {
     await expect(page.getByText(tool, { exact: true }).first()).toBeVisible();
   }
@@ -165,4 +165,18 @@ test('the MCP page lists every tool and the endpoint; llms.txt is served', async
   const llms = await request.get('/llms.txt');
   expect(llms.status()).toBe(200);
   expect(await llms.text()).toMatch(/^# MineForge/);
+});
+
+test('each page has its own canonical and og:url; the homepage FAQ matches its structured data', async ({ page }) => {
+  for (const path of ['/', '/methodology', '/mcp']) {
+    await page.goto(path);
+    const url = `https://www.bitcoinminingfarmcalculator.com${path === '/' ? '' : path}`;
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', url);
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', url);
+  }
+  await page.goto('/');
+  const faq = page.locator('#faq dt');
+  const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const faqPage = ld.map((t) => JSON.parse(t)).find((j) => j['@type'] === 'FAQPage');
+  expect(await faq.allTextContents()).toEqual(faqPage.mainEntity.map((q: { name: string }) => q.name));
 });

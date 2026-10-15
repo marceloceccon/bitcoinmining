@@ -84,6 +84,7 @@ export default function Calculator() {
       <section className="mx-auto grid max-w-7xl items-center gap-8 px-4 pb-6 pt-8 lg:grid-cols-[5fr_7fr] lg:pt-12">
         <div>
           <h1 className="text-3xl font-semibold leading-[1.1] tracking-tight text-fg sm:text-4xl">
+            <span className="label mb-2 block">Bitcoin mining farm calculator</span>
             Plan a Bitcoin mining farm down to the transformer and the last fan.
           </h1>
           <p className="mt-3 max-w-xl text-fg-2">
@@ -193,8 +194,9 @@ export default function Calculator() {
           type="button"
           onClick={() => setSheetOpen(true)}
           className="grid w-full grid-cols-[repeat(4,minmax(0,1fr))_auto] items-center gap-2 px-3 py-2 text-left"
-          aria-label="Show full results"
         >
+          {/* No aria-label: the accessible name must contain the visible figures (WCAG 2.5.3) */}
+          <span className="sr-only">Show full results:</span>
           {[
             ["Hash", report ? formatHashRate(report.totalHashRateThs) : "—"],
             ["Power", report ? formatPower(report.totalPowerKw) : "—"],
