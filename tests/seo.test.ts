@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import sitemap from '@/app/sitemap';
 import { GET as apiDocs } from '@/app/api-docs/route';
 import { FAQ, FAQ_JSON_LD } from '@/lib/faq';
-import { SITE_URL, pageMetadata } from '@/lib/site';
+import { OG_IMAGE, SITE_URL, pageMetadata } from '@/lib/site';
 
 describe('sitemap', () => {
   it('lists every public page once, with a real (not build-time) lastmod', () => {
@@ -39,6 +39,13 @@ describe('FAQ structured data', () => {
 });
 
 describe('/api-docs SEO', () => {
+  it('has its own Open Graph and Twitter tags (it is a route handler, so the layout metadata never reaches it)', async () => {
+    const html = await (await apiDocs()).text();
+    expect(html).toContain(`<meta property="og:url" content="${SITE_URL}/api-docs" />`);
+    expect(html).toContain(`<meta property="og:image" content="${SITE_URL}/opengraph-image" />`);
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
+  });
+
   it('declares its canonical and lists every endpoint for no-JS crawlers', async () => {
     const html = await (await apiDocs()).text();
     expect(html).toContain(`<link rel="canonical" href="${SITE_URL}/api-docs" />`);
@@ -69,5 +76,20 @@ describe('apex → www redirect', () => {
         expect(matches(value, 'bitcoinminingfarmcalculatorXcom')).toBe(false);
       }
     }
+  });
+});
+
+describe('404 page', () => {
+  it('is noindex with its own title, not the homepage metadata', async () => {
+    const { metadata } = await import('@/app/not-found');
+    expect(metadata.title).toBe('Page not found');
+    expect(metadata.robots).toMatchObject({ index: false });
+  });
+});
+
+describe('social image alt', () => {
+  it('is the same text on pages (lib/site.ts) and on the image route', async () => {
+    const { alt } = await import('@/app/opengraph-image');
+    expect(OG_IMAGE.alt).toBe(alt);
   });
 });
