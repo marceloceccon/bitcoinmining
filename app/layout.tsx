@@ -65,6 +65,11 @@ export const metadata: Metadata = {
   category: "finance",
 };
 
+// Cloudflare Web Analytics site token for bitcoinminingfarmcalculator.com. It is public by design (it ships in
+// the page). The dashboard's auto-install does not reach this Worker's HTML, so the beacon is added by hand.
+// It is cookieless and only counts browsers that run JavaScript, which keeps crawlers out of the numbers.
+const CF_BEACON_TOKEN = "87e19ffe068b4ae185d5b6cff2d1b67c";
+
 const REPO_URL = "https://github.com/marceloceccon/bitcoinmining";
 
 // Site-wide nodes only (this renders on every page), linked by @id. Page-specific nodes live in the pages.
@@ -156,6 +161,13 @@ export default function RootLayout({
         <MotionProvider>{children}</MotionProvider>
         {/* Vercel Analytics only exists on Vercel; elsewhere (Cloudflare) its script 404s on every page */}
         {process.env.VERCEL && <Analytics />}
+        {process.env.NODE_ENV === "production" && (
+          <script
+            defer
+            src="https://static.cloudflareinsights.com/beacon.min.js"
+            data-cf-beacon={JSON.stringify({ token: CF_BEACON_TOKEN })}
+          />
+        )}
       </body>
     </html>
   );

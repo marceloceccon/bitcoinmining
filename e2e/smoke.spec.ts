@@ -12,7 +12,7 @@ const TABS = [
 const PRESETS = ['Home Miner', 'Garage Setup', 'Small Farm', 'Industrial'];
 
 /** Third-party noise that says nothing about our app (analytics is only served on Vercel). */
-const IGNORED_ERRORS = [/\/_vercel\/insights/, /tile\.openstreetmap\.org/];
+const IGNORED_ERRORS = [/\/_vercel\/insights/, /cloudflareinsights\.com/, /tile\.openstreetmap\.org/];
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];

@@ -82,7 +82,7 @@ pnpm cf:deploy               # upload it (wrangler login first)
 
 `cf:build` / `cf:preview` pass `--dangerouslyUseUnsupportedNextVersion` because Next.js 15 is past the two-year official support window (OpenNext would otherwise refuse the build). A Next 16 upgrade is a follow-up.
 
-In Cloudflare Workers Builds, set the build command to `pnpm cf:build` and the deploy command to `pnpm cf:deploy`. A bare `npx wrangler deploy` doesn't work. Vercel Analytics has no effect on Cloudflare.
+In Cloudflare Workers Builds, set the build command to `pnpm cf:build` and the deploy command to `pnpm cf:deploy`. A bare `npx wrangler deploy` doesn't work. Vercel Analytics has no effect on Cloudflare; Cloudflare Web Analytics is added by a beacon in `app/layout.tsx` (the dashboard's auto-install doesn't reach the Worker's HTML).
 
 ## Tech stack
 
@@ -90,7 +90,7 @@ Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS (token-based design 
 
 ## Privacy
 
-No accounts. No cookies. Anonymous page analytics only (Vercel Analytics). Calculations run in your browser; the UI only fetches the live market snapshot, and your farm configuration is never sent or stored (it's kept in your own browser's local storage, or in a share link you create).
+No accounts. No cookies. Anonymous page analytics only (Vercel Analytics, Cloudflare Web Analytics; both cookieless). Calculations run in your browser; the UI only fetches the live market snapshot, and your farm configuration is never sent or stored (it's kept in your own browser's local storage, or in a share link you create).
 
 ## License
 
