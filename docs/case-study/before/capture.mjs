@@ -4,6 +4,7 @@ const OUT = '/workspaces/code/opensource-marceloceccon/bitcoinmining/bitcoinmini
 fs.mkdirSync(OUT, { recursive: true });
 const URL = 'https://www.bitcoinminingfarmcalculator.com';
 const TABS = ['Miners', 'Energy', 'Deploy & Labor', 'Thermal', 'Projections', 'About'];
+const escapeRegExp = s => s.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 const slug = s => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const b = await chromium.launch();
 const log = [];
@@ -25,7 +26,7 @@ for (const [w, h, dsf, mobile] of [[1440, 900, 1, false], [390, 844, 2, true]]) 
   await p.waitForTimeout(2000);
   log.push(`[${w}] template applied; metrics panel text: ` + (await p.locator('body').innerText()).includes('No Metrics Yet'));
   for (const t of TABS) {
-    const btn = p.locator('button', { hasText: new RegExp(`^\\s*0\\d\\s*${t.replace(/[&]/g, '\\&')}\\s*$`) }).first();
+    const btn = p.locator('button', { hasText: new RegExp(`^\\s*0\\d\\s*${escapeRegExp(t)}\\s*$`) }).first();
     let ok = await btn.count() && await btn.isVisible();
     let target = btn;
     if (!ok) { target = p.locator('button', { hasText: t }).filter({ visible: true }).first(); ok = await target.count(); }
