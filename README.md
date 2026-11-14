@@ -80,6 +80,8 @@ pnpm cf:preview              # run that worker locally in workerd
 pnpm cf:deploy               # upload it (wrangler login first)
 ```
 
+`cf:build` / `cf:preview` pass `--dangerouslyUseUnsupportedNextVersion` because Next.js 15 is past the two-year official support window (OpenNext would otherwise refuse the build). A Next 16 upgrade is a follow-up.
+
 In Cloudflare Workers Builds, set the build command to `pnpm cf:build` and the deploy command to `pnpm cf:deploy`. A bare `npx wrangler deploy` doesn't work. Vercel Analytics has no effect on Cloudflare.
 
 ## Tech stack
