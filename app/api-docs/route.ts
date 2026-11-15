@@ -16,7 +16,7 @@
  *   3. Update SCALAR_VERSION and SCALAR_SRI below.
  */
 import openapi from '@/public/openapi.json';
-import { SITE_URL } from '@/lib/site';
+import { OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const SCALAR_VERSION = '1.52.1';
 const SCALAR_SRI = 'sha384-mf6gxVzEDU/HNmr0o4taUchYTK9MzpkZLQsEmEGNJFyp2Cb+k6ilAOVAFCRj1Z4R';
@@ -29,13 +29,14 @@ const ENDPOINTS = Object.entries(openapi.paths).flatMap(([path, ops]) =>
   ),
 );
 
+const TITLE = 'Free Bitcoin Mining Calculator API Reference | MineForge';
+/** og:title / twitter:title: the page title without the brand suffix, like the other pages. */
+const SOCIAL_TITLE = 'Free Bitcoin Mining Calculator API Reference';
+const DESCRIPTION = 'Free API for Bitcoin mining profitability calculations, hardware catalogs, and multi-year forecasts.';
+
 const SCALAR_CONFIG = {
   theme: 'default',
-  metaData: {
-    title: 'Free Bitcoin Mining Calculator API Reference | MineForge',
-    description:
-      'Free API for Bitcoin mining profitability calculations, hardware catalogs, and multi-year forecasts.',
-  },
+  metaData: { title: TITLE, description: DESCRIPTION },
 };
 
 /**
@@ -61,9 +62,27 @@ export async function GET() {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Free Bitcoin Mining Calculator API Reference | MineForge</title>
-  <meta name="description" content="Free API for Bitcoin mining profitability calculations, hardware catalogs, and multi-year forecasts." />
+  <title>${TITLE}</title>
+  <meta name="description" content="${DESCRIPTION}" />
   <link rel="canonical" href="${SITE_URL}/api-docs" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:site_name" content="${SITE_NAME}" />
+  <meta property="og:url" content="${SITE_URL}/api-docs" />
+  <meta property="og:title" content="${SOCIAL_TITLE}" />
+  <meta property="og:description" content="${DESCRIPTION}" />
+  <meta property="og:image" content="${SITE_URL}${OG_IMAGE.url}" />
+  <meta property="og:image:width" content="${OG_IMAGE.width}" />
+  <meta property="og:image:height" content="${OG_IMAGE.height}" />
+  <meta property="og:image:type" content="${OG_IMAGE.type}" />
+  <meta property="og:image:alt" content="${escapeHtmlAttr(OG_IMAGE.alt)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${SOCIAL_TITLE}" />
+  <meta name="twitter:description" content="${DESCRIPTION}" />
+  <meta name="twitter:image" content="${SITE_URL}${OG_IMAGE.url}" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 </head>
 <body>
   <noscript>

@@ -10,7 +10,8 @@ export const OG_IMAGE = {
   url: "/opengraph-image",
   width: 1200,
   height: 630,
-  alt: "Bitcoin mining farm simulator showing CAPEX calculator, ROI forecast, and farm schematic",
+  // Same text as `alt` in app/opengraph-image.tsx (the 404 page gets its tags from that file).
+  alt: "MineForge · Bitcoin Mining Farm Calculator: a live farm schematic with power, cooling, CAPEX and monthly profit",
   type: "image/png",
 };
 

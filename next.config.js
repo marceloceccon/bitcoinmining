@@ -27,6 +27,7 @@ process.env.NEXT_PUBLIC_COMMIT_DATE = date;
 
 const nextConfig = {
   output: 'standalone', // Required for Docker deployment
+  poweredByHeader: false, // no X-Powered-By: Next.js on every response
   outputFileTracingRoot: __dirname, // single-package repo; don't let a stray parent lockfile move the root
   // The MCP methodology resource reads ARCHITECTURE.md at runtime
   outputFileTracingIncludes: { '/api/mcp': ['./ARCHITECTURE.md'] },
@@ -61,6 +62,8 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // The app uses none of these (the site picker is a map click, not device location).
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), browsing-topics=()' },
         ],
       },
       // Machine-readable endpoints: crawlable for agents, kept out of search results.

@@ -7,3 +7,23 @@
 
 /openapi.json
   X-Robots-Tag: noindex
+
+# llms.txt has non-ASCII characters; Workers serves it as text/plain with no charset.
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+
+# Icons and the schema screenshot keep their URLs between builds, so a day rather than forever.
+/favicon.ico
+  Cache-Control: public, max-age=86400
+/favicon.svg
+  Cache-Control: public, max-age=86400
+/favicon-96x96.png
+  Cache-Control: public, max-age=86400
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+/web-app-manifest-192x192.png
+  Cache-Control: public, max-age=86400
+/web-app-manifest-512x512.png
+  Cache-Control: public, max-age=86400
+/screenshot.png
+  Cache-Control: public, max-age=86400
